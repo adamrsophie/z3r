@@ -1,0 +1,28 @@
+# Address and undefined-behavior sanitizers, using R built with ASan/UBSan.
+name: sanitizers
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  asan-ubsan:
+    runs-on: ubuntu-latest
+    container: rocker/r-devel-san:latest
+    env:
+      ASAN_OPTIONS: "detect_leaks=0:abort_on_error=1"
+      UBSAN_OPTIONS: "print_stacktrace=1:halt_on_error=1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Z3 and R dependencies
+        run: |
+          apt-get update && apt-get install -y libz3-dev
+          RDsan -e 'install.packages(c("Rcpp", "testthat", "gmp"))'
+      - name: Install and test with sanitizers
+        run: |
+          RDsan CMD INSTALL .
+          cd tests && RDsan -e 'library(testthat); library(z3r); test_dir("testthat", stop_on_failure = TRUE)'

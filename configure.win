@@ -1,0 +1,107 @@
+#!/bin/sh
+# Windows configuration (run by R with the Rtools shell).
+#
+# Search order:
+#   1. PKG_CPPFLAGS and PKG_LIBS, used verbatim when PKG_LIBS is set.
+#   2. Z3_DIR (the root of an unpacked official Z3 release, containing
+#      include/ and bin/), or Z3_INCLUDE_DIR and Z3_LIB_DIR.
+#   3. pkg-config z3 (for example an Rtools or MSYS2 z3 package).
+#
+# Official Z3 releases ship libz3.dll. The C API has a plain C ABI, so the
+# MinGW toolchain of Rtools links against the DLL directly. The DLL is copied
+# next to z3r.dll at install time, where Windows finds it when R loads the
+# package. Nothing is downloaded.
+
+: "${R_HOME:=`R RHOME`}"
+RBIN="${R_HOME}/bin${R_ARCH_BIN}/R"
+CXX=`"${RBIN}" CMD config CXX`
+CXXFLAGS=`"${RBIN}" CMD config CXXFLAGS`
+
+try_z3 () {
+  cat > conftest.cpp <<EOF
+#include <z3.h>
+#include <stdio.h>
+int main(void) {
+  unsigned major, minor, build, rev;
+  Z3_get_version(&major, &minor, &build, &rev);
+  printf("%u.%u.%u\n", major, minor, build);
+  void *p = (void *) &Z3_get_string_contents;
+  if (!p) return 2;
+  if (major != 4) return major > 4 ? 0 : 1;
+  if (minor != 8) return minor > 8 ? 0 : 1;
+  return build >= 12 ? 0 : 1;
+}
+EOF
+  rm -f conftest.exe
+  ${CXX} $1 ${CXXFLAGS} conftest.cpp -o conftest.exe $2 >> config.log 2>&1 || return 1
+  if test -n "$3"; then cp "$3" . 2>> config.log; fi
+  Z3_FOUND_VERSION=`./conftest.exe 2>> config.log` || return 1
+  return 0
+}
+
+: > config.log
+Z3_CPPFLAGS=""
+Z3_LIBS=""
+Z3_DLL=""
+Z3_SOURCE=""
+
+# Windows paths may use backslashes, which sed below would treat as escapes.
+to_slash () { printf '%s\n' "$1" | sed 's|\\|/|g'; }
+Z3_DIR=`to_slash "${Z3_DIR}"`
+Z3_INCLUDE_DIR=`to_slash "${Z3_INCLUDE_DIR}"`
+Z3_LIB_DIR=`to_slash "${Z3_LIB_DIR}"`
+
+if test -n "${Z3_DIR}"; then
+  : "${Z3_INCLUDE_DIR:=${Z3_DIR}/include}"
+  : "${Z3_LIB_DIR:=${Z3_DIR}/bin}"
+fi
+
+if test -n "${PKG_LIBS}"; then
+  Z3_CPPFLAGS="${PKG_CPPFLAGS}"
+  Z3_LIBS="${PKG_LIBS}"
+  Z3_SOURCE="PKG_CPPFLAGS/PKG_LIBS"
+  try_z3 "${Z3_CPPFLAGS}" "${Z3_LIBS}" "" || Z3_SOURCE=""
+elif test -n "${Z3_INCLUDE_DIR}" || test -n "${Z3_LIB_DIR}"; then
+  Z3_CPPFLAGS="-I\"${Z3_INCLUDE_DIR}\""
+  if test -f "${Z3_LIB_DIR}/libz3.dll"; then
+    Z3_DLL="${Z3_LIB_DIR}/libz3.dll"
+    Z3_LIBS="\"${Z3_DLL}\""
+  else
+    Z3_LIBS="-L\"${Z3_LIB_DIR}\" -lz3"
+  fi
+  Z3_SOURCE="Z3_INCLUDE_DIR/Z3_LIB_DIR"
+  try_z3 "-I${Z3_INCLUDE_DIR}" "${Z3_DLL:--L${Z3_LIB_DIR} -lz3}" "${Z3_DLL}" || Z3_SOURCE=""
+elif pkg-config --exists z3 2>/dev/null; then
+  Z3_CPPFLAGS=`pkg-config --cflags z3`
+  Z3_LIBS=`pkg-config --libs --static z3`
+  Z3_SOURCE="pkg-config"
+  try_z3 "${Z3_CPPFLAGS}" "${Z3_LIBS}" "" || Z3_SOURCE=""
+fi
+
+rm -f conftest.cpp conftest.exe libz3.dll
+
+if test -z "${Z3_SOURCE}"; then
+  cat >&2 <<EOF
+------------------------------------------------------------------------
+configure.win: could not find a usable Z3 C library (4.8.12 or later).
+
+1. Download and unpack an official release, for example
+   z3-4.16.0-x64-win.zip from https://github.com/Z3Prover/z3/releases
+2. Point z3r at it and reinstall, from R:
+     Sys.setenv(Z3_DIR = "C:/path/to/z3-4.16.0-x64-win")
+     install.packages("z3r", type = "source")
+   or from a shell:
+     Z3_DIR=C:/path/to/z3-4.16.0-x64-win R CMD INSTALL z3r
+
+Z3_INCLUDE_DIR and Z3_LIB_DIR (the folder holding libz3.dll), or
+PKG_CPPFLAGS and PKG_LIBS, may be given instead. Compiler output is in
+config.log.
+------------------------------------------------------------------------
+EOF
+  exit 1
+fi
+
+echo "configure.win: using Z3 ${Z3_FOUND_VERSION} (found via ${Z3_SOURCE})"
+sed -e "s|@Z3_CPPFLAGS@|${Z3_CPPFLAGS}|" -e "s|@Z3_LIBS@|${Z3_LIBS}|" \
+    -e "s|@Z3_DLL@|${Z3_DLL}|" src/Makevars.win.in > src/Makevars.win
+exit 0

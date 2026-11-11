@@ -1,0 +1,38 @@
+Package: z3r
+Title: Native R Interface to the Z3 Theorem Prover
+Version: 0.1.0
+Authors@R:
+    person("Adam R", "Sophie", email = "adamrsophie@gmail.com",
+           role = c("aut", "cre", "cph"))
+Description: An interface to the 'Z3' satisfiability modulo theories (SMT)
+    solver <https://github.com/Z3Prover/z3> built directly on its native C
+    API. Provides typed symbolic expressions over integers, exact rationals,
+    Booleans, bit-vectors, arrays, strings and uninterpreted functions,
+    natural R operator syntax, incremental solving, assumptions and
+    unsatisfiable cores, optimization, quantifiers, tactics, and 'SMT-LIB2'
+    import and export. Exact values are never silently rounded to double
+    precision. This is an independent third-party package; it is not an
+    official 'Z3' or Microsoft product.
+License: GPL-3
+URL: https://github.com/adamrsophie/z3r
+BugReports: https://github.com/adamrsophie/z3r/issues
+Encoding: UTF-8
+Language: en-US
+Depends:
+    R (>= 4.3.0)
+Imports:
+    Rcpp (>= 1.0.10)
+LinkingTo:
+    Rcpp
+Suggests:
+    gmp,
+    knitr,
+    rmarkdown,
+    testthat (>= 3.0.0)
+VignetteBuilder: knitr
+SystemRequirements: Z3 (>= 4.8.12) C library and headers: libz3-dev
+    (Debian, Ubuntu), z3-devel (Fedora), z3 (Homebrew), or an official Z3
+    release archive
+Config/testthat/edition: 3
+Roxygen: list(markdown = TRUE)
+Config/roxygen2/version: 8.1.1

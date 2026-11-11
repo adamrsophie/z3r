@@ -1,0 +1,58 @@
+url: https://adamrsophie.github.io/z3r/
+template:
+  bootstrap: 5
+
+reference:
+- title: Contexts and sorts
+  contents:
+  - z3_context
+  - z3_version
+  - z3_context_of
+  - z3_sorts
+  - z3_sort
+- title: Expressions and values
+  contents:
+  - z3_const
+  - z3_int_val
+  - z3_value
+  - z3_decimal
+  - z3_simplify
+  - z3_identical
+  - z3_is_expr
+- title: Operators and functions
+  contents:
+  - z3_operators
+  - z3_and
+  - z3_sum
+- title: Solving
+  contents:
+  - z3_solver
+  - z3_add
+  - z3_check
+  - z3_model
+  - z3_eval
+  - as.list.z3_model
+  - z3_push
+  - z3_assertions
+  - z3_assert_and_track
+  - z3_unsat_core
+  - z3_reason_unknown
+  - z3_set_params
+  - z3_statistics
+- title: Optimization
+  contents:
+  - z3_optimize
+  - z3_minimize
+  - z3_add_soft
+  - z3_optimum
+- title: Theories
+  contents:
+  - z3_bitvectors
+  - z3_array
+  - z3_strings
+  - z3_function
+  - z3_forall
+- title: Tactics and SMT-LIB2
+  contents:
+  - z3_tactic
+  - z3_to_smtlib

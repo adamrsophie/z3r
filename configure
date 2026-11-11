@@ -1,0 +1,170 @@
+#!/bin/sh
+# Locate the Z3 C library and write src/Makevars.
+#
+# Search order:
+#   1. PKG_CPPFLAGS and PKG_LIBS, used verbatim when PKG_LIBS is set.
+#   2. Z3_INCLUDE_DIR and/or Z3_LIB_DIR.
+#   3. pkg-config z3.
+#   4. Common prefixes: /opt/homebrew, /usr/local, /usr, /opt/local.
+#
+# Every candidate is verified by compiling, linking and running a small
+# program that checks the Z3 version. Nothing is downloaded.
+
+Z3_MIN_MAJOR=4
+Z3_MIN_MINOR=8
+Z3_MIN_BUILD=12
+
+: "${R_HOME:=`R RHOME`}"
+if test -z "${R_HOME}"; then
+  echo "configure: could not determine R_HOME" >&2
+  exit 1
+fi
+RBIN="${R_HOME}/bin/R"
+CXX=`"${RBIN}" CMD config CXX`
+CXXFLAGS=`"${RBIN}" CMD config CXXFLAGS`
+R_CPPFLAGS=`"${RBIN}" CMD config CPPFLAGS`
+R_LDFLAGS=`"${RBIN}" CMD config LDFLAGS`
+
+try_z3 () {
+  # $1 = preprocessor flags, $2 = linker flags. z3r's flags come before R's
+  # own, as they do when the package is compiled, so that a Z3 chosen through
+  # Z3_INCLUDE_DIR wins over another copy in a directory R already searches.
+  cat > conftest.cpp <<EOF
+#include <z3.h>
+#include <stdio.h>
+#if defined(__has_include)
+#  if __has_include(<z3_version.h>)
+#    include <z3_version.h>
+#  endif
+#endif
+int main(void) {
+  unsigned major, minor, build, rev;
+  Z3_get_version(&major, &minor, &build, &rev);
+  printf("%u.%u.%u\n", major, minor, build);
+#ifdef Z3_MAJOR_VERSION
+  if (major != Z3_MAJOR_VERSION || minor != Z3_MINOR_VERSION || build != Z3_BUILD_NUMBER) {
+    fprintf(stderr, "Z3 headers are version %d.%d.%d but the library is %u.%u.%u",
+            Z3_MAJOR_VERSION, Z3_MINOR_VERSION, Z3_BUILD_NUMBER, major, minor, build);
+    return 3;
+  }
+#endif
+  /* Unicode string support is required (Z3 4.8.12 and later). */
+  void *p = (void *) &Z3_get_string_contents;
+  if (!p) return 2;
+  if (major != ${Z3_MIN_MAJOR}) return major > ${Z3_MIN_MAJOR} ? 0 : 1;
+  if (minor != ${Z3_MIN_MINOR}) return minor > ${Z3_MIN_MINOR} ? 0 : 1;
+  return build >= ${Z3_MIN_BUILD} ? 0 : 1;
+}
+EOF
+  rm -f conftest
+  ${CXX} $1 ${R_CPPFLAGS} ${CXXFLAGS} conftest.cpp -o conftest $2 ${R_LDFLAGS} >> config.log 2>&1 || return 1
+  Z3_FOUND_VERSION=`./conftest 2> conftest.err`
+  status=$?
+  cat conftest.err >> config.log
+  if test ${status} -ne 0; then
+    if test ${status} -eq 3; then
+      echo "configure: `cat conftest.err`; ignoring this Z3" >&2
+    elif test -n "${Z3_FOUND_VERSION}"; then
+      echo "configure: found Z3 ${Z3_FOUND_VERSION}, but z3r needs ${Z3_MIN_MAJOR}.${Z3_MIN_MINOR}.${Z3_MIN_BUILD} or later" >&2
+    fi
+    return 1
+  fi
+  return 0
+}
+
+rpath_for () {
+  # Embed a run-time search path for libraries outside the default locations.
+  case "$1" in
+    ""|/usr/lib|/usr/lib64|/lib|/lib64|/usr/lib/*-linux-gnu) echo "" ;;
+    *) echo "-Wl,-rpath,$1" ;;
+  esac
+}
+
+# Linker flags for the Z3 shared library in directory $1. The library file is
+# named by its full path, so other directories on the linker's search path
+# (for example from LDFLAGS) cannot substitute a different copy of Z3.
+z3_lib_flags () {
+  for f in "$1/libz3.dylib" "$1/libz3.so"; do
+    if test -f "$f"; then
+      echo "$f `rpath_for "$1"`"
+      return 0
+    fi
+  done
+  echo "-L$1 `rpath_for "$1"` -lz3"
+}
+
+: > config.log
+Z3_CPPFLAGS=""
+Z3_LIBS=""
+Z3_SOURCE=""
+
+if test -n "${PKG_LIBS}"; then
+  Z3_CPPFLAGS="${PKG_CPPFLAGS}"
+  Z3_LIBS="${PKG_LIBS}"
+  Z3_SOURCE="PKG_CPPFLAGS/PKG_LIBS"
+  try_z3 "${Z3_CPPFLAGS}" "${Z3_LIBS}" || Z3_SOURCE=""
+elif test -n "${Z3_INCLUDE_DIR}" || test -n "${Z3_LIB_DIR}"; then
+  if test -n "${Z3_INCLUDE_DIR}"; then Z3_CPPFLAGS="-I${Z3_INCLUDE_DIR}"; fi
+  if test -n "${Z3_LIB_DIR}"; then
+    Z3_LIBS=`z3_lib_flags "${Z3_LIB_DIR}"`
+  else
+    Z3_LIBS="-lz3"
+  fi
+  Z3_SOURCE="Z3_INCLUDE_DIR/Z3_LIB_DIR"
+  try_z3 "${Z3_CPPFLAGS}" "${Z3_LIBS}" || Z3_SOURCE=""
+else
+  if pkg-config --exists z3 2>/dev/null; then
+    Z3_CPPFLAGS=`pkg-config --cflags z3`
+    pc_libdir=`pkg-config --variable=libdir z3`
+    Z3_LIBS=`z3_lib_flags "${pc_libdir}"`
+    Z3_SOURCE="pkg-config"
+    try_z3 "${Z3_CPPFLAGS}" "${Z3_LIBS}" || Z3_SOURCE=""
+  fi
+  if test -z "${Z3_SOURCE}"; then
+    for prefix in /opt/homebrew /usr/local /usr /opt/local; do
+      if test -f "${prefix}/include/z3.h"; then
+        Z3_CPPFLAGS="-I${prefix}/include"
+        Z3_LIBS=`z3_lib_flags "${prefix}/lib"`
+        if try_z3 "${Z3_CPPFLAGS}" "${Z3_LIBS}"; then
+          Z3_SOURCE="${prefix}"
+          break
+        fi
+      fi
+    done
+  fi
+fi
+
+rm -rf conftest conftest.cpp conftest.err conftest.dSYM
+
+if test -z "${Z3_SOURCE}"; then
+  cat >&2 <<EOF
+------------------------------------------------------------------------
+configure: could not find a usable Z3 C library (version ${Z3_MIN_MAJOR}.${Z3_MIN_MINOR}.${Z3_MIN_BUILD} or later).
+
+Install the Z3 development files, then reinstall z3r:
+  Debian, Ubuntu:  sudo apt-get install libz3-dev
+  Fedora, RHEL:    sudo dnf install z3-devel
+  macOS:           brew install z3
+  conda:           conda install -c conda-forge z3
+
+Or point z3r at an existing installation, for example an official
+release archive from https://github.com/Z3Prover/z3/releases :
+  Z3_INCLUDE_DIR=/path/to/z3/include Z3_LIB_DIR=/path/to/z3/bin \\
+    R CMD INSTALL z3r
+
+Or pass the flags directly:
+  PKG_CPPFLAGS="-I/path/include" PKG_LIBS="-L/path/lib -lz3" R CMD INSTALL z3r
+
+Compiler output is in config.log.
+------------------------------------------------------------------------
+EOF
+  exit 1
+fi
+
+echo "configure: using Z3 ${Z3_FOUND_VERSION} (found via ${Z3_SOURCE})"
+echo "configure: Z3_CPPFLAGS=${Z3_CPPFLAGS}"
+echo "configure: Z3_LIBS=${Z3_LIBS}"
+
+sed -e "s|@Z3_CPPFLAGS@|${Z3_CPPFLAGS}|" -e "s|@Z3_LIBS@|${Z3_LIBS}|" \
+  src/Makevars.in > src/Makevars
+exit 0

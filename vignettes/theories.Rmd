@@ -1,0 +1,174 @@
+---
+title: "Bit-vectors, arrays, strings, functions and more"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Bit-vectors, arrays, strings, functions and more}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+```{r}
+library(z3r)
+ctx <- z3_context()
+```
+
+## Bit-vectors
+
+Bit-vectors are fixed-width machine integers: arithmetic wraps around modulo
+2^width, and the same bits can be read as signed or unsigned. z3r never mixes
+bit-vectors with unbounded integers, and operations whose meaning depends on
+the sign come in two versions.
+
+```{r}
+x <- z3_bv(ctx, "x", 8)
+z3_simplify(z3_bv_val(ctx, 255, 8) + 1)
+z3_value(z3_bv_val(ctx, 200, 8))
+z3_value(z3_bv_val(ctx, 200, 8), signed = TRUE)
+```
+
+`<` is deliberately not defined; use `z3_bvult()` (unsigned) or `z3_bvslt()`
+(signed):
+
+```{r, error = TRUE}
+x < 3
+```
+
+### Verifying a bit trick for every input
+
+A classic branch-free absolute value for 32-bit integers is
+`(x ^ m) - m` with `m = x >> 31` (arithmetic shift). Is it equal to the
+obvious definition for **all** 2^32 inputs? Ask Z3 for a counterexample:
+
+```{r}
+v <- z3_bv(ctx, "v", 32)
+m <- z3_bvashr(v, 31)
+trick <- z3_bvxor(v, m) - m
+obvious <- z3_ite(z3_bvslt(v, 0), -v, v)
+s <- z3_solver(ctx)
+z3_add(s, trick != obvious)
+z3_check(s)
+```
+
+`"unsat"`: no counterexample exists, a proof over all inputs. A plausible but
+wrong variant fails, and Z3 produces the counterexample:
+
+```{r}
+wrong <- z3_bvxor(v, m) + m
+s <- z3_solver(ctx)
+z3_add(s, wrong != obvious)
+z3_check(s)
+z3_value(z3_eval(z3_model(s), v), signed = TRUE)
+```
+
+## Arrays
+
+Z3 arrays are total maps from one sort to another:
+
+```{r}
+I <- z3_int_sort(ctx)
+a <- z3_array(ctx, "a", I, I)
+i <- z3_int(ctx, "i")
+j <- z3_int(ctx, "j")
+s <- z3_solver(ctx)
+# Writing a[i] never changes a[j] for j != i
+z3_add(s, i != j, z3_select(z3_store(a, i, 42), j) != z3_select(a, j))
+z3_check(s)
+```
+
+## Strings
+
+Strings are Unicode sequences with length, containment, substring and
+conversion functions. Positions are 0-based.
+
+```{r}
+pw <- z3_string(ctx, "pw")
+s <- z3_solver(ctx)
+z3_add(s,
+  z3_length(pw) == 8,
+  z3_prefixof("R", pw),
+  z3_contains(pw, "42"),
+  z3_str_to_int(z3_substr(pw, 6, 2)) == 99
+)
+z3_check(s)
+z3_value(z3_eval(z3_model(s), pw))
+```
+
+## Uninterpreted functions
+
+An uninterpreted function is an unknown function with typed arguments. Z3
+only knows that equal arguments give equal results, which is often all an
+argument needs:
+
+```{r}
+f <- z3_function(ctx, "f", list(I), I)
+x <- z3_int(ctx, "x")
+y <- z3_int(ctx, "y")
+s <- z3_solver(ctx)
+z3_add(s, x == y, f(x) != f(y))
+z3_check(s)
+```
+
+Models give function tables:
+
+```{r}
+s <- z3_solver(ctx)
+z3_add(s, f(1) == 10, f(2) == 20)
+z3_check(s)
+z3_model(s)
+```
+
+## Quantifiers
+
+`z3_forall()` and `z3_exists()` bind ordinary constants:
+
+```{r}
+s <- z3_solver(ctx)
+z3_add(s, z3_forall(x, f(x) >= x), f(3) < 3)
+z3_check(s)
+```
+
+Quantifiers take Z3 outside decidable territory, so `"unknown"` answers are
+possible. Patterns (`patterns = list(list(f(x)))`) guide instantiation.
+
+## Tactics and goals
+
+Tactics transform sets of formulas. They are useful for preprocessing and for
+seeing what Z3 can derive:
+
+```{r}
+g <- z3_goal(ctx)
+z3_add(g, x == y + 1, y > 2, x < 10)
+t <- z3_tactic_then(z3_tactic(ctx, "simplify"), z3_tactic(ctx, "solve-eqs"))
+z3_goal_formulas(z3_apply_tactic(t, g)[[1]])
+head(z3_tactics(ctx))
+```
+
+## SMT-LIB2
+
+SMT-LIB2 is the standard exchange format between solvers. z3r writes and
+reads it with Z3's own printer and parser:
+
+```{r}
+s <- z3_solver(ctx)
+z3_add(s, x > 2, x < 5)
+txt <- z3_to_smtlib(s)
+cat(txt)
+fs <- z3_from_smtlib(ctx, txt)
+fs
+```
+
+Declared names map back to the same constants (`x` here is the same object
+as `z3_int(ctx, "x")`). Raw SMT-LIB2 commands can also be run directly:
+
+```{r}
+cat(z3_eval_smtlib(ctx, "
+  (declare-const k Int)
+  (assert (= (* 3 k) 12))
+  (check-sat)
+  (get-value (k))
+"))
+```

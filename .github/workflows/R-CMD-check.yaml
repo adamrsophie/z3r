@@ -1,0 +1,85 @@
+# Builds the native code against a pinned Z3 on each platform and runs
+# R CMD check. Z3 archives are official release assets verified by SHA-256.
+name: R-CMD-check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.os }} (Z3 ${{ matrix.z3 }}, R ${{ matrix.r }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Principal matrix: Z3 4.16.0
+          - {os: ubuntu-24.04, r: release, z3: "4.16.0", asset: z3-4.16.0-x64-glibc-2.39.zip,
+             sha: 7288c49a5bd6dbafd7b0b0d1f65956b91672da24b08f09242919af159be3418e}
+          - {os: macos-15, r: release, z3: "4.16.0", asset: z3-4.16.0-arm64-osx-15.7.3.zip,
+             sha: 41828fa07d5cb77bfaee326e8e6dac074f26329c09c633f9e66012bb917cf8ae}
+          - {os: windows-latest, r: release, z3: "4.16.0", asset: z3-4.16.0-x64-win.zip,
+             sha: de4d813e47202394a093547dbdb5699ee076529aa853463e007539775cd7e836}
+          # Distribution package (libz3-dev from Ubuntu)
+          - {os: ubuntu-24.04, r: release, z3: system}
+          # Older R
+          - {os: ubuntu-24.04, r: oldrel-1, z3: system}
+          # Development matrix: newer Z3 major release
+          - {os: ubuntu-24.04, r: release, z3: "5.3.3", asset: z3-5.3.3-x64-glibc-2.39.zip,
+             sha: d56f60b06f432f33de5810f7f1a384a339131f361e2d54d08ea83eea14326880}
+          - {os: windows-latest, r: release, z3: "5.3.3", asset: z3-5.3.3-x64-win.zip,
+             sha: 4e48624a6895b49606b3cf91ca4fbcc069fb2973b9706532170a144baa3fd798}
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      R_KEEP_PKG_SOURCE: yes
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Z3 from Ubuntu
+        if: matrix.z3 == 'system'
+        run: sudo apt-get update && sudo apt-get install -y libz3-dev z3
+
+      - name: Download pinned Z3 release
+        if: matrix.z3 != 'system'
+        shell: bash
+        run: |
+          curl -sSL -o z3.zip "https://github.com/Z3Prover/z3/releases/download/z3-${{ matrix.z3 }}/${{ matrix.asset }}"
+          echo "${{ matrix.sha }}  z3.zip" | shasum -a 256 -c -
+          unzip -q z3.zip -d "$RUNNER_TEMP"
+          Z3_DIR="$RUNNER_TEMP/${{ matrix.asset }}"
+          Z3_DIR="${Z3_DIR%.zip}"
+          if command -v cygpath > /dev/null; then Z3_DIR=$(cygpath -m "$Z3_DIR"); fi
+          echo "Z3_DIR=$Z3_DIR" >> "$GITHUB_ENV"
+          echo "Z3_INCLUDE_DIR=$Z3_DIR/include" >> "$GITHUB_ENV"
+          echo "Z3_LIB_DIR=$Z3_DIR/bin" >> "$GITHUB_ENV"
+          echo "$Z3_DIR/bin" >> "$GITHUB_PATH"
+
+      - uses: r-lib/actions/setup-pandoc@v2
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: ${{ matrix.r }}
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::rcmdcheck
+          needs: check
+
+      - uses: r-lib/actions/check-r-package@v2
+        with:
+          upload-snapshots: true
+          build_args: 'c("--no-manual", "--compact-vignettes=gs+qpdf")'
+          error-on: '"warning"'
+
+      - name: Show the Z3 version z3r was built with
+        if: always()
+        shell: Rscript {0}
+        run: |
+          if (requireNamespace("z3r", quietly = TRUE)) print(z3r::z3_version())

@@ -1,0 +1,3 @@
+#!/bin/sh
+rm -rf config.log conftest conftest.cpp conftest.err conftest.exe conftest.dSYM src/Makevars src/Makevars.win
+rm -f src/*.o src/*.so src/*.dll

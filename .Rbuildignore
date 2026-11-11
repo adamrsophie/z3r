@@ -1,0 +1,16 @@
+^\.github$
+^docs$
+^documentation$
+^_pkgdown\.yml$
+^pkgdown$
+^README\.Rmd$
+^CONTRIBUTING\.md$
+^cran-comments\.md$
+^\.git$
+^\.gitignore$
+^src/compile_flags\.txt$
+^.*\.Rproj$
+^\.Rproj\.user$
+^config\.log$
+^tools/sanitizers$
+^LICENSE$

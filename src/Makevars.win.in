@@ -1,0 +1,14 @@
+PKG_CPPFLAGS = @Z3_CPPFLAGS@
+PKG_LIBS = @Z3_LIBS@
+Z3_DLL = @Z3_DLL@
+
+all: $(SHLIB) z3dll
+
+# Install libz3.dll next to z3r.dll so that Windows finds it at load time.
+z3dll: $(SHLIB)
+	@if test -n "$(Z3_DLL)"; then \
+	  mkdir -p "$(R_PACKAGE_DIR)/libs$(R_ARCH)" && \
+	  cp "$(Z3_DLL)" "$(R_PACKAGE_DIR)/libs$(R_ARCH)/"; \
+	fi
+
+.PHONY: all z3dll
