@@ -8,12 +8,14 @@ z3_translate(x, ctx)
 }
 \arguments{
 \item{x}{A \code{z3_expr}, \code{z3_sort}, \code{z3_function} (or declaration),
-\code{z3_solver}, \code{z3_optimize}, \code{z3_model} or \code{z3_goal}.}
+\code{z3_solver}, \code{z3_optimize}, \code{z3_model} or \code{z3_goal}, or a list of
+expressions.}
 
 \item{ctx}{The target \code{\link[=z3_context]{z3_context()}}.}
 }
 \value{
-An object of the same class in \code{ctx}.
+An object of the same class in \code{ctx}; for a list, a list of
+expressions in \code{ctx}.
 }
 \description{
 Copies an expression, sort, function, solver, optimizer, model or goal
@@ -21,10 +23,16 @@ into another context. This is the only way to combine objects from
 different contexts. Translating into the object's own context returns
 it unchanged. Optimizers need Z3 4.15.5 or later.
 }
+\details{
+A plain list of expressions (all from one context) is translated in one
+step, so subterms shared between its elements are copied once; names
+are kept.
+}
 \examples{
 a <- z3_context()
 b <- z3_context()
 x <- z3_int(a, "x")
 y <- z3_translate(x + 1, b)
 z3_same_context(y, b)
+z3_translate(list(lo = x > 0, hi = x < 10), b)
 }

@@ -46,6 +46,17 @@ val(z3_str_to_int(z3_string_val(ctx, "1234")))
 val(z3_int_to_str(z3_int_val(ctx, 99)))
 ```
 
+`escaped = TRUE` reads SMT-LIB escapes such as `\u{e9}`, and
+`z3_string_escaped()` writes them back. Raw vectors convert both ways for
+strings whose characters are all below U+0100:
+
+```{r}
+cafe <- z3_string_val(ctx, "caf\\u{e9}", escaped = TRUE)
+z3_value(cafe) == "caf\u00e9"
+z3_string_escaped(cafe)
+z3_string_bytes(z3_string_val(ctx, "Z3"))
+```
+
 ## Regular expressions
 
 Regular expressions are built from strings and combinators; a plain string

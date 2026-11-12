@@ -2,19 +2,25 @@
 % Please edit documentation in R/solver.R
 \name{z3_statistics}
 \alias{z3_statistics}
+\alias{z3_statistics_text}
 \title{Solver statistics}
 \usage{
 z3_statistics(x)
+
+z3_statistics_text(x)
 }
 \arguments{
-\item{x}{A \code{z3_solver} or \code{z3_optimize}.}
+\item{x}{A \code{z3_solver}, \code{z3_optimize} or \code{z3_fixedpoint}.}
 }
 \value{
-A named list of numbers (counts, memory in megabytes, time in
-seconds) reported by Z3 for the last check.
+\code{z3_statistics()} returns a named list of numbers (counts,
+memory in megabytes, time in seconds) reported by Z3 for the last
+check. \code{z3_statistics_text()} returns a string.
 }
 \description{
-Solver statistics
+\code{z3_statistics()} returns the statistics as numbers;
+\code{z3_statistics_text()} returns them as Z3 writes them, one
+\verb{:name value} pair per entry.
 }
 \examples{
 ctx <- z3_context()
@@ -22,4 +28,5 @@ s <- z3_solver(ctx)
 z3_add(s, z3_int(ctx, "x") > 0)
 z3_check(s)
 names(z3_statistics(s))
+cat(z3_statistics_text(s), "\n")
 }

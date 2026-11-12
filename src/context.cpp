@@ -1,5 +1,8 @@
 #include "z3r.h"
 
+#include <cerrno>
+#include <cstdlib>
+
 #if defined(__has_include)
 #if __has_include(<z3_version.h>)
 #include <z3_version.h>
@@ -15,11 +18,24 @@ void needs_version(const char* feature, const char* version) {
        " or later; z3r was built with an older Z3. Reinstall z3r against a newer Z3.");
 }
 
+void Context::note_param(const std::string& name, const std::string& value) {
+  if (name != "timeout") return;
+  char* end = nullptr;
+  errno = 0;
+  unsigned long long v = std::strtoull(value.c_str(), &end, 10);
+  if (errno == 0 && end != value.c_str() && *end == '\0' && v <= 4294967295ull) {
+    timeout = static_cast<unsigned>(v);
+  }
+}
+
 Context::Context(const std::vector<std::pair<std::string, std::string>>& config) {
   Z3_config cfg = Z3_mk_config();
   if (!cfg) fail("could not create a Z3 configuration");
   Z3_set_param_value(cfg, "model", "true");
-  for (const auto& kv : config) Z3_set_param_value(cfg, kv.first.c_str(), kv.second.c_str());
+  for (const auto& kv : config) {
+    Z3_set_param_value(cfg, kv.first.c_str(), kv.second.c_str());
+    note_param(kv.first, kv.second);
+  }
   c = Z3_mk_context_rc(cfg);
   Z3_del_config(cfg);
   if (!c) fail("could not create a Z3 context");
@@ -77,6 +93,7 @@ const char* kind_tag(Kind k) {
     case Kind::Rcf: return "z3r_rcf";
     case Kind::Callback: return "z3r_callback";
     case Kind::Parser: return "z3r_parser";
+    case Kind::AstMap: return "z3r_ast_map";
   }
   return "z3r_unknown";
 }
@@ -98,6 +115,7 @@ const char* kind_class(Kind k) {
     case Kind::Rcf: return "z3_rcf";
     case Kind::Callback: return "z3_callback";
     case Kind::Parser: return "z3_parser";
+    case Kind::AstMap: return "z3_ast_map";
   }
   return "z3_unknown";
 }
@@ -119,6 +137,7 @@ const char* kind_label(Kind k) {
     case Kind::Rcf: return "a real closed field number (z3_rcf)";
     case Kind::Callback: return "a solver callback handle (z3_callback)";
     case Kind::Parser: return "an SMT-LIB2 parser (z3_parser)";
+    case Kind::AstMap: return "a Z3 AST map (z3_ast_map)";
   }
   return "a Z3 object";
 }
@@ -242,13 +261,33 @@ SEXP cpp_version() {
 }
 
 // [[Rcpp::export(rng = false)]]
-SEXP cpp_mk_context(Rcpp::CharacterVector names, Rcpp::CharacterVector values) {
+SEXP cpp_mk_context(Rcpp::CharacterVector names, Rcpp::CharacterVector values, bool concurrent_dec_ref) {
   std::vector<std::pair<std::string, std::string>> config;
   for (R_xlen_t i = 0; i < names.size(); ++i) {
     config.emplace_back(Rcpp::as<std::string>(names[i]), Rcpp::as<std::string>(values[i]));
   }
   CtxPtr ctx = std::make_shared<Context>(config);
+  if (concurrent_dec_ref) {
+#if Z3R_AT_LEAST(4, 10, 0)
+    Z3_enable_concurrent_dec_ref(ctx->c);
+    check(ctx);
+#else
+    needs_version("concurrent_dec_ref", "4.10.0");
+#endif
+  }
   return wrap_ctx(ctx);
+}
+
+// Turns a trace tag on or off. Only debug builds of Z3 trace; release builds
+// ignore both calls.
+// [[Rcpp::export(rng = false)]]
+void cpp_trace(SEXP tag_, bool enable) {
+  std::string tag = as_string(tag_, "tag");
+  if (enable) {
+    Z3_enable_trace(tag.c_str());
+  } else {
+    Z3_disable_trace(tag.c_str());
+  }
 }
 
 namespace z3r {
@@ -265,6 +304,7 @@ CtxPtr ctx_of_any(SEXP x) {
   if (is_kind(x, Kind::Probe)) return get_xptr<Ref<Z3_probe>>(x, Kind::Probe)->ctx();
   if (is_kind(x, Kind::Fixedpoint)) return fixedpoint_ctx(x);
   if (is_kind(x, Kind::Rcf)) return rcf_ctx(x);
+  if (is_kind(x, Kind::AstMap)) return get_xptr<Ref<Z3_ast_map>>(x, Kind::AstMap)->ctx();
 #if Z3R_AT_LEAST(4, 9, 0)
   if (is_kind(x, Kind::Parser)) return get_xptr<Ref<Z3_parser_context>>(x, Kind::Parser)->ctx();
 #endif

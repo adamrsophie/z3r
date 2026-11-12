@@ -121,8 +121,12 @@ z3_model.z3_context <- function(x) cpp_mk_model(x)
 #'
 #' `z3_model(ctx)` creates an empty model. `z3_model_set()` assigns a value
 #' to a constant; `z3_model_set_function()` defines a function by a table of
-#' entries and a default value. A hand-made model can be used with
-#' [z3_eval()] to evaluate expressions under chosen values.
+#' entries and a default value. `z3_model_set_default()` replaces the
+#' default (`else`) value of a function the model already interprets and
+#' keeps its entries; it works on models returned by solvers too. The
+#' default value of a function may use [z3_bound_var()] `i` for argument
+#' `i + 1`. A hand-made model can be used with [z3_eval()] to evaluate
+#' expressions under chosen values.
 #'
 #' `z3_model_has()` tests whether a model interprets a constant or
 #' function. `z3_model_universes()` returns, for each uninterpreted sort of
@@ -138,8 +142,9 @@ z3_model.z3_context <- function(x) cpp_mk_model(x)
 #' @param otherwise The value for all other arguments.
 #' @param x A constant, function, or (for `z3_as_array_function()`) an
 #'   array value.
-#' @return `z3_model_set()` and `z3_model_set_function()` return `model`
-#'   invisibly; the others return the requested information.
+#' @return `z3_model_set()`, `z3_model_set_function()` and
+#'   `z3_model_set_default()` return `model` invisibly; the others return
+#'   the requested information.
 #' @examples
 #' ctx <- z3_context()
 #' x <- z3_int(ctx, "x")
@@ -147,6 +152,8 @@ z3_model.z3_context <- function(x) cpp_mk_model(x)
 #' m <- z3_model(ctx)
 #' z3_model_set(m, x, 5)
 #' z3_model_set_function(m, f, list(list(args = list(5), value = 50)), 0)
+#' z3_eval(m, f(x) + f(1))
+#' z3_model_set_default(m, f, z3_bound_var(ctx, 0, z3_int_sort(ctx)) * 2)
 #' z3_eval(m, f(x) + f(1))
 #' @export
 z3_model_set <- function(model, constant, value) {
@@ -158,6 +165,13 @@ z3_model_set <- function(model, constant, value) {
 #' @export
 z3_model_set_function <- function(model, f, entries = list(), otherwise) {
   cpp_model_set_func(model, z3_decl(f), entries, otherwise)
+  invisible(model)
+}
+
+#' @rdname z3_model_set
+#' @export
+z3_model_set_default <- function(model, f, otherwise) {
+  cpp_model_set_else(model, z3_decl(f), otherwise)
   invisible(model)
 }
 

@@ -69,7 +69,12 @@ z3_fp(ctx, name, sort)
 
 z3_fp_val(ctx, x, sort, rounding = NULL)
 
-z3_rounding(ctx, mode = c("RNE", "RNA", "RTP", "RTN", "RTZ"))
+z3_rounding(
+  ctx,
+  mode = c("RNE", "RNA", "RTP", "RTN", "RTZ", "roundNearestTiesToEven",
+    "roundNearestTiesToAway", "roundTowardPositive", "roundTowardNegative",
+    "roundTowardZero")
+)
 
 z3_fp_nan(sort)
 
@@ -143,14 +148,16 @@ z3_fp_from_signed(rounding, bv, sort)
 
 z3_fp_from_unsigned(rounding, bv, sort)
 
-z3_fp_numeral_parts(x, biased = FALSE)
+z3_fp_numeral_parts(x, biased = FALSE, numeric = FALSE)
 
 z3_fp_from_parts(sort, negative, exponent_value, fraction)
 }
 \arguments{
 \item{ctx}{A \code{\link[=z3_context]{z3_context()}}.}
 
-\item{ebits, sbits}{Exponent and significand widths.}
+\item{ebits, sbits}{Exponent and significand widths. With \code{sbits} omitted,
+\code{ebits} names a standard format: \code{"half"}, \code{"single"}, \code{"double"},
+\code{"quadruple"}, or a width 16, 32, 64 or 128.}
 
 \item{x, y, z}{Floating point expressions or R numbers (any value for
 \code{z3_fp_to_fp()}).}
@@ -161,7 +168,8 @@ z3_fp_from_parts(sort, negative, exponent_value, fraction)
 
 \item{rounding}{A rounding mode from \code{z3_rounding()}.}
 
-\item{mode}{Rounding mode name.}
+\item{mode}{Rounding mode name, short (\code{"RNE"}) or SMT-LIB
+(\code{"roundNearestTiesToEven"}).}
 
 \item{negative}{Sign of an infinity or zero.}
 
@@ -171,6 +179,9 @@ z3_fp_from_parts(sort, negative, exponent_value, fraction)
 
 \item{biased}{For \code{z3_fp_numeral_parts()}: report the biased exponent.}
 
+\item{numeric}{For \code{z3_fp_numeral_parts()}: also give the sign, exponent
+and fraction as numbers.}
+
 \item{exponent_value}{Unbiased exponent, a whole number or string.}
 
 \item{fraction}{The fraction bits of the significand as an integer (without
@@ -178,15 +189,25 @@ the hidden bit), a whole number or string.}
 }
 \value{
 A \code{z3_expr} or \code{z3_sort}; \code{z3_fp_sort_info()} returns the two
-widths; \code{z3_fp_numeral_parts()} a list.
+widths; \code{z3_fp_numeral_parts()} a list: \code{class} (\code{"normal"},
+\code{"subnormal"}, \code{"zero"}, \code{"infinite"} or \code{"nan"}) and \code{negative};
+\code{significand} and \code{exponent} as decimal strings for finite values; and
+for every value but NaN the fields as bit-vectors (\code{sign_bv},
+\code{exponent_bv}, \code{significand_bv}). With \code{numeric = TRUE}, values other
+than NaN also have \code{sign} (0 or 1), \code{exponent_value} and \code{fraction}
+(the fraction bits without the hidden bit, as an integer), each a
+double while exact (at most 2^53 in magnitude) and a decimal string
+beyond.
 }
 \description{
 Z3's floating point theory models IEEE 754 binary formats exactly,
 including rounding, signed zeros, infinities and NaN. A format has
 \code{ebits} exponent bits and \code{sbits} significand bits (counting the hidden
 bit): \code{z3_fp_sort(ctx, 11, 53)} is double precision, the format of R's
-numbers. \code{z3_fp16_sort()}, \code{z3_fp32_sort()}, \code{z3_fp64_sort()} and
-\code{z3_fp128_sort()} are the standard formats.
+numbers. The standard formats also have names: \code{z3_fp_sort(ctx, "half")},
+\code{"single"}, \code{"double"} and \code{"quadruple"}, or by width
+\code{z3_fp_sort(ctx, 16)}, \code{32}, \code{64} and \code{128}, the same as \code{z3_fp16_sort()},
+\code{z3_fp32_sort()}, \code{z3_fp64_sort()} and \code{z3_fp128_sort()}.
 }
 \details{
 \strong{Values.} \code{z3_fp(ctx, name, sort)} makes a constant. R numbers combined
@@ -206,7 +227,10 @@ every other sort: \code{NaN == NaN} is true and \code{0 == -0} is false. Use
 
 \strong{Explicit rounding.} \code{z3_rounding(ctx, mode)} gives a rounding mode:
 \code{"RNE"} (nearest, ties to even), \code{"RNA"} (nearest, ties away from zero),
-\code{"RTP"} (toward +Inf), \code{"RTN"} (toward -Inf), \code{"RTZ"} (toward zero).
+\code{"RTP"} (toward +Inf), \code{"RTN"} (toward -Inf), \code{"RTZ"} (toward zero), or
+by its SMT-LIB name, which \code{\link[=z3_value]{z3_value()}} returns:
+\code{"roundNearestTiesToEven"}, \code{"roundNearestTiesToAway"},
+\code{"roundTowardPositive"}, \code{"roundTowardNegative"}, \code{"roundTowardZero"}.
 \code{z3_fp_add()}, \code{z3_fp_sub()}, \code{z3_fp_mul()}, \code{z3_fp_div()},
 \code{z3_fp_fma()}, \code{z3_fp_sqrt()} and \code{z3_fp_round_to_integral()} take it as
 their first argument.
@@ -231,6 +255,10 @@ a numeral (class, sign, exponent and significand).
 \examples{
 ctx <- z3_context()
 D <- z3_fp64_sort(ctx)
+z3_fp_sort(ctx, "double") == D
+parts <- z3_fp_numeral_parts(z3_fp_val(ctx, 1.5, D), numeric = TRUE)
+parts[c("sign", "exponent_value", "fraction")]
+z3_value(z3_rounding(ctx, "roundTowardZero"))
 x <- z3_fp(ctx, "x", D)
 s <- z3_solver(ctx)
 # 0.1 + 0.2 != 0.3 in double precision, as in R

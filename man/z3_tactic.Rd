@@ -57,7 +57,8 @@ conversion, unsat cores and proofs.}
 \value{
 \code{z3_tactic()} and the combinators return a \code{z3_tactic};
 \code{z3_goal()} returns a \code{z3_goal}; \code{z3_apply_tactic()} returns a list of
-subgoals; \code{z3_goal_formulas()} returns a list of \code{z3_expr};
+subgoals of class \code{z3_apply_result}, which prints and formats as Z3
+writes the result; \code{z3_goal_formulas()} returns a list of \code{z3_expr};
 \code{z3_goal_status()} returns \code{"sat"}, \code{"unsat"} or \code{"undecided"}.
 }
 \description{

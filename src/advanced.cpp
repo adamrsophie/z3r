@@ -72,6 +72,36 @@ SEXP cpp_decl_info(SEXP decl_) {
 
 bool cpp_is_const(SEXP x);
 
+namespace {
+
+// Patterns from an R list of patterns, each a list of terms. `keep` holds
+// the terms and the patterns for the duration of the call.
+std::vector<Z3_pattern> make_patterns(const CtxPtr& ctx, Rcpp::List patterns, AstVec& keep) {
+  Z3_context c = ctx->c;
+  std::vector<Z3_pattern> pats;
+  for (R_xlen_t i = 0; i < patterns.size(); ++i) {
+    Rcpp::List terms(patterns[i]);
+    if (terms.size() == 0) fail("a pattern needs at least one term");
+    AstVec t;
+    for (R_xlen_t j = 0; j < terms.size(); ++j) {
+      t.push_back(get_expr(terms[j]));
+      same_ctx(ctx, t.back().ctx());
+      keep.push_back(t.back());
+    }
+    std::vector<Z3_ast> rt = raw(t);
+    Z3_pattern p = Z3_mk_pattern(c, static_cast<unsigned>(rt.size()), rt.data());
+    check(ctx);
+    // Patterns are ASTs; hold a reference for the duration of the call.
+    keep.push_back(own_ast(ctx, Z3_pattern_to_ast(c, p)));
+    pats.push_back(p);
+  }
+  return pats;
+}
+
+}  // namespace
+
+// Quantifier over constants. Uses the plainest Z3 entry point that takes
+// the options given.
 // [[Rcpp::export(rng = false)]]
 SEXP cpp_quantifier(bool forall, Rcpp::List vars, SEXP body_, Rcpp::List patterns,
                     Rcpp::List no_patterns, int weight, std::string qid, std::string skid) {
@@ -92,30 +122,108 @@ SEXP cpp_quantifier(bool forall, Rcpp::List vars, SEXP body_, Rcpp::List pattern
     keep.push_back(a);
     bound.push_back(Z3_to_app(c, a));
   }
-  std::vector<Z3_pattern> pats;
-  for (R_xlen_t i = 0; i < patterns.size(); ++i) {
-    Rcpp::List terms(patterns[i]);
-    AstVec t;
-    for (R_xlen_t j = 0; j < terms.size(); ++j) {
-      t.push_back(get_expr(terms[j]));
-      same_ctx(ctx, t.back().ctx());
-      keep.push_back(t.back());
-    }
-    std::vector<Z3_ast> rt = raw(t);
-    Z3_pattern p = Z3_mk_pattern(c, static_cast<unsigned>(rt.size()), rt.data());
-    check(ctx);
-    // Patterns are ASTs; hold a reference for the duration of the call.
-    keep.push_back(own_ast(ctx, Z3_pattern_to_ast(c, p)));
-    pats.push_back(p);
-  }
+  std::vector<Z3_pattern> pats = make_patterns(ctx, patterns, keep);
   AstVec nopats = expr_list(ctx, no_patterns, "no-patterns");
   std::vector<Z3_ast> rn = raw(nopats);
+  if (!pats.empty() && !rn.empty()) fail("a quantifier takes patterns or no-patterns, not both");
   if (weight < 0) fail("weight must be a non-negative integer");
-  Z3_ast q = Z3_mk_quantifier_const_ex(
-      c, forall, static_cast<unsigned>(weight), mk_symbol(ctx, qid), mk_symbol(ctx, skid),
-      static_cast<unsigned>(bound.size()), bound.data(), static_cast<unsigned>(pats.size()),
-      pats.empty() ? nullptr : pats.data(), static_cast<unsigned>(rn.size()), rn.empty() ? nullptr : rn.data(), body);
+  unsigned w = static_cast<unsigned>(weight);
+  unsigned nb = static_cast<unsigned>(bound.size());
+  unsigned np = static_cast<unsigned>(pats.size());
+  Z3_pattern* pp = pats.empty() ? nullptr : pats.data();
+  Z3_ast q;
+  if (!qid.empty() || !skid.empty() || !rn.empty()) {
+    q = Z3_mk_quantifier_const_ex(c, forall, w, mk_symbol(ctx, qid), mk_symbol(ctx, skid), nb, bound.data(), np,
+                                  pp, static_cast<unsigned>(rn.size()), rn.empty() ? nullptr : rn.data(), body);
+  } else if (w != 0 || np != 0) {
+    q = Z3_mk_quantifier_const(c, forall, w, nb, bound.data(), np, pp, body);
+  } else if (forall) {
+    q = Z3_mk_forall_const(c, 0, nb, bound.data(), 0, nullptr, body);
+  } else {
+    q = Z3_mk_exists_const(c, 0, nb, bound.data(), 0, nullptr, body);
+  }
   return wrap_expr(own_ast(ctx, q));
+}
+
+// Quantifier or lambda over de Bruijn variables (see z3_bound_var()). Z3
+// binds index 0 to the last of `sorts` and `names`, index 1 to the one
+// before it, and so on; higher indices refer to enclosing binders.
+// [[Rcpp::export(rng = false)]]
+SEXP cpp_quantifier_db(std::string type, Rcpp::List sorts, Rcpp::CharacterVector names, SEXP body_,
+                       Rcpp::List patterns, Rcpp::List no_patterns, int weight, std::string qid,
+                       std::string skid) {
+  const Ast& body = get_expr(body_);
+  const CtxPtr& ctx = body.ctx();
+  Z3_context c = ctx->c;
+  bool lambda = type == "lambda", forall = type == "forall";
+  if (!lambda && !forall && type != "exists") fail("type must be \"forall\", \"exists\" or \"lambda\"");
+  if (lambda && (patterns.size() != 0 || no_patterns.size() != 0 || weight != 0 || !qid.empty() || !skid.empty())) {
+    fail("a lambda takes no patterns, no-patterns, weight or identifiers");
+  }
+  if (!lambda && !is_bool(body)) fail("the body of a quantifier must be Boolean");
+  R_xlen_t n = sorts.size();
+  if (n == 0) fail(std::string("a ") + (lambda ? "lambda" : "quantifier") + " needs at least one bound variable");
+  if (names.size() != n) fail("sorts and names must have the same length");
+  AstVec keep;
+  std::vector<Z3_sort> ss;
+  std::vector<Z3_symbol> syms;
+  std::vector<std::string> labels;
+  for (R_xlen_t i = 0; i < n; ++i) {
+    const Ast& s = get_sort(sorts[i]);
+    same_ctx(ctx, s.ctx());
+    keep.push_back(s);
+    ss.push_back(as_sort(s));
+    SEXP nm = STRING_ELT(names, i);
+    if (nm == NA_STRING) fail("names must not be missing");
+    labels.push_back(Rf_translateCharUTF8(nm));
+    syms.push_back(mk_symbol(ctx, labels.back()));
+  }
+  // Z3 does not check that the variables it binds have the declared sorts.
+  std::vector<Z3_sort> fv = free_var_sorts(c, body);
+  for (R_xlen_t k = 0; k < n && k < static_cast<R_xlen_t>(fv.size()); ++k) {
+    Z3_sort want = ss[n - 1 - k];
+    if (fv[k] && !Z3_is_eq_sort(c, fv[k], want)) {
+      fail("bound variable " + std::to_string(k) + " has sort " + sort_name(ctx, fv[k]) + " but its binder '" +
+           labels[n - 1 - k] + "' has sort " + sort_name(ctx, want));
+    }
+  }
+  unsigned nd = static_cast<unsigned>(n);
+  Z3_ast q;
+  if (lambda) {
+    q = Z3_mk_lambda(c, nd, ss.data(), syms.data(), body);
+    return wrap_expr(own_ast(ctx, q));
+  }
+  std::vector<Z3_pattern> pats = make_patterns(ctx, patterns, keep);
+  AstVec nopats = expr_list(ctx, no_patterns, "no-patterns");
+  std::vector<Z3_ast> rn = raw(nopats);
+  if (!pats.empty() && !rn.empty()) fail("a quantifier takes patterns or no-patterns, not both");
+  if (weight < 0) fail("weight must be a non-negative integer");
+  unsigned w = static_cast<unsigned>(weight);
+  unsigned np = static_cast<unsigned>(pats.size());
+  Z3_pattern* pp = pats.empty() ? nullptr : pats.data();
+  if (!qid.empty() || !skid.empty() || !rn.empty()) {
+    q = Z3_mk_quantifier_ex(c, forall, w, mk_symbol(ctx, qid), mk_symbol(ctx, skid), np, pp,
+                            static_cast<unsigned>(rn.size()), rn.empty() ? nullptr : rn.data(), nd, ss.data(),
+                            syms.data(), body);
+  } else if (w != 0 || np != 0) {
+    q = Z3_mk_quantifier(c, forall, w, np, pp, nd, ss.data(), syms.data(), body);
+  } else if (forall) {
+    q = Z3_mk_forall(c, 0, 0, nullptr, nd, ss.data(), syms.data(), body);
+  } else {
+    q = Z3_mk_exists(c, 0, 0, nullptr, nd, ss.data(), syms.data(), body);
+  }
+  return wrap_expr(own_ast(ctx, q));
+}
+
+// Z3's text for a pattern of one or more terms.
+// [[Rcpp::export(rng = false)]]
+Rcpp::String cpp_pattern_to_string(Rcpp::List terms) {
+  CtxPtr ctx = ctx_from_list(terms);
+  AstVec keep;
+  std::vector<Z3_pattern> p = make_patterns(ctx, Rcpp::List::create(terms), keep);
+  std::string out = str(Z3_pattern_to_string(ctx->c, p[0]));
+  check(ctx);
+  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -239,6 +347,12 @@ SEXP cpp_tactic_apply(SEXP t_, SEXP g_, SEXP params) {
   unsigned n = Z3_apply_result_get_num_subgoals(c, r);
   Rcpp::List out(n);
   for (unsigned i = 0; i < n; ++i) out[i] = wrap_goal(ctx, Z3_apply_result_get_subgoal(c, r, i));
+  // The result itself does not outlive this call; keep Z3's text of it for
+  // print() and format().
+  std::string text = str(Z3_apply_result_to_string(c, r));
+  check(ctx);
+  out.attr("text") = Rcpp::String(text);
+  out.attr("class") = "z3_apply_result";
   return out;
 }
 

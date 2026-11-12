@@ -1,6 +1,8 @@
 // Fixedpoint engine: Datalog and constrained Horn clauses (Spacer).
 #include "z3r.h"
 
+#include <algorithm>
+
 using namespace z3r;
 
 namespace {
@@ -162,8 +164,20 @@ SEXP cpp_fixedpoint_cover(SEXP f_, int level, SEXP decl_, SEXP property, bool ad
   const CtxPtr& ctx = h->f.ctx();
   const Ast& d = get_decl(decl_);
   same_ctx(ctx, d.ctx());
+  if (level < -1) fail("level must be -1 or a whole number of at least 0");
   if (add) {
     Ast p = lift(ctx, property, Z3_mk_bool_sort(ctx->c));
+    if (level >= 0) {
+      // Spacer creates every missing level up to the one given, so a huge
+      // level would exhaust memory. A predicate has no levels before the
+      // first query, so small levels are always allowed.
+      unsigned n = std::max(Z3_fixedpoint_get_num_levels(ctx->c, h->f, as_decl(d)), 1024u);
+      check(ctx);
+      if (static_cast<unsigned>(level) > n) {
+        fail("level must be -1 or at most " + std::to_string(n) +
+             " (1024, or z3_num_levels() when larger)");
+      }
+    }
     Z3_fixedpoint_add_cover(ctx->c, h->f, level, as_decl(d), p);
     check(ctx);
     ++h->generation;
@@ -272,6 +286,24 @@ SEXP cpp_fixedpoint_from(SEXP f_, SEXP text_, bool is_file) {
                             : Z3_fixedpoint_from_string(ctx->c, h->f, text.c_str());
   ++h->generation;
   return wrap_ast_vector(ctx, v);
+}
+
+// Column sorts of a relation sort: the sort of the relations that external
+// relation callbacks receive.
+// [[Rcpp::export(rng = false)]]
+SEXP cpp_relation_columns(SEXP sort_) {
+  const Ast& s = get_sort(sort_);
+  const CtxPtr& ctx = s.ctx();
+  Z3_sort_kind k = Z3_get_sort_kind(ctx->c, as_sort(s));
+  check(ctx);
+  if (k != Z3_RELATION_SORT) fail("expected a relation sort");
+  unsigned n = Z3_get_relation_arity(ctx->c, as_sort(s));
+  check(ctx);
+  Rcpp::List out(n);
+  for (unsigned i = 0; i < n; ++i) {
+    out[i] = wrap_sort(own_ast(ctx, sort_ast(Z3_get_relation_column(ctx->c, as_sort(s), i))));
+  }
+  return out;
 }
 
 // [[Rcpp::export(rng = false)]]

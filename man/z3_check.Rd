@@ -4,12 +4,15 @@
 \alias{z3_check}
 \title{Check satisfiability}
 \usage{
-z3_check(x, ...)
+z3_check(x, ..., timeout = NULL)
 }
 \arguments{
 \item{x}{A \code{z3_solver} or \code{z3_optimize}.}
 
 \item{...}{Assumptions: Boolean expressions or lists of them.}
+
+\item{timeout}{\code{NULL}, or a time limit in milliseconds (a positive whole
+number) for this check only; see the Timeouts section.}
 }
 \value{
 \code{"sat"}, \code{"unsat"} or \code{"unknown"}.
@@ -33,6 +36,21 @@ quantifiers) for which Z3 has no complete decision procedure.
 Assumptions are Boolean expressions that hold for this check only. They
 are not added to the solver.
 }
+\section{Timeouts}{
+
+\code{timeout} limits this check to that many milliseconds, replacing any
+timeout of the solver or optimizer for this call only; a check that runs
+out of time returns \code{"unknown"}. Afterwards z3r sets the object's
+parameters back, also when the check fails or is interrupted: the
+timeout set with \code{\link[=z3_set_params]{z3_set_params()}} returns, and without one the object
+gets the context's timeout as last set through z3r
+(\code{z3_context(timeout = )} or \code{\link[=z3_update_param]{z3_update_param()}}), or none. Z3 cannot
+remove a parameter, so the object then keeps that value as its own: a
+later change of the context's timeout, or a global \code{timeout} set with
+\code{\link[=z3_global_param_set]{z3_global_param_set()}}, no longer reaches it. Printing the object shows
+the parameters z3r has set on it.
+}
+
 \section{Interrupting a check}{
 
 While a check runs, Z3 installs its own handler for the interrupt signal
@@ -44,7 +62,8 @@ R computation. A \code{z3_optimize} reports the same reason (\code{"canceled"})
 for an interrupt, a timeout and a resource limit, so an interrupted
 optimizer check returns \code{"unknown"} instead. Front ends that do not send
 a signal (such as RGui on Windows) cannot interrupt Z3; set a \code{timeout}
-or \code{rlimit} with \code{\link[=z3_set_params]{z3_set_params()}} there.
+or \code{rlimit} with \code{\link[=z3_set_params]{z3_set_params()}} there. R code running inside the
+check (a callback) can stop it with \code{\link[=z3_interrupt]{z3_interrupt()}}.
 }
 
 \examples{
@@ -56,4 +75,5 @@ z3_add(s, z3_implies(p, x > 10), x < 5)
 z3_check(s)
 z3_check(s, p)
 z3_unsat_core(s)
+z3_check(s, timeout = 5000)
 }

@@ -36,8 +36,8 @@ z3_fresh_const(ctx, prefix, sort)
 \arguments{
 \item{ctx}{A \code{\link[=z3_context]{z3_context()}}.}
 
-\item{name}{Name of the constant, a single string. For the plural forms,
-a character vector of names.}
+\item{name}{Name of the constant, a single string or a whole number (an
+integer symbol). For the plural forms, a character vector of names.}
 
 \item{sort}{A \code{z3_sort}, see \link{z3_sorts}.}
 
@@ -56,6 +56,11 @@ constant.
 \details{
 \code{z3_ints()}, \code{z3_reals()} and \code{z3_bools()} create several constants at
 once and return them as a named list.
+
+A name may also be a whole number from 0 to 2^30 - 1, which makes a Z3
+integer symbol. Z3 prints integer symbol \code{n} as \verb{k!n}, but it is a
+different name from the string \code{"k!n"}, so the two give different
+constants.
 }
 \examples{
 ctx <- z3_context()
@@ -65,6 +70,7 @@ p <- z3_bool(ctx, "p")
 b <- z3_bv(ctx, "b", 8)
 v <- z3_ints(ctx, c("a", "b", "c"))
 v$a + v$b + v$c
+z3_int(ctx, 7L)
 }
 \seealso{
 \code{\link[=z3_int_val]{z3_int_val()}} for numeric constants, \code{\link[=z3_array]{z3_array()}},

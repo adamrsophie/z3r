@@ -113,7 +113,9 @@ Spacer functions: \code{z3_ground_answer()} (a ground derivation),
 \code{z3_answer_rule_names()}, \code{z3_add_invariant()} (a known lemma) and
 \code{z3_reachable()} (the reachable states found for a predicate).
 \code{z3_cover()} and \code{z3_add_cover()} read and add properties of a
-predicate at a search level (\code{-1} is the invariant level), and
+predicate at a search level (\code{-1} is the invariant level;
+\code{z3_add_cover()} accepts levels up to 1024, or up to \code{z3_num_levels()}
+when that is larger), and
 \code{z3_query(fp, q, level)} starts the search at a given level.
 
 \code{z3_set_params(fp, engine = "datalog")} selects the Datalog engine;

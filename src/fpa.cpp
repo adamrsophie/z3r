@@ -1,10 +1,49 @@
 // IEEE 754 floating point theory.
 #include "z3r.h"
 
+#include <cfloat>
 #include <cmath>
 #include <cstring>
 
 using namespace z3r;
+
+namespace {
+
+// Whether Z3_mk_fpa_numeral_int stores the nonzero v exactly. It cuts the
+// significand to sb bits and does not check the exponent range, so v must
+// be an int whose set bits span at most sb positions and whose exponent is
+// at most the bias.
+bool int_fits(double v, unsigned eb, unsigned sb) {
+  if (v == 0 || v != std::trunc(v) || v < -2147483648.0 || v > 2147483647.0) return false;
+  uint32_t u = static_cast<uint32_t>(std::fabs(v));
+  int hi = 31, lo = 0;
+  while (!((u >> hi) & 1u)) --hi;
+  while (!((u >> lo) & 1u)) ++lo;
+  return hi - lo < static_cast<int>(sb) && (eb > 6 || hi < (1 << (eb - 1)));
+}
+
+// Sign, exponent and fraction of the finite nonzero v in a format with at
+// most 32 fraction bits, as Z3_mk_fpa_numeral_int_uint takes them: the
+// unbiased exponent (-bias for subnormals) and the fraction bits without the
+// hidden bit. False unless v is exactly representable in the format.
+bool narrow_fields(double v, unsigned eb, unsigned sb, int* ex, unsigned* fr) {
+  int fb = static_cast<int>(sb) - 1;
+  if (eb > 30 || fb > 32) return false;
+  int bias = (1 << (eb - 1)) - 1;
+  int e2 = 0;
+  double f = std::frexp(std::fabs(v), &e2);  // |v| = f 2^e2 with 0.5 <= f < 1
+  int x = e2 - 1;                             // |v| = 2f 2^x
+  if (x > bias) return false;
+  bool normal = x >= 1 - bias;
+  // Scaling by powers of two is exact; the bits must then form an integer.
+  double m = normal ? std::ldexp(2 * f - 1, fb) : std::ldexp(std::fabs(v), fb + bias - 1);
+  if (m != std::floor(m)) return false;
+  *ex = normal ? x : -bias;
+  *fr = static_cast<unsigned>(m);
+  return true;
+}
+
+}  // namespace
 
 namespace z3r {
 
@@ -20,6 +59,13 @@ bool fp_to_double(const Ast& a, double* out) {
   Z3_context c = ctx->c;
   if (Z3_fpa_is_numeral_nan(c, a)) {
     *out = R_NaN;
+    return true;
+  }
+  // Infinities and zeros exist in every format; only their sign is needed.
+  bool inf = Z3_fpa_is_numeral_inf(c, a);
+  if (inf || Z3_fpa_is_numeral_zero(c, a)) {
+    double mag = inf ? R_PosInf : 0.0;
+    *out = Z3_fpa_is_numeral_positive(c, a) ? mag : -mag;
     return true;
   }
   Z3_sort s = Z3_get_sort(c, a);
@@ -46,6 +92,22 @@ Ast fp_literal(const CtxPtr& ctx, double v, bool is_na, Z3_sort sort) {
   if (is_na) fail("NA cannot be used in a Z3 expression");
   if (std::isnan(v)) return own_ast(ctx, Z3_mk_fpa_nan(c, sort));
   if (std::isinf(v)) return own_ast(ctx, Z3_mk_fpa_inf(c, sort, v < 0));
+  // Z3_mk_fpa_numeral_double gives zeros the exponent of a double zero, which
+  // is not the zero exponent of formats with more exponent bits.
+  if (v == 0) return own_ast(ctx, Z3_mk_fpa_zero(c, sort, std::signbit(v)));
+  unsigned eb = Z3_fpa_get_ebits(c, sort), sb = Z3_fpa_get_sbits(c, sort);
+  check(ctx);
+  // Values these constructors store exactly skip the round trip check below:
+  // integers, single precision values, and narrow formats field by field.
+  if (int_fits(v, eb, sb)) return own_ast(ctx, Z3_mk_fpa_numeral_int(c, static_cast<int>(v), sort));
+  if (eb == 8 && sb == 24 && std::fabs(v) <= FLT_MAX && static_cast<double>(static_cast<float>(v)) == v) {
+    return own_ast(ctx, Z3_mk_fpa_numeral_float(c, static_cast<float>(v), sort));
+  }
+  int ex = 0;
+  unsigned fr = 0;
+  if (narrow_fields(v, eb, sb, &ex, &fr)) {
+    return own_ast(ctx, Z3_mk_fpa_numeral_int_uint(c, std::signbit(v), ex, fr, sort));
+  }
   Ast a = own_ast(ctx, Z3_mk_fpa_numeral_double(c, v, sort));
   double back = 0;
   bool exact = fp_to_double(a, &back) && back == v && std::signbit(back) == std::signbit(v);
@@ -90,6 +152,22 @@ SEXP cpp_fp_sort(SEXP ctx_, int ebits, int sbits) {
                                                         static_cast<unsigned>(sbits)))));
 }
 
+// The standard formats by name or width, each through its own constructor.
+// [[Rcpp::export(rng = false)]]
+SEXP cpp_fp_sort_named(SEXP ctx_, std::string name) {
+  CtxPtr ctx = get_ctx(ctx_);
+  typedef Z3_sort (*Mk)(Z3_context);
+  struct N { const char* name; Mk f; };
+  static const N formats[] = {{"half", Z3_mk_fpa_sort_half}, {"16", Z3_mk_fpa_sort_16},
+                              {"single", Z3_mk_fpa_sort_single}, {"32", Z3_mk_fpa_sort_32},
+                              {"double", Z3_mk_fpa_sort_double}, {"64", Z3_mk_fpa_sort_64},
+                              {"quadruple", Z3_mk_fpa_sort_quadruple}, {"128", Z3_mk_fpa_sort_128}};
+  for (const N& n : formats) {
+    if (name == n.name) return wrap_sort(own_ast(ctx, sort_ast(n.f(ctx->c))));
+  }
+  fail("unknown floating point format '" + name + "'");
+}
+
 // [[Rcpp::export(rng = false)]]
 SEXP cpp_rm_sort(SEXP ctx_) {
   CtxPtr ctx = get_ctx(ctx_);
@@ -110,15 +188,25 @@ SEXP cpp_fp_sort_info(SEXP x) {
 // [[Rcpp::export(rng = false)]]
 SEXP cpp_rounding_mode(SEXP ctx_, std::string mode) {
   CtxPtr ctx = get_ctx(ctx_);
-  Z3_context c = ctx->c;
-  Z3_ast r;
-  if (mode == "RNE") r = Z3_mk_fpa_rne(c);
-  else if (mode == "RNA") r = Z3_mk_fpa_rna(c);
-  else if (mode == "RTP") r = Z3_mk_fpa_rtp(c);
-  else if (mode == "RTN") r = Z3_mk_fpa_rtn(c);
-  else if (mode == "RTZ") r = Z3_mk_fpa_rtz(c);
-  else fail("rounding must be one of \"RNE\", \"RNA\", \"RTP\", \"RTN\", \"RTZ\"");
-  return wrap_expr(own_ast(ctx, r));
+  // Short names and SMT-LIB names, each through its own constructor.
+  typedef Z3_ast (*Mk)(Z3_context);
+  struct M { const char* name; Mk f; };
+  static const M modes[] = {{"RNE", Z3_mk_fpa_rne},
+                            {"RNA", Z3_mk_fpa_rna},
+                            {"RTP", Z3_mk_fpa_rtp},
+                            {"RTN", Z3_mk_fpa_rtn},
+                            {"RTZ", Z3_mk_fpa_rtz},
+                            {"roundNearestTiesToEven", Z3_mk_fpa_round_nearest_ties_to_even},
+                            {"roundNearestTiesToAway", Z3_mk_fpa_round_nearest_ties_to_away},
+                            {"roundTowardPositive", Z3_mk_fpa_round_toward_positive},
+                            {"roundTowardNegative", Z3_mk_fpa_round_toward_negative},
+                            {"roundTowardZero", Z3_mk_fpa_round_toward_zero}};
+  for (const M& m : modes) {
+    if (mode == m.name) return wrap_expr(own_ast(ctx, m.f(ctx->c)));
+  }
+  fail("rounding must be one of \"RNE\", \"RNA\", \"RTP\", \"RTN\", \"RTZ\" or their SMT-LIB names "
+       "(\"roundNearestTiesToEven\", \"roundNearestTiesToAway\", \"roundTowardPositive\", "
+       "\"roundTowardNegative\", \"roundTowardZero\")");
 }
 
 // Special values and numerals of a floating point sort.
@@ -286,17 +374,23 @@ SEXP cpp_fp_op(std::string op, SEXP args, SEXP sort_, int size) {
   fail("unknown floating point operation '" + op + "'");
 }
 
-// Parts of a floating point numeral.
+// Parts of a floating point numeral; with numeric, also as numbers.
 // [[Rcpp::export(rng = false)]]
-SEXP cpp_fp_numeral_parts(SEXP x, bool biased) {
+SEXP cpp_fp_numeral_parts(SEXP x, bool biased, bool numeric) {
   const Ast& a = get_expr(x);
   const CtxPtr& ctx = a.ctx();
   Z3_context c = ctx->c;
-  if (!is_fp(a) || !Z3_is_numeral_ast(c, a)) fail("not a floating point numeral");
-  std::string cls = Z3_fpa_is_numeral_nan(c, a) ? "nan"
-                    : Z3_fpa_is_numeral_inf(c, a) ? "infinite"
+#if Z3R_AT_LEAST(4, 15, 5)
+  bool numeral = Z3_fpa_is_numeral(c, a);
+#else
+  bool numeral = is_fp(a) && Z3_is_numeral_ast(c, a);
+#endif
+  check(ctx);
+  if (!numeral) fail("not a floating point numeral");
+  std::string cls = Z3_fpa_is_numeral_normal(c, a) ? "normal"
+                    : Z3_fpa_is_numeral_subnormal(c, a) ? "subnormal"
                     : Z3_fpa_is_numeral_zero(c, a) ? "zero"
-                    : Z3_fpa_is_numeral_subnormal(c, a) ? "subnormal" : "normal";
+                    : Z3_fpa_is_numeral_inf(c, a) ? "infinite" : "nan";
   bool negative = Z3_fpa_is_numeral_negative(c, a);
   Rcpp::List out = Rcpp::List::create(Rcpp::Named("class") = cls, Rcpp::Named("negative") = negative);
   if (cls != "nan" && cls != "infinite") {
@@ -304,9 +398,33 @@ SEXP cpp_fp_numeral_parts(SEXP x, bool biased) {
     out["exponent"] = str(Z3_fpa_get_numeral_exponent_string(c, a, biased));
   }
   if (cls != "nan") {
+    Ast sig_bv = own_ast(ctx, Z3_fpa_get_numeral_significand_bv(c, a));
     out["sign_bv"] = wrap_expr(own_ast(ctx, Z3_fpa_get_numeral_sign_bv(c, a)));
     out["exponent_bv"] = wrap_expr(own_ast(ctx, Z3_fpa_get_numeral_exponent_bv(c, a, biased)));
-    out["significand_bv"] = wrap_expr(own_ast(ctx, Z3_fpa_get_numeral_significand_bv(c, a)));
+    out["significand_bv"] = wrap_expr(sig_bv);
+    if (!numeric) return out;
+    // The same fields as numbers: doubles while exact (at most 2^53), else
+    // decimal strings. Z3 reads at most 64 fraction bits directly; wider
+    // fractions are read from the bit-vector.
+#if Z3R_AT_LEAST(4, 15, 5)
+    bool sgn = false;
+#else
+    int sgn = 0;  // bool * from 4.15.5
+#endif
+    int64_t e = 0;
+    uint64_t f = 0;
+    Z3_fpa_get_numeral_sign(c, a, &sgn);
+    Z3_fpa_get_numeral_exponent_int64(c, a, &e, biased);
+    check(ctx);
+    bool fits = Z3_fpa_get_sbits(c, Z3_get_sort(c, a)) <= 65 ? Z3_fpa_get_numeral_significand_uint64(c, a, &f)
+                                                             : Z3_get_numeral_uint64(c, sig_bv, &f);
+    check(ctx);
+    const int64_t two53 = int64_t(1) << 53;
+    out["sign"] = sgn ? 1 : 0;
+    out["exponent_value"] = e >= -two53 && e <= two53 ? Rcpp::wrap(static_cast<double>(e))
+                                                      : Rcpp::wrap(std::to_string(static_cast<long long>(e)));
+    out["fraction"] = fits && f <= static_cast<uint64_t>(two53) ? Rcpp::wrap(static_cast<double>(f))
+                                                                : Rcpp::wrap(str(Z3_get_numeral_string(c, sig_bv)));
   }
   check(ctx);
   return out;

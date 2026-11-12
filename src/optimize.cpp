@@ -5,6 +5,31 @@ using namespace z3r;
 
 static OptimizeHolder* optimizer(SEXP x) { return optimizer_of(x); }
 
+// Gives an optimizer a timeout for one check, as SolverTimeout in
+// solver.cpp does for solvers.
+struct OptimizeTimeout {
+  OptimizeHolder* h = nullptr;
+  void apply(OptimizeHolder* holder, SEXP ms) {
+    if (Rf_isNull(ms)) return;
+    int v = Rf_asInteger(ms);
+    if (v == NA_INTEGER || v < 1) fail("timeout must be a positive whole number of milliseconds");
+    const CtxPtr& ctx = holder->o.ctx();
+    if (!holder->params.get()) holder->params = own(ctx, Z3_mk_params(ctx->c));
+    h = holder;
+    Z3_params_set_uint(ctx->c, h->params, Z3_mk_string_symbol(ctx->c, "timeout"), static_cast<unsigned>(v));
+    Z3_optimize_set_params(ctx->c, h->o, h->params);
+    check(ctx);
+  }
+  ~OptimizeTimeout() {
+    if (!h) return;
+    Z3_context c = h->o.c();
+    unsigned restore = h->timeout != 4294967295u ? h->timeout : h->o.ctx()->timeout;
+    Z3_params_set_uint(c, h->params, Z3_mk_string_symbol(c, "timeout"), restore);
+    Z3_optimize_set_params(c, h->o, h->params);
+    Z3_set_error(c, Z3_OK);  // a destructor cannot raise it; the set was accepted before
+  }
+};
+
 // [[Rcpp::export(rng = false)]]
 SEXP cpp_mk_optimize(SEXP ctx_) {
   CtxPtr ctx = get_ctx(ctx_);
@@ -79,12 +104,14 @@ Rcpp::NumericVector cpp_optimize_objective(SEXP o_, SEXP term, bool maximize) {
 }
 
 // [[Rcpp::export(rng = false)]]
-std::string cpp_optimize_check(SEXP o_, Rcpp::List assumptions) {
+std::string cpp_optimize_check(SEXP o_, Rcpp::List assumptions, SEXP timeout) {
   OptimizeHolder* h = optimizer(o_);
   const CtxPtr& ctx = h->o.ctx();
   AstVec as;
   for (R_xlen_t i = 0; i < assumptions.size(); ++i) as.push_back(bool_arg(ctx, assumptions[i], "assumptions"));
   std::vector<Z3_ast> r = raw(as);
+  OptimizeTimeout once;
+  once.apply(h, timeout);
   Z3_lbool st;
   {
     BusyGuard<OptimizeHolder> busy(h);
@@ -93,9 +120,11 @@ std::string cpp_optimize_check(SEXP o_, Rcpp::List assumptions) {
   h->checked = true;
   h->checked_at = h->generation;
   h->status = Z3_L_UNDEF;
+  h->returned = false;
   raise_callback_errors(h->callbacks);
   check(ctx);
   h->status = st;
+  h->returned = true;
   if (st == Z3_L_UNDEF) forward_interrupt(st, str(Z3_optimize_get_reason_unknown(ctx->c, h->o)));
   return lbool_string(st);
 }
@@ -148,6 +177,9 @@ static SEXP bound_parts(const CtxPtr& ctx, Z3_ast_vector raw_v) {
                             Rcpp::Named("epsilon") = wrap_expr(parts[2]));
 }
 
+// Bounds of an objective after a check that returned "sat", or "unknown"
+// (a timeout or interrupt), after which Z3 keeps the best bounds it found.
+// lower_value and upper_value are the bounds as single terms.
 // [[Rcpp::export(rng = false)]]
 SEXP cpp_optimize_bounds(SEXP o_, int idx, double serial) {
   OptimizeHolder* h = optimizer(o_);
@@ -155,13 +187,24 @@ SEXP cpp_optimize_bounds(SEXP o_, int idx, double serial) {
       static_cast<double>(h->objectives[idx]) != serial) {
     fail("this objective was removed by z3_pop()");
   }
-  require_status(h, Z3_L_TRUE, "objective values");
+  bool current = h->checked && h->checked_at == h->generation;
+  if (current && h->status == Z3_L_UNDEF && !h->returned) {
+    fail("objective values are not available because the last z3_check() failed");
+  }
+  if (!current || h->status != Z3_L_UNDEF) require_status(h, Z3_L_TRUE, "objective values");
   const CtxPtr& ctx = h->o.ctx();
   unsigned i = static_cast<unsigned>(idx);
+  Ast lo = own_ast(ctx, Z3_optimize_get_lower(ctx->c, h->o, i));
+  Ast hi = own_ast(ctx, Z3_optimize_get_upper(ctx->c, h->o, i));
   SEXP lower = PROTECT(bound_parts(ctx, Z3_optimize_get_lower_as_vector(ctx->c, h->o, i)));
   SEXP upper = PROTECT(bound_parts(ctx, Z3_optimize_get_upper_as_vector(ctx->c, h->o, i)));
-  SEXP out = Rcpp::List::create(Rcpp::Named("lower") = lower, Rcpp::Named("upper") = upper);
-  UNPROTECT(2);
+  SEXP lower_value = PROTECT(wrap_expr(lo));
+  SEXP upper_value = PROTECT(wrap_expr(hi));
+  SEXP out = Rcpp::List::create(Rcpp::Named("lower") = lower, Rcpp::Named("upper") = upper,
+                                Rcpp::Named("lower_value") = lower_value,
+                                Rcpp::Named("upper_value") = upper_value,
+                                Rcpp::Named("status") = lbool_string(h->status));
+  UNPROTECT(4);
   return out;
 }
 
@@ -223,6 +266,7 @@ void cpp_optimize_set_params(SEXP o_, SEXP params) {
   Ref<Z3_params> p = make_params(ctx, d, params);
   Z3_optimize_set_params(ctx->c, h->o, p);
   check(ctx);
+  keep_params(ctx, d, params, h->params, h->timeout);
 }
 
 // [[Rcpp::export(rng = false)]]
@@ -293,6 +337,9 @@ SEXP cpp_optimize_translate(SEXP o_, SEXP target_) {
   OptimizeHolder* nh = new OptimizeHolder();
   std::unique_ptr<OptimizeHolder> guard(nh);
   nh->o = own(target, t);
+  // Z3 copies the parameters; the kept set belongs to the old context, so
+  // only the timeout carries over.
+  nh->timeout = h->timeout;
   guard.release();
   return make_xptr(nh, Kind::Optimize);
 #else

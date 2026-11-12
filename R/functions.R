@@ -53,19 +53,34 @@ print.z3_func_decl <- function(x, ...) {
 #' Quantified formulas are outside the decidable fragments Z3 handles
 #' completely, so checks may return `"unknown"`. Patterns (also called
 #' triggers) guide Z3's instantiation heuristics: each pattern is a list of
-#' terms that mention all bound variables.
+#' terms that mention all bound variables. `z3_pattern()` makes one pattern
+#' from its terms; it prints in Z3's syntax. A pattern cannot be combined
+#' with `no_patterns`.
+#'
+#' `z3_quantifier_db()` binds de Bruijn variables, made with
+#' [z3_bound_var()], instead of constants, as Z3 does internally. The
+#' variables are described by `sorts` and `names`: index 0 refers to the
+#' last of them, index 1 to the one before it, and so on. Higher indices
+#' refer to enclosing binders, so quantifiers can be nested. The body (and
+#' any pattern) uses the variables directly. With `type = "lambda"` the
+#' result is an array, as from [z3_lambda()].
 #'
 #' @param vars A constant or a list of constants to bind.
-#' @param body A Boolean expression.
+#' @param body A Boolean expression (any expression for a lambda).
 #' @param patterns Optional list of patterns; each pattern is a list of
-#'   terms.
+#'   terms or a `z3_pattern`. A single `z3_pattern` is also accepted.
 #' @param no_patterns Optional list of terms that must not be used as
 #'   patterns.
 #' @param weight Instantiation weight; higher weights make the quantifier
 #'   less eagerly instantiated.
 #' @param qid,skid Optional quantifier identifier (shown in statistics and
 #'   traces) and prefix for Skolem constants.
-#' @return A Boolean `z3_expr`.
+#' @param sorts A sort or a list of sorts of the bound variables.
+#' @param names Names of the bound variables, one per sort.
+#' @param type `"forall"`, `"exists"` or `"lambda"`.
+#' @param ... Terms of the pattern: expressions or lists of them.
+#' @return A Boolean `z3_expr`; an array `z3_expr` for a lambda. A
+#'   `z3_pattern` for `z3_pattern()`.
 #' @examples
 #' ctx <- z3_context()
 #' I <- z3_int_sort(ctx)
@@ -74,10 +89,20 @@ print.z3_func_decl <- function(x, ...) {
 #' s <- z3_solver(ctx)
 #' z3_add(s, z3_forall(x, f(x) >= x), f(3) < 3)
 #' z3_check(s)
+#'
+#' p <- z3_pattern(f(x))
+#' p
+#' z3_forall(x, f(x) > 0, patterns = p)
+#'
+#' # The same quantifier over a de Bruijn variable
+#' v0 <- z3_bound_var(ctx, 0, I)
+#' z3_quantifier_db(I, "x", f(v0) > 0, patterns = z3_pattern(f(v0)))
+#' sq <- z3_quantifier_db(I, "i", v0 * v0, type = "lambda")
+#' z3_simplify(z3_select(sq, 7))
 #' @export
 z3_forall <- function(vars, body, patterns = list(), no_patterns = list(), weight = 0,
                       qid = "", skid = "") {
-  cpp_quantifier(TRUE, as_list(vars), body, patterns, as_list(no_patterns),
+  cpp_quantifier(TRUE, as_list(vars), body, as_patterns(patterns), as_list(no_patterns),
                  as_count(weight, "weight"), qid, skid)
 }
 
@@ -85,8 +110,45 @@ z3_forall <- function(vars, body, patterns = list(), no_patterns = list(), weigh
 #' @export
 z3_exists <- function(vars, body, patterns = list(), no_patterns = list(), weight = 0,
                       qid = "", skid = "") {
-  cpp_quantifier(FALSE, as_list(vars), body, patterns, as_list(no_patterns),
+  cpp_quantifier(FALSE, as_list(vars), body, as_patterns(patterns), as_list(no_patterns),
                  as_count(weight, "weight"), qid, skid)
+}
+
+#' @rdname z3_forall
+#' @export
+z3_quantifier_db <- function(sorts, names, body, type = c("forall", "exists", "lambda"),
+                             patterns = list(), no_patterns = list(), weight = 0,
+                             qid = "", skid = "") {
+  type <- match.arg(type)
+  if (!is.character(names)) stop("names must be a character vector", call. = FALSE)
+  cpp_quantifier_db(type, as_list(sorts), names, body, as_patterns(patterns),
+                    as_list(no_patterns), as_count(weight, "weight"), qid, skid)
+}
+
+#' @rdname z3_forall
+#' @export
+z3_pattern <- function(...) {
+  terms <- flatten_args(...)
+  if (!length(terms) || !all(vapply(terms, is_z3_expr, NA))) {
+    stop("a pattern needs one or more z3_expr terms", call. = FALSE)
+  }
+  structure(terms, class = "z3_pattern")
+}
+
+#' @export
+format.z3_pattern <- function(x, ...) cpp_pattern_to_string(unclass(x))
+
+#' @export
+print.z3_pattern <- function(x, ...) {
+  cat("<z3_pattern> ", format(x), "\n", sep = "")
+  invisible(x)
+}
+
+# Patterns for Z3: a list of patterns, each a list of terms. A single
+# z3_pattern is one pattern, and a single term is a pattern of one term.
+as_patterns <- function(patterns) {
+  if (inherits(patterns, "z3_pattern")) return(list(patterns))
+  lapply(patterns, function(p) if (is_z3_expr(p)) list(p) else p)
 }
 
 #' Recursive functions

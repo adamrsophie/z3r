@@ -62,6 +62,10 @@ struct Context {
   // kept in that handle's protected slot).
   SEXP handle = R_NilValue;
   bool interpreting = false;  // running Z3_eval_smtlib2_string
+  // The context's "timeout" parameter as last set through z3r (4294967295:
+  // none); per-call timeouts restore it on objects without their own.
+  unsigned timeout = 4294967295u;
+  void note_param(const std::string& name, const std::string& value);
   // config: pairs of Z3 configuration parameter names and values.
   explicit Context(const std::vector<std::pair<std::string, std::string>>& config = {});
   ~Context();
@@ -210,6 +214,10 @@ struct SolverHolder {
   bool checked = false;
   Z3_lbool status = Z3_L_UNDEF;
   void touch() { ++generation; }
+  // Parameters z3r has applied (Z3 has no getter) and the timeout among
+  // them (4294967295: none). See keep_params().
+  Ref<Z3_params> params;
+  unsigned timeout = 4294967295u;
 };
 
 struct OptimizeHolder {
@@ -220,7 +228,10 @@ struct OptimizeHolder {
   uint64_t checked_at = 0;
   bool checked = false;
   Z3_lbool status = Z3_L_UNDEF;
+  bool returned = false;  // the last check returned without an error
   void touch() { ++generation; }
+  Ref<Z3_params> params;  // as for SolverHolder
+  unsigned timeout = 4294967295u;
   // Z3 reuses objective indices after a pop, so each objective also gets a
   // serial number; handles carry both and are refused once popped.
   std::vector<uint64_t> objectives;  // serial of the objective at each index
@@ -244,7 +255,7 @@ struct FixedpointHolder {
 };
 
 enum class Kind { Context, Sort, Expr, FuncDecl, Solver, Model, Optimize, Goal, Tactic, Probe,
-                  Simplifier, Fixedpoint, Rcf, Callback, Parser };
+                  Simplifier, Fixedpoint, Rcf, Callback, Parser, AstMap };
 
 const char* kind_tag(Kind k);
 const char* kind_class(Kind k);
@@ -277,7 +288,8 @@ template <typename T> T* get_xptr(SEXP x, Kind k) {
     fail("this callback handle has expired; it is valid only during the callback that received it");
   }
   if (!p) {
-    fail(std::string("this ") + kind_label(k) +
+    std::string label = kind_label(k);
+    fail("this " + label.substr(label.find(' ') + 1) +
          " is no longer valid; Z3 objects cannot be saved and restored "
          "across R sessions");
   }
@@ -363,6 +375,12 @@ AstVec expr_list(const CtxPtr& ctx, SEXP lst, const char* what);
 // Shared helpers (solver.cpp)
 const char* lbool_string(Z3_lbool r);
 Ref<Z3_params> make_params(const CtxPtr& ctx, Z3_param_descrs descrs, SEXP values);
+// Adds values that Z3 accepted for a solver or optimizer to `kept`, the set
+// z3r has applied to it (Z3 has no getter), and records their timeout. A
+// per-call timeout applies the whole set again: Z3 resets some options to
+// their defaults when a later parameter set omits them.
+void keep_params(const CtxPtr& ctx, Z3_param_descrs descrs, SEXP values, Ref<Z3_params>& kept,
+                 unsigned& timeout);
 SEXP describe_params(const CtxPtr& ctx, Z3_param_descrs raw_descrs);
 SEXP stats_list(const CtxPtr& ctx, Z3_stats raw_stats);
 // Z3 handles SIGINT itself during checks and returns unknown with this

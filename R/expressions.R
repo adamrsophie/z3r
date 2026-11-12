@@ -7,9 +7,14 @@
 #' `z3_ints()`, `z3_reals()` and `z3_bools()` create several constants at
 #' once and return them as a named list.
 #'
+#' A name may also be a whole number from 0 to 2^30 - 1, which makes a Z3
+#' integer symbol. Z3 prints integer symbol `n` as `k!n`, but it is a
+#' different name from the string `"k!n"`, so the two give different
+#' constants.
+#'
 #' @param ctx A [z3_context()].
-#' @param name Name of the constant, a single string. For the plural forms,
-#'   a character vector of names.
+#' @param name Name of the constant, a single string or a whole number (an
+#'   integer symbol). For the plural forms, a character vector of names.
 #' @param sort A `z3_sort`, see [z3_sorts].
 #' @param width Bit-vector width in bits.
 #' @param prefix Prefix of the generated name for `z3_fresh_const()`.
@@ -24,6 +29,7 @@
 #' b <- z3_bv(ctx, "b", 8)
 #' v <- z3_ints(ctx, c("a", "b", "c"))
 #' v$a + v$b + v$c
+#' z3_int(ctx, 7L)
 #' @export
 z3_const <- function(ctx, name, sort) cpp_mk_const(ctx, name, sort)
 
@@ -81,7 +87,19 @@ many_consts <- function(ctx, name, sort) {
 #' `gmp::bigz`. `z3_real_val()` accepts an exact decimal (`"0.125"`,
 #' `"1.5e-3"`), a fraction (`"1/3"`, `"-22/7"`), an R number, or a
 #' `gmp::bigq`. Strings are parsed exactly, so `z3_real_val(ctx, "0.1")` is
-#' the rational 1/10.
+#' the rational 1/10. With `den`, `z3_real_val(ctx, value, den)` is the
+#' fraction `value / den` of two whole numbers (R integers, doubles of
+#' absolute value at most 2^53, or `bit64::integer64` values), built without
+#' going through strings.
+#'
+#' `z3_string_val()` converts an R string exactly, character by character.
+#' With `escaped = TRUE` it reads the string as an SMT-LIB string literal
+#' instead, so that `\u{41}` (written `"\\u{41}"` in R) is the character
+#' `A`; escapes beyond U+2FFFF or without a closing brace are kept as text.
+#' A raw vector gives one character per byte, with the code points 0 to
+#' 255 (so `as.raw(0)` is the character U+0000, which R strings cannot
+#' hold); bytes are not decoded as UTF-8. See [z3_string_escaped()] and
+#' [z3_string_bytes()] for the reverse conversions.
 #'
 #' @section Converting R doubles:
 #' When an R number is combined with a Z3 expression, as in `x + 0.1`, it
@@ -101,16 +119,23 @@ many_consts <- function(ctx, name, sort) {
 #'
 #' @param ctx A [z3_context()].
 #' @param value The value; see Details.
+#' @param den For `z3_real_val()`, an optional denominator: a whole number,
+#'   not zero.
 #' @param width Bit-vector width in bits.
+#' @param escaped For `z3_string_val()`, read `value` as an SMT-LIB string
+#'   literal with `\u{...}` escapes.
 #' @param sort Target sort for `z3_val()`.
 #' @return A `z3_expr`.
 #' @examples
 #' ctx <- z3_context()
 #' z3_int_val(ctx, "123456789012345678901234567890")
 #' z3_real_val(ctx, "1/3")
+#' z3_real_val(ctx, 1, 3)
 #' z3_real_val(ctx, "0.125")
 #' z3_bv_val(ctx, -1, 8)
 #' z3_string_val(ctx, "hello")
+#' z3_string_val(ctx, "tab\\u{9}", escaped = TRUE)
+#' z3_string_val(ctx, as.raw(c(0x68, 0x69)))
 #' z3_val(ctx, 2, z3_real_sort(ctx))
 #' @export
 z3_int_val <- function(ctx, value) {
@@ -139,7 +164,8 @@ check_exponent <- function(value) {
 
 #' @rdname z3_int_val
 #' @export
-z3_real_val <- function(ctx, value) {
+z3_real_val <- function(ctx, value, den = NULL) {
+  if (!is.null(den)) return(cpp_mk_real_ratio(ctx, value, den))
   if (is.character(value)) {
     value <- check_numeral(
       value, "^[+-]?(([0-9]+[.]?[0-9]*|[.][0-9]+)([eE][+-]?[0-9]+)?|[0-9]+/[0-9]+)$",
@@ -174,10 +200,13 @@ z3_bv_val <- function(ctx, value, width) {
 
 #' @rdname z3_int_val
 #' @export
-z3_string_val <- function(ctx, value) {
+z3_string_val <- function(ctx, value, escaped = FALSE) {
+  if (is.raw(value)) return(cpp_mk_lstring(ctx, value))
   if (!is.character(value) || length(value) != 1L || is.na(value)) {
-    stop("value must be a single non-missing string", call. = FALSE)
+    stop("value must be a single non-missing string or a raw vector", call. = FALSE)
   }
+  if (!isTRUE(escaped) && !isFALSE(escaped)) stop("escaped must be TRUE or FALSE", call. = FALSE)
+  if (escaped) return(cpp_mk_string_escaped(ctx, value))
   cpp_lift(ctx, value, cpp_string_sort(ctx))
 }
 
@@ -264,7 +293,7 @@ z3_value <- function(x, exact = TRUE, signed = FALSE) {
     int = , real = , bv = , ff = number_value(info, exact),
     complex = complex_value(info, exact),
     nul_string = stop(
-      "the string contains the character U+0000, which R strings cannot hold; use z3_str_to_code() or z3_seq_nth() on its characters",
+      "the string contains the character U+0000, which R strings cannot hold; use z3_string_escaped(), z3_string_bytes(), or z3_str_to_code() or z3_seq_nth() on its characters",
       call. = FALSE
     ),
     fp = if (info$exact_double || !exact) info$value else stop(sprintf(
@@ -344,6 +373,8 @@ as.double.z3_expr <- function(x, ...) {
 
 #' @export
 as.integer.z3_expr <- function(x, ...) {
+  v <- cpp_numeral_int(x)
+  if (!is.na(v)) return(v)
   v <- z3_value(x)
   if (!is.numeric(v) || v != floor(v) || abs(v) > .Machine$integer.max) {
     stop("x is not an integer value within R's integer range", call. = FALSE)

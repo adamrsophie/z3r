@@ -20,7 +20,8 @@
 #' @param ... For `z3_apply_tactic()`, tactic parameters.
 #' @return `z3_tactic()` and the combinators return a `z3_tactic`;
 #'   `z3_goal()` returns a `z3_goal`; `z3_apply_tactic()` returns a list of
-#'   subgoals; `z3_goal_formulas()` returns a list of `z3_expr`;
+#'   subgoals of class `z3_apply_result`, which prints and formats as Z3
+#'   writes the result; `z3_goal_formulas()` returns a list of `z3_expr`;
 #'   `z3_goal_status()` returns `"sat"`, `"unsat"` or `"undecided"`.
 #' @examples
 #' ctx <- z3_context()
@@ -88,6 +89,16 @@ z3_apply_tactic <- function(t, goal, ...) cpp_tactic_apply(t, goal, params_list(
 #' @export
 print.z3_goal <- function(x, ...) {
   cat("<z3_goal>\n", cpp_goal_to_string(x), "\n", sep = "")
+  invisible(x)
+}
+
+#' @export
+format.z3_apply_result <- function(x, ...) attr(x, "text") %||% ""
+
+#' @export
+print.z3_apply_result <- function(x, ...) {
+  cat(sprintf("<z3_apply_result: %d subgoal%s>\n", length(x), if (length(x) == 1L) "" else "s"),
+      format(x), "\n", sep = "")
   invisible(x)
 }
 

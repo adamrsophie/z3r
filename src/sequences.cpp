@@ -7,13 +7,9 @@ namespace {
 
 Z3_sort sort_of_ast(const Ast& a) { return Z3_get_sort(a.c(), a); }
 
-bool is_seq(const Ast& a) {
-  return Z3_get_sort_kind(a.c(), sort_of_ast(a)) == Z3_SEQ_SORT;
-}
-bool is_re(const Ast& a) { return Z3_get_sort_kind(a.c(), sort_of_ast(a)) == Z3_RE_SORT; }
-bool is_char(const Ast& a) {
-  return Z3_get_sort_kind(a.c(), sort_of_ast(a)) == Z3_CHAR_SORT;
-}
+bool is_seq(const Ast& a) { return Z3_is_seq_sort(a.c(), sort_of_ast(a)); }
+bool is_re(const Ast& a) { return Z3_is_re_sort(a.c(), sort_of_ast(a)); }
+bool is_char(const Ast& a) { return Z3_is_char_sort(a.c(), sort_of_ast(a)); }
 
 void need(bool ok, const std::string& op, const char* what, const Ast& a) {
   if (!ok) {
@@ -47,7 +43,7 @@ SEXP cpp_seq_sort(SEXP elem_) {
 // [[Rcpp::export(rng = false)]]
 SEXP cpp_re_sort(SEXP seq_) {
   const Ast& s = get_sort(seq_);
-  if (Z3_get_sort_kind(s.c(), as_sort(s)) != Z3_SEQ_SORT) fail("regular expressions are over sequence sorts");
+  if (!Z3_is_seq_sort(s.c(), as_sort(s))) fail("regular expressions are over sequence sorts");
   return wrap_sort(own_ast(s.ctx(), sort_ast(Z3_mk_re_sort(s.c(), as_sort(s)))));
 }
 
@@ -62,10 +58,9 @@ SEXP cpp_char_sort(SEXP ctx_) {
 SEXP cpp_sort_basis(SEXP sort_) {
   const Ast& s = get_sort(sort_);
   Z3_context c = s.c();
-  Z3_sort_kind k = Z3_get_sort_kind(c, as_sort(s));
   Z3_sort b;
-  if (k == Z3_SEQ_SORT) b = Z3_get_seq_sort_basis(c, as_sort(s));
-  else if (k == Z3_RE_SORT) b = Z3_get_re_sort_basis(c, as_sort(s));
+  if (Z3_is_seq_sort(c, as_sort(s))) b = Z3_get_seq_sort_basis(c, as_sort(s));
+  else if (Z3_is_re_sort(c, as_sort(s))) b = Z3_get_re_sort_basis(c, as_sort(s));
   else fail("not a sequence or regular expression sort");
   return wrap_sort(own_ast(s.ctx(), sort_ast(b)));
 }
@@ -76,12 +71,11 @@ SEXP cpp_seq_constant(std::string what, SEXP sort_) {
   const Ast& s = get_sort(sort_);
   Z3_context c = s.c();
   Z3_sort srt = as_sort(s);
-  Z3_sort_kind k = Z3_get_sort_kind(c, srt);
   if (what == "empty") {
-    if (k != Z3_SEQ_SORT) fail("z3_seq_empty() needs a sequence sort");
+    if (!Z3_is_seq_sort(c, srt)) fail("z3_seq_empty() needs a sequence sort");
     return wrap_expr(own_ast(s.ctx(), Z3_mk_seq_empty(c, srt)));
   }
-  if (k != Z3_RE_SORT) fail("this regular expression constant needs a regular expression sort");
+  if (!Z3_is_re_sort(c, srt)) fail("this regular expression constant needs a regular expression sort");
   if (what == "re_empty") return wrap_expr(own_ast(s.ctx(), Z3_mk_re_empty(c, srt)));
   if (what == "re_full") return wrap_expr(own_ast(s.ctx(), Z3_mk_re_full(c, srt)));
   return wrap_expr(own_ast(s.ctx(), Z3_mk_re_allchar(c, srt)));

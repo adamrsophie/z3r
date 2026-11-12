@@ -7,6 +7,7 @@
 \alias{z3_enum_sort}
 \alias{z3_tuple_sort}
 \alias{z3_list_sort}
+\alias{z3_tuple_fields}
 \alias{z3_update_field}
 \alias{z3_type_variable}
 \alias{z3_datatype_instance}
@@ -24,6 +25,8 @@ z3_enum_sort(ctx, name, values)
 z3_tuple_sort(ctx, name, ...)
 
 z3_list_sort(ctx, name, element)
+
+z3_tuple_fields(sort)
 
 z3_update_field(x, field, value)
 
@@ -46,11 +49,12 @@ z3_is_recursive_datatype(sort)
 \item{specs}{For \code{z3_datatypes()}: a named list whose elements are lists
 of constructors as in \code{...}.}
 
-\item{sort}{A datatype sort, or sorts for the instance.}
+\item{sort}{A datatype sort (or a \code{z3_datatype}), or sorts for the
+instance.}
 
 \item{values}{Names of the enumeration values.}
 
-\item{element}{Element sort of the list.}
+\item{element}{Element sort of the list (or a \code{z3_datatype}).}
 
 \item{x}{A value of a datatype.}
 
@@ -61,7 +65,9 @@ of constructors as in \code{...}.}
 \value{
 A \code{z3_datatype} (a named list of datatypes for
 \code{z3_datatypes()}), a sort for \code{z3_type_variable()} and a \code{z3_expr} for
-\code{z3_update_field()}.
+\code{z3_update_field()}. \code{z3_tuple_fields()} returns a list with
+\code{constructor}, a \code{z3_function} building tuples, and \code{fields}, a named
+list of accessor functions.
 }
 \description{
 Declare new sorts by their constructors, as in functional languages:
@@ -86,9 +92,17 @@ constructor;
 }
 
 \code{z3_enum_sort()}, \code{z3_tuple_sort()} and \code{z3_list_sort()} are shortcuts
-for the common shapes. \code{z3_update_field()} returns a copy of a value with
+for the common shapes. \code{z3_enum_sort()} and \code{z3_list_sort()} use Z3's
+dedicated constructors; since Z3 4.12.0 an enumeration cannot reuse the
+name of a datatype already declared in the context. \code{z3_tuple_sort()}
+names its constructor \verb{mk_<name>}. A datatype with a single constructor
+that has the datatype's own name and no recursive fields, as in
+\code{z3_datatype(ctx, "Point", Point = list(x = I, y = I))}, is declared as a
+Z3 tuple sort. \code{z3_update_field()} returns a copy of a value with
 one field changed. \code{z3_datatype_of()} rebuilds the object from a datatype
-sort, for example one read from SMT-LIB2.
+sort, for example one read from SMT-LIB2. \code{z3_tuple_fields()} reads a
+tuple sort (a datatype with one constructor and no recursive fields):
+its constructor and its field accessors, in order.
 
 Polymorphic datatypes (Z3 4.15.4 and later) take \code{parameters}, a list of
 type variables made with \code{z3_type_variable()} that fields may use as
@@ -112,4 +126,9 @@ s <- z3_solver(ctx)
 z3_add(s, c1 != Color$red, c1 != Color$green)
 z3_check(s)
 z3_eval(z3_model(s), c1)
+
+Point <- z3_datatype(ctx, "Point", Point = list(x = I, y = I))
+tf <- z3_tuple_fields(Point)
+names(tf$fields)
+z3_simplify(tf$fields$y(tf$constructor(1, 2)))
 }

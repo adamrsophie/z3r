@@ -161,7 +161,8 @@ bool_nary <- function(op, args) {
 #'   convention (`0 <= mod(a, b) < abs(b)`); `rem` takes the sign of the
 #'   divisor as in SMT-LIB. See [z3_operators] for how this differs from
 #'   R.
-#' * `z3_abs()` is the absolute value.
+#' * `z3_abs()` is the absolute value: Z3's `abs` for Int and Real on Z3
+#'   4.13.2 and later, and `(ite (< x 0) (- x) x)` before.
 #' * `z3_to_real()` converts Int to Real; `z3_to_int()` is the floor of a
 #'   Real; `z3_is_int()` states that a Real is a whole number.
 #'

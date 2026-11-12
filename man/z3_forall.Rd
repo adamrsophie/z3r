@@ -3,6 +3,8 @@
 \name{z3_forall}
 \alias{z3_forall}
 \alias{z3_exists}
+\alias{z3_quantifier_db}
+\alias{z3_pattern}
 \title{Quantifiers}
 \usage{
 z3_forall(
@@ -24,14 +26,28 @@ z3_exists(
   qid = "",
   skid = ""
 )
+
+z3_quantifier_db(
+  sorts,
+  names,
+  body,
+  type = c("forall", "exists", "lambda"),
+  patterns = list(),
+  no_patterns = list(),
+  weight = 0,
+  qid = "",
+  skid = ""
+)
+
+z3_pattern(...)
 }
 \arguments{
 \item{vars}{A constant or a list of constants to bind.}
 
-\item{body}{A Boolean expression.}
+\item{body}{A Boolean expression (any expression for a lambda).}
 
 \item{patterns}{Optional list of patterns; each pattern is a list of
-terms.}
+terms or a \code{z3_pattern}. A single \code{z3_pattern} is also accepted.}
 
 \item{no_patterns}{Optional list of terms that must not be used as
 patterns.}
@@ -41,9 +57,18 @@ less eagerly instantiated.}
 
 \item{qid, skid}{Optional quantifier identifier (shown in statistics and
 traces) and prefix for Skolem constants.}
+
+\item{sorts}{A sort or a list of sorts of the bound variables.}
+
+\item{names}{Names of the bound variables, one per sort.}
+
+\item{type}{\code{"forall"}, \code{"exists"} or \code{"lambda"}.}
+
+\item{...}{Terms of the pattern: expressions or lists of them.}
 }
 \value{
-A Boolean \code{z3_expr}.
+A Boolean \code{z3_expr}; an array \code{z3_expr} for a lambda. A
+\code{z3_pattern} for \code{z3_pattern()}.
 }
 \description{
 \code{z3_forall(vars, body)} states that \code{body} holds for all values of the
@@ -56,7 +81,17 @@ constants outside the quantifier are unaffected.
 Quantified formulas are outside the decidable fragments Z3 handles
 completely, so checks may return \code{"unknown"}. Patterns (also called
 triggers) guide Z3's instantiation heuristics: each pattern is a list of
-terms that mention all bound variables.
+terms that mention all bound variables. \code{z3_pattern()} makes one pattern
+from its terms; it prints in Z3's syntax. A pattern cannot be combined
+with \code{no_patterns}.
+
+\code{z3_quantifier_db()} binds de Bruijn variables, made with
+\code{\link[=z3_bound_var]{z3_bound_var()}}, instead of constants, as Z3 does internally. The
+variables are described by \code{sorts} and \code{names}: index 0 refers to the
+last of them, index 1 to the one before it, and so on. Higher indices
+refer to enclosing binders, so quantifiers can be nested. The body (and
+any pattern) uses the variables directly. With \code{type = "lambda"} the
+result is an array, as from \code{\link[=z3_lambda]{z3_lambda()}}.
 }
 \examples{
 ctx <- z3_context()
@@ -66,4 +101,14 @@ x <- z3_int(ctx, "x")
 s <- z3_solver(ctx)
 z3_add(s, z3_forall(x, f(x) >= x), f(3) < 3)
 z3_check(s)
+
+p <- z3_pattern(f(x))
+p
+z3_forall(x, f(x) > 0, patterns = p)
+
+# The same quantifier over a de Bruijn variable
+v0 <- z3_bound_var(ctx, 0, I)
+z3_quantifier_db(I, "x", f(v0) > 0, patterns = z3_pattern(f(v0)))
+sq <- z3_quantifier_db(I, "i", v0 * v0, type = "lambda")
+z3_simplify(z3_select(sq, 7))
 }

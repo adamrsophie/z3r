@@ -20,9 +20,17 @@
 #' * one element per field: accessor functions.
 #'
 #' `z3_enum_sort()`, `z3_tuple_sort()` and `z3_list_sort()` are shortcuts
-#' for the common shapes. `z3_update_field()` returns a copy of a value with
+#' for the common shapes. `z3_enum_sort()` and `z3_list_sort()` use Z3's
+#' dedicated constructors; since Z3 4.12.0 an enumeration cannot reuse the
+#' name of a datatype already declared in the context. `z3_tuple_sort()`
+#' names its constructor `mk_<name>`. A datatype with a single constructor
+#' that has the datatype's own name and no recursive fields, as in
+#' `z3_datatype(ctx, "Point", Point = list(x = I, y = I))`, is declared as a
+#' Z3 tuple sort. `z3_update_field()` returns a copy of a value with
 #' one field changed. `z3_datatype_of()` rebuilds the object from a datatype
-#' sort, for example one read from SMT-LIB2.
+#' sort, for example one read from SMT-LIB2. `z3_tuple_fields()` reads a
+#' tuple sort (a datatype with one constructor and no recursive fields):
+#' its constructor and its field accessors, in order.
 #'
 #' Polymorphic datatypes (Z3 4.15.4 and later) take `parameters`, a list of
 #' type variables made with `z3_type_variable()` that fields may use as
@@ -36,14 +44,17 @@
 #' @param specs For `z3_datatypes()`: a named list whose elements are lists
 #'   of constructors as in `...`.
 #' @param values Names of the enumeration values.
-#' @param element Element sort of the list.
+#' @param element Element sort of the list (or a `z3_datatype`).
 #' @param x A value of a datatype.
 #' @param field A field accessor (an element of the `z3_datatype`).
 #' @param value New value of the field.
-#' @param sort A datatype sort, or sorts for the instance.
+#' @param sort A datatype sort (or a `z3_datatype`), or sorts for the
+#'   instance.
 #' @return A `z3_datatype` (a named list of datatypes for
 #'   `z3_datatypes()`), a sort for `z3_type_variable()` and a `z3_expr` for
-#'   `z3_update_field()`.
+#'   `z3_update_field()`. `z3_tuple_fields()` returns a list with
+#'   `constructor`, a `z3_function` building tuples, and `fields`, a named
+#'   list of accessor functions.
 #' @examples
 #' ctx <- z3_context()
 #' I <- z3_int_sort(ctx)
@@ -62,15 +73,28 @@
 #' z3_add(s, c1 != Color$red, c1 != Color$green)
 #' z3_check(s)
 #' z3_eval(z3_model(s), c1)
+#'
+#' Point <- z3_datatype(ctx, "Point", Point = list(x = I, y = I))
+#' tf <- z3_tuple_fields(Point)
+#' names(tf$fields)
+#' z3_simplify(tf$fields$y(tf$constructor(1, 2)))
 #' @export
 z3_datatype <- function(ctx, name, ..., parameters = NULL) {
-  constructors <- list(...)
+  spec <- datatype_spec(list(...), name)
   if (!is.null(parameters)) {
-    spec <- datatype_spec(constructors, name)
     sort <- cpp_mk_polymorphic_datatype(ctx, name, as_list(parameters), spec)
     return(new_datatype(sort))
   }
-  z3_datatypes(ctx, stats::setNames(list(constructors), name))[[1]]
+  # A single constructor named like the datatype, without recursive fields,
+  # is what Z3 calls a tuple sort.
+  con <- spec[[1L]]
+  built <- if (length(spec) == 1L && identical(con$name, name) &&
+               !any(vapply(con$sorts, is.null, NA))) {
+    cpp_mk_tuple_sort(ctx, name, con$fields, con$sorts)
+  } else {
+    cpp_mk_datatype(ctx, name, spec)
+  }
+  new_datatype(built$sort, built$parts)
 }
 
 #' @rdname z3_datatype
@@ -115,8 +139,8 @@ datatype_spec <- function(constructors, datatype_names) {
              call. = FALSE)
       }
     }
-    list(name = cname, recognizer = paste0("is_", cname), fields = names(fields) %||% character(),
-         sorts = sorts, refs = refs)
+    list(name = enc2utf8(cname), recognizer = enc2utf8(paste0("is_", cname)),
+         fields = enc2utf8(names(fields) %||% character()), sorts = sorts, refs = refs)
   }, names(constructors), constructors, USE.NAMES = FALSE)
 }
 
@@ -125,8 +149,9 @@ decl_function <- function(decl) {
   structure(f, class = c("z3_function", "function"), decl = decl)
 }
 
-new_datatype <- function(sort) {
-  parts <- cpp_datatype_parts(sort)
+# `parts` (constructor, recognizer and accessors of each constructor) may
+# come from the call that declared the sort.
+new_datatype <- function(sort, parts = cpp_datatype_parts(sort)) {
   out <- list(sort = sort)
   cons_names <- character()
   # Constructors, recognizers and accessors share one list with `sort`, so
@@ -175,11 +200,12 @@ z3_datatype_of <- function(sort) new_datatype(sort)
 #' @rdname z3_datatype
 #' @export
 z3_enum_sort <- function(ctx, name, values) {
-  if (!is.character(values) || !length(values) || anyNA(values) || anyDuplicated(values)) {
+  if (!is.character(values) || !length(values) || anyNA(values) || any(values == "") ||
+      anyDuplicated(values)) {
     stop("values must be distinct non-missing names", call. = FALSE)
   }
-  cons <- stats::setNames(rep(list(list()), length(values)), values)
-  do.call(z3_datatype, c(list(ctx, name), cons))
+  built <- cpp_mk_enumeration_sort(ctx, name, enc2utf8(values))
+  new_datatype(built$sort, built$parts)
 }
 
 #' @rdname z3_datatype
@@ -192,7 +218,19 @@ z3_tuple_sort <- function(ctx, name, ...) {
 #' @rdname z3_datatype
 #' @export
 z3_list_sort <- function(ctx, name, element) {
-  z3_datatype(ctx, name, nil = list(), cons = list(head = element, tail = name))
+  if (inherits(element, "z3_datatype")) element <- element$sort
+  built <- cpp_mk_list_sort(ctx, name, element)
+  new_datatype(built$sort, built$parts)
+}
+
+#' @rdname z3_datatype
+#' @export
+z3_tuple_fields <- function(sort) {
+  if (inherits(sort, "z3_datatype")) sort <- sort$sort
+  parts <- cpp_tuple_parts(sort)
+  fields <- lapply(parts$accessors, decl_function)
+  names(fields) <- vapply(parts$accessors, function(a) cpp_decl_info(a)$name, "")
+  list(constructor = decl_function(parts$constructor), fields = fields)
 }
 
 #' @rdname z3_datatype

@@ -32,13 +32,14 @@ void refuse_copy_with_callbacks(SolverHolder* h, const char* what) {
   }
 }
 
-// Builds a Z3 parameter set from a named R list, using the parameter
-// descriptions of the target object to choose each value's type.
-Ref<Z3_params> make_params(const CtxPtr& ctx, Z3_param_descrs descrs, SEXP values) {
+// Sets the values of a named R list in a Z3 parameter set, using the
+// parameter descriptions of the target object to choose each value's type.
+// Returns the timeout among them, or `timeout` if there is none.
+static unsigned set_param_values(const CtxPtr& ctx, Z3_params p, Z3_param_descrs descrs, SEXP values,
+                                 unsigned timeout) {
   Z3_context c = ctx->c;
-  Ref<Z3_params> p = own(ctx, Z3_mk_params(c));
   Rcpp::List lst(values);
-  if (lst.size() == 0) return p;
+  if (lst.size() == 0) return timeout;
   Rcpp::CharacterVector names = lst.names();
   for (R_xlen_t i = 0; i < lst.size(); ++i) {
     std::string name = Rcpp::as<std::string>(names[i]);
@@ -64,6 +65,7 @@ Ref<Z3_params> make_params(const CtxPtr& ctx, Z3_param_descrs descrs, SEXP value
           fail("parameter '" + name + "' must be a non-negative whole number");
         }
         Z3_params_set_uint(c, p, sym, static_cast<unsigned>(d));
+        if (name == "timeout") timeout = static_cast<unsigned>(d);
         break;
       }
       case Z3_PK_DOUBLE: {
@@ -89,9 +91,24 @@ Ref<Z3_params> make_params(const CtxPtr& ctx, Z3_param_descrs descrs, SEXP value
     }
     check(ctx);
   }
-  Z3_params_validate(c, p, descrs);
+  return timeout;
+}
+
+// Builds a Z3 parameter set from a named R list.
+Ref<Z3_params> make_params(const CtxPtr& ctx, Z3_param_descrs descrs, SEXP values) {
+  Ref<Z3_params> p = own(ctx, Z3_mk_params(ctx->c));
+  if (Rf_xlength(values) == 0) return p;
+  set_param_values(ctx, p, descrs, values, 0);
+  Z3_params_validate(ctx->c, p, descrs);
   check(ctx);
   return p;
+}
+
+void keep_params(const CtxPtr& ctx, Z3_param_descrs descrs, SEXP values, Ref<Z3_params>& kept,
+                 unsigned& timeout) {
+  if (Rf_xlength(values) == 0) return;
+  if (!kept.get()) kept = own(ctx, Z3_mk_params(ctx->c));
+  timeout = set_param_values(ctx, kept, descrs, values, timeout);
 }
 
 SEXP describe_params(const CtxPtr& ctx, Z3_param_descrs raw_descrs) {
@@ -128,12 +145,22 @@ SEXP stats_list(const CtxPtr& ctx, Z3_stats raw_stats) {
     keys[i] = str(Z3_stats_get_key(c, st, i));
     if (Z3_stats_is_uint(c, st, i)) {
       out[i] = static_cast<double>(Z3_stats_get_uint_value(c, st, i));
-    } else {
+    } else if (Z3_stats_is_double(c, st, i)) {
       out[i] = Z3_stats_get_double_value(c, st, i);
+    } else {
+      out[i] = NA_REAL;  // a kind of value this version of z3r does not know
     }
     check(ctx);
   }
   out.names() = keys;
+  return out;
+}
+
+// Statistics as Z3 writes them.
+static std::string stats_text(const CtxPtr& ctx, Z3_stats raw_stats) {
+  Ref<Z3_stats> st = own(ctx, raw_stats);
+  std::string out = str(Z3_stats_to_string(ctx->c, st));
+  check(ctx);
   return out;
 }
 
@@ -142,6 +169,34 @@ SEXP stats_list(const CtxPtr& ctx, Z3_stats raw_stats) {
 using namespace z3r;
 
 static SolverHolder* solver(SEXP x) { return solver_of(x); }
+
+// Gives a solver a timeout for one check (see keep_params()). Z3 cannot
+// remove a parameter, so the destructor applies the kept set again with the
+// timeout z3r set before (or else the context's timeout), also when the
+// check fails. apply() runs after construction so that the destructor runs
+// even if it throws.
+struct SolverTimeout {
+  SolverHolder* h = nullptr;
+  void apply(SolverHolder* holder, SEXP ms) {
+    if (Rf_isNull(ms)) return;
+    int v = Rf_asInteger(ms);
+    if (v == NA_INTEGER || v < 1) fail("timeout must be a positive whole number of milliseconds");
+    const CtxPtr& ctx = holder->s.ctx();
+    if (!holder->params.get()) holder->params = own(ctx, Z3_mk_params(ctx->c));
+    h = holder;
+    Z3_params_set_uint(ctx->c, h->params, Z3_mk_string_symbol(ctx->c, "timeout"), static_cast<unsigned>(v));
+    Z3_solver_set_params(ctx->c, h->s, h->params);
+    check(ctx);
+  }
+  ~SolverTimeout() {
+    if (!h) return;
+    Z3_context c = h->s.c();
+    unsigned restore = h->timeout != 4294967295u ? h->timeout : h->s.ctx()->timeout;
+    Z3_params_set_uint(c, h->params, Z3_mk_string_symbol(c, "timeout"), restore);
+    Z3_solver_set_params(c, h->s, h->params);
+    Z3_set_error(c, Z3_OK);  // a destructor cannot raise it; the set was accepted before
+  }
+};
 
 static SEXP wrap_solver(const CtxPtr& ctx, Z3_solver s) {
   Ref<Z3_solver> ref = own(ctx, s);  // checks for an error before allocating
@@ -224,7 +279,7 @@ SEXP cpp_solver_assert_and_track(SEXP s_, SEXP constraint, SEXP label_) {
 }
 
 // [[Rcpp::export(rng = false)]]
-std::string cpp_solver_check(SEXP s_, Rcpp::List assumptions) {
+std::string cpp_solver_check(SEXP s_, Rcpp::List assumptions, SEXP timeout) {
   SolverHolder* h = solver(s_);
   const CtxPtr& ctx = h->s.ctx();
   AstVec as;
@@ -234,6 +289,8 @@ std::string cpp_solver_check(SEXP s_, Rcpp::List assumptions) {
     as.push_back(a);
   }
   std::vector<Z3_ast> r = raw(as);
+  SolverTimeout once;
+  once.apply(h, timeout);
   for (CallbackPtr& cb : h->callbacks) cb->cloned = false;
   Z3_lbool st;
   {
@@ -378,6 +435,30 @@ SEXP cpp_solver_statistics(SEXP s_) {
   return stats_list(h->s.ctx(), Z3_solver_get_statistics(h->s.c(), h->s));
 }
 
+// Statistics of a solver, optimizer or fixedpoint engine as Z3 writes them.
+// [[Rcpp::export(rng = false)]]
+Rcpp::String cpp_statistics_text(SEXP x) {
+  if (is_kind(x, Kind::Optimize)) {
+    OptimizeHolder* h = optimizer_of(x);
+    return stats_text(h->o.ctx(), Z3_optimize_get_statistics(h->o.c(), h->o));
+  }
+  if (is_kind(x, Kind::Fixedpoint)) {
+    FixedpointHolder* h = fixedpoint_of(x);
+    return stats_text(h->f.ctx(), Z3_fixedpoint_get_statistics(h->f.c(), h->f));
+  }
+  SolverHolder* h = solver(x);
+  return stats_text(h->s.ctx(), Z3_solver_get_statistics(h->s.c(), h->s));
+}
+
+// Stops the check running on this solver. Unlike every other entry point it
+// accepts a busy solver: it is meant for the solver's own callbacks. Z3
+// ignores it when no check runs (the solver then has no event handler).
+// [[Rcpp::export(rng = false)]]
+void cpp_solver_interrupt(SEXP s_) {
+  SolverHolder* h = get_xptr<SolverHolder>(s_, Kind::Solver);
+  Z3_solver_interrupt(h->s.c(), h->s);
+}
+
 // [[Rcpp::export(rng = false)]]
 void cpp_solver_set_params(SEXP s_, SEXP params) {
   SolverHolder* h = solver(s_);
@@ -386,6 +467,18 @@ void cpp_solver_set_params(SEXP s_, SEXP params) {
   Ref<Z3_params> p = make_params(ctx, d, params);
   Z3_solver_set_params(ctx->c, h->s, p);
   check(ctx);
+  keep_params(ctx, d, params, h->params, h->timeout);
+}
+
+// Parameters z3r has applied to a solver or optimizer, as Z3 writes them
+// ("" if none).
+// [[Rcpp::export(rng = false)]]
+Rcpp::String cpp_kept_params(SEXP x) {
+  const Ref<Z3_params>& kept = is_kind(x, Kind::Optimize) ? optimizer_of(x)->params : solver(x)->params;
+  if (!kept.get()) return Rcpp::String("");
+  std::string out = str(Z3_params_to_string(kept.c(), kept));
+  check(kept.ctx());
+  return out;
 }
 
 // [[Rcpp::export(rng = false)]]
@@ -504,6 +597,55 @@ std::string cpp_solver_help(SEXP s_) {
   SolverHolder* h = solver(s_);
   std::string out = str(Z3_solver_get_help(h->s.c(), h->s));
   check(h->s.ctx());
+  return out;
+}
+
+// Help text for the parameters of z3_simplify().
+// [[Rcpp::export(rng = false)]]
+std::string cpp_simplify_help_text(SEXP ctx_) {
+  CtxPtr ctx = get_ctx(ctx_);
+  std::string out = str(Z3_simplify_get_help(ctx->c));
+  check(ctx);
+  return out;
+}
+
+// Names of the parameters of a solver, optimizer, tactic, simplifier,
+// fixedpoint engine or (for a context) z3_simplify(), as Z3 lists them.
+// [[Rcpp::export(rng = false)]]
+std::string cpp_param_names(SEXP x) {
+  CtxPtr ctx;
+  Z3_param_descrs d = nullptr;
+  if (is_kind(x, Kind::Solver)) {
+    SolverHolder* h = solver(x);
+    ctx = h->s.ctx();
+    d = Z3_solver_get_param_descrs(ctx->c, h->s);
+  } else if (is_kind(x, Kind::Optimize)) {
+    OptimizeHolder* h = optimizer_of(x);
+    ctx = h->o.ctx();
+    d = Z3_optimize_get_param_descrs(ctx->c, h->o);
+  } else if (is_kind(x, Kind::Fixedpoint)) {
+    FixedpointHolder* h = fixedpoint_of(x);
+    ctx = h->f.ctx();
+    d = Z3_fixedpoint_get_param_descrs(ctx->c, h->f);
+  } else if (is_kind(x, Kind::Tactic)) {
+    const Ref<Z3_tactic>& t = *get_xptr<Ref<Z3_tactic>>(x, Kind::Tactic);
+    ctx = t.ctx();
+    d = Z3_tactic_get_param_descrs(ctx->c, t);
+  } else if (is_kind(x, Kind::Simplifier)) {
+#if Z3R_AT_LEAST(4, 12, 2)
+    const Ref<Z3_simplifier>& s = *get_xptr<Ref<Z3_simplifier>>(x, Kind::Simplifier);
+    ctx = s.ctx();
+    d = Z3_simplifier_get_param_descrs(ctx->c, s);
+#else
+    needs_version("z3_help() for simplifiers", "4.12.2");
+#endif
+  } else {
+    ctx = get_ctx(x);
+    d = Z3_simplify_get_param_descrs(ctx->c);
+  }
+  Ref<Z3_param_descrs> descrs = own(ctx, d);
+  std::string out = str(Z3_param_descrs_to_string(ctx->c, descrs));
+  check(ctx);
   return out;
 }
 

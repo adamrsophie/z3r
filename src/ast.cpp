@@ -7,9 +7,9 @@ using namespace z3r;
 namespace z3r {
 
 Ref<Z3_ast_vector> make_ast_vector(const CtxPtr& ctx, const AstVec& v) {
+  for (const Ast& a : v) same_ctx(ctx, a.ctx());
   Ref<Z3_ast_vector> out = own(ctx, Z3_mk_ast_vector(ctx->c));
   for (const Ast& a : v) {
-    same_ctx(ctx, a.ctx());
     Z3_ast_vector_push(ctx->c, out, a);
     check(ctx);
   }
@@ -253,6 +253,28 @@ SEXP cpp_translate(SEXP x, SEXP target_) {
   check(a.ctx());
   Ast out = own_ast(target, t);
   return k == Kind::Sort ? wrap_sort(out) : k == Kind::FuncDecl ? wrap_decl(out) : wrap_expr(out);
+}
+
+// A list of expressions, translated together (shared subterms are copied
+// once). The list must not be empty.
+// [[Rcpp::export(rng = false)]]
+SEXP cpp_translate_list(Rcpp::List x, SEXP target_) {
+  CtxPtr target = get_ctx(target_);
+  CtxPtr ctx = ctx_from_list(x);
+  AstVec terms = expr_list(ctx, x, "the terms to translate");
+  if (ctx.get() == target.get()) return x;
+  // The size is known, so the vector is sized once and filled in place.
+  Ref<Z3_ast_vector> v = own(ctx, Z3_mk_ast_vector(ctx->c));
+  unsigned n = static_cast<unsigned>(terms.size());
+  Z3_ast_vector_resize(ctx->c, v, n);
+  check(ctx);
+  for (unsigned i = 0; i < n; ++i) {
+    Z3_ast_vector_set(ctx->c, v, i, terms[i]);
+    check(ctx);
+  }
+  Z3_ast_vector t = Z3_ast_vector_translate(ctx->c, v, target->c);
+  check(ctx);
+  return wrap_ast_vector(target, t);
 }
 
 // [[Rcpp::export(rng = false)]]

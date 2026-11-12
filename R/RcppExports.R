@@ -17,6 +17,14 @@ cpp_quantifier <- function(forall, vars, body_, patterns, no_patterns, weight, q
     .Call(`_z3r_cpp_quantifier`, forall, vars, body_, patterns, no_patterns, weight, qid, skid)
 }
 
+cpp_quantifier_db <- function(type, sorts, names, body_, patterns, no_patterns, weight, qid, skid) {
+    .Call(`_z3r_cpp_quantifier_db`, type, sorts, names, body_, patterns, no_patterns, weight, qid, skid)
+}
+
+cpp_pattern_to_string <- function(terms) {
+    .Call(`_z3r_cpp_pattern_to_string`, terms)
+}
+
 cpp_mk_tactic <- function(ctx_, name_) {
     .Call(`_z3r_cpp_mk_tactic`, ctx_, name_)
 }
@@ -185,6 +193,10 @@ cpp_translate <- function(x, target_) {
     .Call(`_z3r_cpp_translate`, x, target_)
 }
 
+cpp_translate_list <- function(x, target_) {
+    .Call(`_z3r_cpp_translate_list`, x, target_)
+}
+
 cpp_simplify_ex <- function(x, params) {
     .Call(`_z3r_cpp_simplify_ex`, x, params)
 }
@@ -285,12 +297,56 @@ cpp_fixedpoint_external <- function(f_, fns) {
     invisible(.Call(`_z3r_cpp_fixedpoint_external`, f_, fns))
 }
 
+cpp_mk_ast_map <- function(ctx_) {
+    .Call(`_z3r_cpp_mk_ast_map`, ctx_)
+}
+
+cpp_ast_map_insert <- function(m_, key_, value_) {
+    invisible(.Call(`_z3r_cpp_ast_map_insert`, m_, key_, value_))
+}
+
+cpp_ast_map_contains <- function(m_, key_) {
+    .Call(`_z3r_cpp_ast_map_contains`, m_, key_)
+}
+
+cpp_ast_map_find <- function(m_, key_) {
+    .Call(`_z3r_cpp_ast_map_find`, m_, key_)
+}
+
+cpp_ast_map_erase <- function(m_, key_) {
+    invisible(.Call(`_z3r_cpp_ast_map_erase`, m_, key_))
+}
+
+cpp_ast_map_reset <- function(m_) {
+    invisible(.Call(`_z3r_cpp_ast_map_reset`, m_))
+}
+
+cpp_ast_map_size <- function(m_) {
+    .Call(`_z3r_cpp_ast_map_size`, m_)
+}
+
+cpp_ast_map_entries <- function(m_) {
+    .Call(`_z3r_cpp_ast_map_entries`, m_)
+}
+
+cpp_ast_map_to_string <- function(m_) {
+    .Call(`_z3r_cpp_ast_map_to_string`, m_)
+}
+
+cpp_ast_vector_to_string <- function(terms) {
+    .Call(`_z3r_cpp_ast_vector_to_string`, terms)
+}
+
 cpp_version <- function() {
     .Call(`_z3r_cpp_version`)
 }
 
-cpp_mk_context <- function(names, values) {
-    .Call(`_z3r_cpp_mk_context`, names, values)
+cpp_mk_context <- function(names, values, concurrent_dec_ref) {
+    .Call(`_z3r_cpp_mk_context`, names, values, concurrent_dec_ref)
+}
+
+cpp_trace <- function(tag_, enable) {
+    invisible(.Call(`_z3r_cpp_trace`, tag_, enable))
 }
 
 cpp_context_of <- function(x) {
@@ -311,6 +367,26 @@ cpp_datatype_parts <- function(sort_) {
 
 cpp_mk_datatypes <- function(ctx_, names, specs) {
     .Call(`_z3r_cpp_mk_datatypes`, ctx_, names, specs)
+}
+
+cpp_mk_datatype <- function(ctx_, name_, spec) {
+    .Call(`_z3r_cpp_mk_datatype`, ctx_, name_, spec)
+}
+
+cpp_mk_tuple_sort <- function(ctx_, name_, fields, sorts) {
+    .Call(`_z3r_cpp_mk_tuple_sort`, ctx_, name_, fields, sorts)
+}
+
+cpp_mk_enumeration_sort <- function(ctx_, name_, values) {
+    .Call(`_z3r_cpp_mk_enumeration_sort`, ctx_, name_, values)
+}
+
+cpp_mk_list_sort <- function(ctx_, name_, element_) {
+    .Call(`_z3r_cpp_mk_list_sort`, ctx_, name_, element_)
+}
+
+cpp_tuple_parts <- function(sort_) {
+    .Call(`_z3r_cpp_tuple_parts`, sort_)
 }
 
 cpp_mk_type_variable <- function(ctx_, name_) {
@@ -349,6 +425,18 @@ cpp_mk_bv_numeral <- function(ctx_, value_, width) {
     .Call(`_z3r_cpp_mk_bv_numeral`, ctx_, value_, width)
 }
 
+cpp_mk_real_ratio <- function(ctx_, num_, den_) {
+    .Call(`_z3r_cpp_mk_real_ratio`, ctx_, num_, den_)
+}
+
+cpp_mk_string_escaped <- function(ctx_, value_) {
+    .Call(`_z3r_cpp_mk_string_escaped`, ctx_, value_)
+}
+
+cpp_mk_lstring <- function(ctx_, bytes) {
+    .Call(`_z3r_cpp_mk_lstring`, ctx_, bytes)
+}
+
 cpp_lift <- function(ctx_, x, sort_) {
     .Call(`_z3r_cpp_lift`, ctx_, x, sort_)
 }
@@ -383,6 +471,18 @@ cpp_expr_equal <- function(x, y) {
 
 cpp_is_const <- function(x) {
     .Call(`_z3r_cpp_is_const`, x)
+}
+
+cpp_numeral_int <- function(x) {
+    .Call(`_z3r_cpp_numeral_int`, x)
+}
+
+cpp_string_escaped <- function(x) {
+    .Call(`_z3r_cpp_string_escaped`, x)
+}
+
+cpp_string_bytes <- function(x) {
+    .Call(`_z3r_cpp_string_bytes`, x)
 }
 
 cpp_value_info <- function(x, digits) {
@@ -529,12 +629,20 @@ cpp_fixedpoint_from <- function(f_, text_, is_file) {
     .Call(`_z3r_cpp_fixedpoint_from`, f_, text_, is_file)
 }
 
+cpp_relation_columns <- function(sort_) {
+    .Call(`_z3r_cpp_relation_columns`, sort_)
+}
+
 cpp_fixedpoint_last_status <- function(f_) {
     .Call(`_z3r_cpp_fixedpoint_last_status`, f_)
 }
 
 cpp_fp_sort <- function(ctx_, ebits, sbits) {
     .Call(`_z3r_cpp_fp_sort`, ctx_, ebits, sbits)
+}
+
+cpp_fp_sort_named <- function(ctx_, name) {
+    .Call(`_z3r_cpp_fp_sort_named`, ctx_, name)
 }
 
 cpp_rm_sort <- function(ctx_) {
@@ -565,8 +673,8 @@ cpp_fp_op <- function(op, args, sort_, size) {
     .Call(`_z3r_cpp_fp_op`, op, args, sort_, size)
 }
 
-cpp_fp_numeral_parts <- function(x, biased) {
-    .Call(`_z3r_cpp_fp_numeral_parts`, x, biased)
+cpp_fp_numeral_parts <- function(x, biased, numeric) {
+    .Call(`_z3r_cpp_fp_numeral_parts`, x, biased, numeric)
 }
 
 cpp_model_eval <- function(m_, x, completion) {
@@ -595,6 +703,10 @@ cpp_model_set_const <- function(m_, constant, value) {
 
 cpp_model_set_func <- function(m_, decl_, entries, otherwise) {
     invisible(.Call(`_z3r_cpp_model_set_func`, m_, decl_, entries, otherwise))
+}
+
+cpp_model_set_else <- function(m_, decl_, otherwise) {
+    invisible(.Call(`_z3r_cpp_model_set_else`, m_, decl_, otherwise))
 }
 
 cpp_model_has <- function(m_, x) {
@@ -645,8 +757,8 @@ cpp_optimize_objective <- function(o_, term, maximize) {
     .Call(`_z3r_cpp_optimize_objective`, o_, term, maximize)
 }
 
-cpp_optimize_check <- function(o_, assumptions) {
-    .Call(`_z3r_cpp_optimize_check`, o_, assumptions)
+cpp_optimize_check <- function(o_, assumptions, timeout) {
+    .Call(`_z3r_cpp_optimize_check`, o_, assumptions, timeout)
 }
 
 cpp_optimize_last_status <- function(o_) {
@@ -809,8 +921,8 @@ cpp_solver_assert_and_track <- function(s_, constraint, label_) {
     .Call(`_z3r_cpp_solver_assert_and_track`, s_, constraint, label_)
 }
 
-cpp_solver_check <- function(s_, assumptions) {
-    .Call(`_z3r_cpp_solver_check`, s_, assumptions)
+cpp_solver_check <- function(s_, assumptions, timeout) {
+    .Call(`_z3r_cpp_solver_check`, s_, assumptions, timeout)
 }
 
 cpp_solver_last_status <- function(s_) {
@@ -853,8 +965,20 @@ cpp_solver_statistics <- function(s_) {
     .Call(`_z3r_cpp_solver_statistics`, s_)
 }
 
+cpp_statistics_text <- function(x) {
+    .Call(`_z3r_cpp_statistics_text`, x)
+}
+
+cpp_solver_interrupt <- function(s_) {
+    invisible(.Call(`_z3r_cpp_solver_interrupt`, s_))
+}
+
 cpp_solver_set_params <- function(s_, params) {
     invisible(.Call(`_z3r_cpp_solver_set_params`, s_, params))
+}
+
+cpp_kept_params <- function(x) {
+    .Call(`_z3r_cpp_kept_params`, x)
 }
 
 cpp_solver_param_help <- function(s_) {
@@ -887,6 +1011,14 @@ cpp_solver_literals <- function(s_, which) {
 
 cpp_solver_help <- function(s_) {
     .Call(`_z3r_cpp_solver_help`, s_)
+}
+
+cpp_simplify_help_text <- function(ctx_) {
+    .Call(`_z3r_cpp_simplify_help_text`, ctx_)
+}
+
+cpp_param_names <- function(x) {
+    .Call(`_z3r_cpp_param_names`, x)
 }
 
 cpp_solver_to_dimacs <- function(s_, include_names) {
@@ -943,6 +1075,10 @@ cpp_sort_of <- function(x) {
 
 cpp_sort_kind <- function(x) {
     .Call(`_z3r_cpp_sort_kind`, x)
+}
+
+cpp_sort_name <- function(x) {
+    .Call(`_z3r_cpp_sort_name`, x)
 }
 
 cpp_sort_to_string <- function(x) {

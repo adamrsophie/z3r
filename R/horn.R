@@ -22,7 +22,9 @@
 #' `z3_answer_rule_names()`, `z3_add_invariant()` (a known lemma) and
 #' `z3_reachable()` (the reachable states found for a predicate).
 #' `z3_cover()` and `z3_add_cover()` read and add properties of a
-#' predicate at a search level (`-1` is the invariant level), and
+#' predicate at a search level (`-1` is the invariant level;
+#' `z3_add_cover()` accepts levels up to 1024, or up to `z3_num_levels()`
+#' when that is larger), and
 #' `z3_query(fp, q, level)` starts the search at a given level.
 #'
 #' `z3_set_params(fp, engine = "datalog")` selects the Datalog engine;
@@ -134,14 +136,23 @@ z3_reason_unknown.z3_fixedpoint <- function(x) cpp_fixedpoint_reason_unknown(x)
 #' @rdname z3_fixedpoint
 #' @export
 z3_cover <- function(fp, level, relation) {
-  cpp_fixedpoint_cover(fp, as.integer(level), z3_decl(relation), NULL, FALSE)
+  cpp_fixedpoint_cover(fp, as_level(level), z3_decl(relation), NULL, FALSE)
 }
 
 #' @rdname z3_fixedpoint
 #' @export
 z3_add_cover <- function(fp, level, relation, property) {
-  cpp_fixedpoint_cover(fp, as.integer(level), z3_decl(relation), property, TRUE)
+  cpp_fixedpoint_cover(fp, as_level(level), z3_decl(relation), property, TRUE)
   invisible(fp)
+}
+
+# A Spacer level: -1 (the invariant level) or a whole number from 0.
+as_level <- function(level) {
+  if (!is.numeric(level) || length(level) != 1L || is.na(level) || level != trunc(level) ||
+      level < -1 || level > .Machine$integer.max) {
+    stop("level must be -1 or a whole number of at least 0", call. = FALSE)
+  }
+  as.integer(level)
 }
 
 #' @rdname z3_fixedpoint
@@ -213,6 +224,21 @@ z3_finite_domain_sort <- function(ctx, name, size) cpp_finite_domain_sort(ctx, n
 #' @rdname z3_finite_domain_sort
 #' @export
 z3_finite_domain_size <- function(sort) cpp_finite_domain_size(sort)
+
+#' Relation sorts
+#'
+#' The Datalog engine represents a whole relation as a term of a relation
+#' sort ([z3_sort_kind()] `"relation"`), whose columns are the sorts of the
+#' relation's arguments. Such terms reach R as arguments of the callbacks of
+#' [z3_fixedpoint_external()]. `z3_relation_columns()` lists the column
+#' sorts (`Z3_get_relation_arity`, `Z3_get_relation_column`); the arity is
+#' the length of the list.
+#'
+#' @param sort A relation sort, for example `z3_sort(args[[1]])` inside an
+#'   external relation callback.
+#' @return A list of `z3_sort` objects, one per column.
+#' @export
+z3_relation_columns <- function(sort) cpp_relation_columns(sort)
 
 #' Fixedpoint callbacks
 #'

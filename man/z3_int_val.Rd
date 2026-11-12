@@ -11,13 +11,13 @@
 \usage{
 z3_int_val(ctx, value)
 
-z3_real_val(ctx, value)
+z3_real_val(ctx, value, den = NULL)
 
 z3_bool_val(ctx, value)
 
 z3_bv_val(ctx, value, width)
 
-z3_string_val(ctx, value)
+z3_string_val(ctx, value, escaped = FALSE)
 
 z3_val(ctx, value, sort)
 }
@@ -26,7 +26,13 @@ z3_val(ctx, value, sort)
 
 \item{value}{The value; see Details.}
 
+\item{den}{For \code{z3_real_val()}, an optional denominator: a whole number,
+not zero.}
+
 \item{width}{Bit-vector width in bits.}
+
+\item{escaped}{For \code{z3_string_val()}, read \code{value} as an SMT-LIB string
+literal with \verb{\\u\{...\}} escapes.}
 
 \item{sort}{Target sort for \code{z3_val()}.}
 }
@@ -42,7 +48,19 @@ a whole number with absolute value at most 2^53, an R integer, or a
 \code{gmp::bigz}. \code{z3_real_val()} accepts an exact decimal (\code{"0.125"},
 \code{"1.5e-3"}), a fraction (\code{"1/3"}, \code{"-22/7"}), an R number, or a
 \code{gmp::bigq}. Strings are parsed exactly, so \code{z3_real_val(ctx, "0.1")} is
-the rational 1/10.
+the rational 1/10. With \code{den}, \code{z3_real_val(ctx, value, den)} is the
+fraction \code{value / den} of two whole numbers (R integers, doubles of
+absolute value at most 2^53, or \code{bit64::integer64} values), built without
+going through strings.
+
+\code{z3_string_val()} converts an R string exactly, character by character.
+With \code{escaped = TRUE} it reads the string as an SMT-LIB string literal
+instead, so that \verb{\\u\{41\}} (written \code{"\\\\u{41}"} in R) is the character
+\code{A}; escapes beyond U+2FFFF or without a closing brace are kept as text.
+A raw vector gives one character per byte, with the code points 0 to
+255 (so \code{as.raw(0)} is the character U+0000, which R strings cannot
+hold); bytes are not decoded as UTF-8. See \code{\link[=z3_string_escaped]{z3_string_escaped()}} and
+\code{\link[=z3_string_bytes]{z3_string_bytes()}} for the reverse conversions.
 }
 \section{Converting R doubles}{
 
@@ -67,8 +85,11 @@ require exact strings everywhere.
 ctx <- z3_context()
 z3_int_val(ctx, "123456789012345678901234567890")
 z3_real_val(ctx, "1/3")
+z3_real_val(ctx, 1, 3)
 z3_real_val(ctx, "0.125")
 z3_bv_val(ctx, -1, 8)
 z3_string_val(ctx, "hello")
+z3_string_val(ctx, "tab\\\\u{9}", escaped = TRUE)
+z3_string_val(ctx, as.raw(c(0x68, 0x69)))
 z3_val(ctx, 2, z3_real_sort(ctx))
 }

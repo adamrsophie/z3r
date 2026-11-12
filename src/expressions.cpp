@@ -4,6 +4,7 @@
 #include <set>
 
 #include <cerrno>
+#include <climits>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -37,15 +38,34 @@ static std::string describe(const Ast& e) {
   return sort_name(e.ctx(), Z3_get_sort(e.c(), e));
 }
 
+// Numeral of a machine integer, made without decimal strings. The caller
+// has checked that `v` fits `sort`.
+static Ast machine_numeral(const CtxPtr& ctx, int64_t v, Z3_sort sort) {
+  Z3_context c = ctx->c;
+  Z3_ast r;
+  if (v >= 0) {
+    r = v <= static_cast<int64_t>(UINT_MAX) ? Z3_mk_unsigned_int(c, static_cast<unsigned>(v), sort)
+                      : Z3_mk_unsigned_int64(c, static_cast<uint64_t>(v), sort);
+  } else {
+    r = v >= INT_MIN ? Z3_mk_int(c, static_cast<int>(v), sort) : Z3_mk_int64(c, v, sort);
+  }
+  return own_ast(ctx, r);
+}
+
 Ast to_real(const Ast& e) {
   if (is_real(e)) return e;
   if (!is_int(e)) fail("cannot convert an expression of sort " + describe(e) + " to Real");
-  if (Z3_is_numeral_ast(e.c(), e)) {
+  Z3_context c = e.c();
+  if (Z3_is_numeral_ast(c, e)) {
     // Keep literals readable: 2 becomes 2.0 rather than (to_real 2).
-    std::string v = str(Z3_get_numeral_string(e.c(), e));
-    return own_ast(e.ctx(), Z3_mk_numeral(e.c(), v.c_str(), Z3_mk_real_sort(e.c())));
+    Z3_sort real = Z3_mk_real_sort(c);
+    int64_t n = 0, d = 1;
+    if (Z3_get_numeral_small(c, e, &n, &d)) return machine_numeral(e.ctx(), n, real);
+    check(e.ctx());
+    std::string v = str(Z3_get_numeral_string(c, e));
+    return own_ast(e.ctx(), Z3_mk_numeral(c, v.c_str(), real));
   }
-  return own_ast(e.ctx(), Z3_mk_int2real(e.c(), e));
+  return own_ast(e.ctx(), Z3_mk_int2real(c, e));
 }
 
 // Complex numbers (Z3 5.3.2): Int and Real embed exactly.
@@ -219,10 +239,44 @@ static Ast int_literal(const CtxPtr& ctx, const std::string& s, Z3_sort hint) {
   return mk_numeral(ctx, s, Z3_mk_int_sort(ctx->c));
 }
 
-static Ast mk_string_literal(const CtxPtr& ctx, SEXP chr) {
-  const char* utf8 = Rf_translateCharUTF8(chr);
-  // Decode UTF-8 into code points so the literal is exact; Z3_mk_string
-  // would interpret backslash escapes.
+// The same for a machine integer, made without decimal strings.
+static Ast int_literal(const CtxPtr& ctx, int64_t v, Z3_sort hint) {
+  Z3_context c = ctx->c;
+  if (hint) {
+    Z3_sort_kind k = Z3_get_sort_kind(c, hint);
+    if (k == Z3_REAL_SORT) return machine_numeral(ctx, v, hint);
+    if (k == Z3_BV_SORT) {
+      unsigned w = Z3_get_bv_sort_size(c, hint);
+      check(ctx);
+      // Accept the unsigned range [0, 2^w) and the signed range [-2^(w-1), 0).
+      bool ok = w >= 64 || (v >= 0 ? static_cast<uint64_t>(v) < (UINT64_C(1) << w)
+                                   : v >= -static_cast<int64_t>(UINT64_C(1) << (w - 1)));
+      if (!ok) {
+        fail("the value " + std::to_string(static_cast<long long>(v)) +
+             " does not fit in a bit-vector of width " + std::to_string(w));
+      }
+      return machine_numeral(ctx, v, hint);
+    }
+#if Z3R_AT_LEAST(5, 3, 0)
+    if (k == Z3_FINITE_FIELD_SORT) return mk_numeral(ctx, std::to_string(static_cast<long long>(v)), hint);
+#endif
+    if (k == Z3_FINITE_DOMAIN_SORT) {
+      // Elements are 0, ..., size - 1.
+      uint64_t size = 0;
+      Z3_get_finite_domain_sort_size(c, hint, &size);
+      check(ctx);
+      if (v < 0 || static_cast<uint64_t>(v) >= size) {
+        fail("element " + std::to_string(static_cast<long long>(v)) + " is outside the finite domain (0 to " +
+             std::to_string(size - 1) + ")");
+      }
+      return machine_numeral(ctx, v, hint);
+    }
+  }
+  return machine_numeral(ctx, v, Z3_mk_int_sort(c));
+}
+
+// Code points of a UTF-8 string, so that string literals are exact.
+static std::vector<unsigned> code_points(const char* utf8) {
   std::vector<unsigned> cps;
   const unsigned char* p = reinterpret_cast<const unsigned char*>(utf8);
   while (*p) {
@@ -249,6 +303,12 @@ static Ast mk_string_literal(const CtxPtr& ctx, SEXP chr) {
     }
     cps.push_back(cp);
   }
+  return cps;
+}
+
+// Z3_mk_string would interpret backslash escapes; code points do not.
+static Ast mk_string_literal(const CtxPtr& ctx, SEXP chr) {
+  std::vector<unsigned> cps = code_points(Rf_translateCharUTF8(chr));
   return own_ast(ctx, Z3_mk_u32string(ctx->c, static_cast<unsigned>(cps.size()),
                                       cps.empty() ? nullptr : cps.data()));
 }
@@ -285,7 +345,7 @@ Ast lift(const CtxPtr& ctx, SEXP x, Z3_sort hint) {
     int64_t v;
     std::memcpy(&v, &REAL(x)[0], sizeof v);
     if (v == INT64_MIN) fail("NA cannot be used in a Z3 expression");
-    return int_literal(ctx, std::to_string(static_cast<long long>(v)), hint);
+    return int_literal(ctx, v, hint);
   }
   if (Rf_isFactor(x)) fail("factors cannot be used in Z3 expressions");
   if (Rf_xlength(x) != 1) {
@@ -306,7 +366,7 @@ Ast lift(const CtxPtr& ctx, SEXP x, Z3_sort hint) {
       if (hint && Z3_get_sort_kind(ctx->c, hint) == Z3_FLOATING_POINT_SORT) {
         return fp_literal(ctx, static_cast<double>(v), false, hint);
       }
-      return int_literal(ctx, std::to_string(v), hint);
+      return int_literal(ctx, static_cast<int64_t>(v), hint);
     }
     case REALSXP: {
       double v = REAL(x)[0];
@@ -321,9 +381,7 @@ Ast lift(const CtxPtr& ctx, SEXP x, Z3_sort hint) {
                " is beyond 2^53, so R may already have rounded it; give large "
                "integers exactly as strings with z3_int_val() or as gmp::bigz");
         }
-        char buf[32];
-        std::snprintf(buf, sizeof(buf), "%.0f", v);
-        return int_literal(ctx, buf, hint);
+        return int_literal(ctx, static_cast<int64_t>(v), hint);
       }
       Rcpp::Function getopt("getOption");
       std::string policy = Rcpp::as<std::string>(getopt("z3r.doubles", "decimal"));
@@ -639,13 +697,27 @@ using namespace z3r;
 // ---------------------------------------------------------------------------
 // Exported constructors
 
+// A constant's name: a string, or a whole number from 0 to 2^30 - 1 for an
+// integer symbol, which Z3 prints as k!n.
+static Z3_symbol const_symbol(const CtxPtr& ctx, SEXP name) {
+  if ((TYPEOF(name) == INTSXP || TYPEOF(name) == REALSXP) && !Rf_isObject(name)) {
+    double v = Rf_xlength(name) == 1 ? Rf_asReal(name) : NA_REAL;
+    if (ISNAN(v) || v != std::floor(v) || v < 0 || v > 1073741823.0) {
+      fail("a numeric name must be a single whole number from 0 to 2^30 - 1");
+    }
+    Z3_symbol sym = Z3_mk_int_symbol(ctx->c, static_cast<int>(v));
+    check(ctx);
+    return sym;
+  }
+  return mk_symbol(ctx, as_string(name, "name"));
+}
+
 // [[Rcpp::export(rng = false)]]
 SEXP cpp_mk_const(SEXP ctx_, SEXP name_, SEXP sort_) {
   CtxPtr ctx = get_ctx(ctx_);
   const Ast& s = get_sort(sort_);
   same_ctx(ctx, s.ctx());
-  std::string name = as_string(name_, "name");
-  return wrap_expr(own_ast(ctx, Z3_mk_const(ctx->c, mk_symbol(ctx, name), as_sort(s))));
+  return wrap_expr(own_ast(ctx, Z3_mk_const(ctx->c, const_symbol(ctx, name_), as_sort(s))));
 }
 
 // Fresh constant with a unique name derived from `prefix`.
@@ -679,6 +751,78 @@ SEXP cpp_mk_bv_numeral(SEXP ctx_, SEXP value_, int width) {
   bool neg = !v.empty() && v[0] == '-';
   std::string digits = neg ? v.substr(1) : v;
   return wrap_expr(bv_numeral(ctx, digits, neg, s));
+}
+
+// An R whole number as an exact 64-bit integer: an integer, a double of
+// absolute value at most 2^53, or a bit64::integer64.
+static int64_t whole_int64(SEXP x, const char* what) {
+  if (Rf_xlength(x) == 1) {
+    if (Rf_inherits(x, "integer64")) {
+      int64_t v = INT64_MIN;
+      if (TYPEOF(x) == REALSXP) std::memcpy(&v, &REAL(x)[0], sizeof v);
+      if (v != INT64_MIN) return v;
+    } else if (TYPEOF(x) == INTSXP && !Rf_isObject(x)) {
+      if (INTEGER(x)[0] != NA_INTEGER) return INTEGER(x)[0];
+    } else if (TYPEOF(x) == REALSXP && !Rf_isObject(x)) {
+      double v = REAL(x)[0];
+      if (std::isfinite(v) && v == std::floor(v) && std::fabs(v) <= TWO53) return static_cast<int64_t>(v);
+    }
+  }
+  fail(std::string(what) + " must be a single whole number: an integer, a double of absolute value at "
+       "most 2^53, or a bit64::integer64; give larger values as a string such as \"1/3\"");
+}
+
+// The rational num / den, built from machine integers.
+// [[Rcpp::export(rng = false)]]
+SEXP cpp_mk_real_ratio(SEXP ctx_, SEXP num_, SEXP den_) {
+  CtxPtr ctx = get_ctx(ctx_);
+  int64_t n = whole_int64(num_, "value"), d = whole_int64(den_, "den");
+  if (d == 0) fail("the denominator must not be zero");
+  // Both are above INT64_MIN (integer64 NA), so negating is safe.
+  if (d < 0) {
+    n = -n;
+    d = -d;
+  }
+  Z3_context c = ctx->c;
+  if (n >= -INT_MAX && n <= INT_MAX && d <= INT_MAX) {
+    return wrap_expr(own_ast(ctx, Z3_mk_real(c, static_cast<int>(n), static_cast<int>(d))));
+  }
+#if Z3R_AT_LEAST(4, 12, 2)
+  return wrap_expr(own_ast(ctx, Z3_mk_real_int64(c, n, d)));
+#else
+  return wrap_expr(mk_numeral(ctx, std::to_string(static_cast<long long>(n)) + "/" +
+                                       std::to_string(static_cast<long long>(d)),
+                              Z3_mk_real_sort(c)));
+#endif
+}
+
+// String literal from SMT-LIB text, whose \u{...} escapes Z3 decodes. Z3
+// reads one character per byte, so characters beyond ASCII are passed as
+// escapes too.
+// [[Rcpp::export(rng = false)]]
+SEXP cpp_mk_string_escaped(SEXP ctx_, SEXP value_) {
+  CtxPtr ctx = get_ctx(ctx_);
+  std::string value = as_string(value_, "value");
+  std::string text;
+  for (unsigned cp : code_points(value.c_str())) {
+    if (cp < 0x80) {
+      text += static_cast<char>(cp);
+    } else {
+      char buf[16];
+      std::snprintf(buf, sizeof(buf), "\\u{%x}", cp);
+      text += buf;
+    }
+  }
+  return wrap_expr(own_ast(ctx, Z3_mk_string(ctx->c, text.c_str())));
+}
+
+// String literal with one character per byte (code points 0 to 255).
+// [[Rcpp::export(rng = false)]]
+SEXP cpp_mk_lstring(SEXP ctx_, Rcpp::RawVector bytes) {
+  CtxPtr ctx = get_ctx(ctx_);
+  if (bytes.size() > static_cast<R_xlen_t>(UINT_MAX)) fail("the raw vector is too long for a Z3 string");
+  const char* p = bytes.size() ? reinterpret_cast<const char*>(RAW(bytes)) : "";
+  return wrap_expr(own_ast(ctx, Z3_mk_lstring(ctx->c, static_cast<unsigned>(bytes.size()), p)));
 }
 
 // R scalar to Z3 value of a given sort (or natural sort when sort is NULL).
@@ -809,10 +953,14 @@ SEXP cpp_op(std::string op, SEXP args, Rcpp::IntegerVector params) {
     Ast a = lift(ctx, VECTOR_ELT(args, 0), nullptr);
     if (is_fp(a)) return wrap_expr(own_ast(ctx, Z3_mk_fpa_abs(c, a)));
     need_arith(a, op);
+#if Z3R_AT_LEAST(4, 13, 2)
+    return wrap_expr(own_ast(ctx, Z3_mk_abs(c, a)));
+#else
     Ast zero = own_ast(ctx, Z3_mk_numeral(c, "0", Z3_get_sort(c, a)));
     Ast neg = own_ast(ctx, Z3_mk_lt(c, a, zero));
     Ast minus = own_ast(ctx, Z3_mk_unary_minus(c, a));
     return wrap_expr(own_ast(ctx, Z3_mk_ite(c, neg, minus, a)));
+#endif
   }
   if (op == "to_real") {
     nargs(1);
@@ -1074,10 +1222,72 @@ bool cpp_is_const(SEXP x) {
   const Ast& a = get_expr(x);
   Z3_context c = a.c();
   if (Z3_get_ast_kind(c, a) != Z3_APP_AST) return false;
-  Z3_app app = Z3_to_app(c, a);
-  if (Z3_get_app_num_args(c, app) != 0) return false;
-  Z3_func_decl d = Z3_get_app_decl(c, app);
-  return Z3_get_decl_kind(c, d) == Z3_OP_UNINTERPRETED;
+  // A constant applies an uninterpreted declaration of no arguments.
+  Z3_func_decl d = Z3_get_app_decl(c, Z3_to_app(c, a));
+  return Z3_get_domain_size(c, d) == 0 && Z3_get_decl_kind(c, d) == Z3_OP_UNINTERPRETED;
+}
+
+// An integer numeral within R's integer range, or NA. INT_MIN is R's
+// NA_integer_, so it is out of range.
+// [[Rcpp::export(rng = false)]]
+int cpp_numeral_int(SEXP x) {
+  const Ast& a = get_expr(x);
+  int v = 0;
+  bool ok = Z3_is_numeral_ast(a.c(), a) && Z3_get_numeral_int(a.c(), a, &v);
+  check(a.ctx());
+  return ok && v != NA_INTEGER ? v : NA_INTEGER;
+}
+
+static void need_string_value(const Ast& a) {
+  bool lit = Z3_is_string(a.c(), a);
+  check(a.ctx());
+  if (!lit) fail("x must be a string value; evaluate a symbolic string in a model with z3_eval() first");
+}
+
+// A string value in SMT-LIB form: characters outside printable ASCII are
+// written as \u{...} escapes.
+// [[Rcpp::export(rng = false)]]
+std::string cpp_string_escaped(SEXP x) {
+  const Ast& a = get_expr(x);
+  need_string_value(a);
+  std::string out = str(Z3_get_string(a.c(), a));
+  check(a.ctx());
+  return out;
+}
+
+// The characters of a string value as bytes. Z3 writes characters 1 to 255
+// as single bytes and the others, and a backslash before 'u', as \u{hex}
+// escapes, so every "\u{" starts an escape (Z3 4.8.13 writes U+0000 as
+// "\u{}").
+// [[Rcpp::export(rng = false)]]
+Rcpp::RawVector cpp_string_bytes(SEXP x) {
+  const Ast& a = get_expr(x);
+  need_string_value(a);
+  unsigned len = 0;
+  Z3_char_ptr p = Z3_get_lstring(a.c(), a, &len);
+  check(a.ctx());
+  // Copy at once: Z3 reuses the buffer in the next call.
+  std::string buf = len && p ? std::string(p, len) : std::string();
+  std::vector<unsigned char> out;
+  out.reserve(buf.size());
+  for (size_t i = 0; i < buf.size(); ++i) {
+    if (buf.compare(i, 3, "\\u{") == 0) {
+      size_t close = buf.find('}', i + 3);
+      if (close == std::string::npos) fail("Z3 returned a malformed string escape");
+      unsigned long cp = std::strtoul(buf.substr(i + 3, close - i - 3).c_str(), nullptr, 16);
+      if (cp > 255) {
+        char hex[16];
+        std::snprintf(hex, sizeof(hex), "U+%04lX", cp);
+        fail(std::string("the string contains the character ") + hex +
+             ", which does not fit in a byte; use z3_value() or z3_string_escaped()");
+      }
+      out.push_back(static_cast<unsigned char>(cp));
+      i = close;
+    } else {
+      out.push_back(static_cast<unsigned char>(buf[i]));
+    }
+  }
+  return Rcpp::RawVector(out.begin(), out.end());
 }
 
 // Description of a value expression for conversion to R. Returns a list
@@ -1144,38 +1354,61 @@ SEXP cpp_value_info(SEXP x, int digits) {
                                 Named("approx") = approx, Named("text") = to_string(a));
     }
     if (!Z3_is_numeral_ast(c, a)) return Rcpp::List::create(Named("kind") = "symbolic");
-    std::string exact = str(Z3_get_numeral_string(c, a));
+    std::string exact;
+    bool exact_double;
+    double value, approx;
+    // Fast path: a numeral whose numerator and denominator fit machine
+    // integers is read without decimal strings. Bit-vector numerals are
+    // unsigned.
+    int64_t n = 0, d = 1;
+    unsigned u = 0;
+    bool small = k == Z3_BV_SORT && Z3_get_numeral_uint(c, a, &u);
+    if (small) n = u;
+    else small = Z3_get_numeral_rational_int64(c, a, &n, &d);
     check(ctx);
-    // Exact double when |num| <= 2^53 and the denominator is a power of two.
-    Ast num = k == Z3_REAL_SORT ? own_ast(ctx, Z3_get_numerator(c, a)) : a;
-    Ast den = k == Z3_REAL_SORT ? own_ast(ctx, Z3_get_denominator(c, a)) : Ast();
-    int64_t n64 = 0;
-    bool fits = Z3_get_numeral_int64(c, num, &n64);
-    if (!fits && k == Z3_BV_SORT) {
-      uint64_t u = 0;
-      fits = Z3_get_numeral_uint64(c, num, &u) && u <= (1ULL << 53);
-      n64 = static_cast<int64_t>(u);
-    }
-    check(ctx);
-    // The denominator must be a power of two, 2^dexp; dexp up to 1023 is
-    // checked through the exact decimal digits of the power.
-    int dexp = 0;
-    if (fits && den.get()) {
-      double dv = Z3_get_numeral_double(c, den);
-      std::string ds = str(Z3_get_numeral_string(c, den));
+    if (small) {
+      exact = std::to_string(static_cast<long long>(n));
+      if (d != 1) exact += "/" + std::to_string(static_cast<long long>(d));
+      // Exact double when |num| <= 2^53 and the denominator is a power of two.
+      exact_double = n >= -(INT64_C(1) << 53) && n <= (INT64_C(1) << 53) && (d & (d - 1)) == 0;
+      int dexp = 0;
+      while (exact_double && (INT64_C(1) << dexp) < d) ++dexp;
+      value = exact_double ? std::ldexp(static_cast<double>(n), -dexp) : NA_REAL;
+      approx = exact_double ? value : d == 1 ? std::strtod(exact.c_str(), nullptr) : approx_double(ctx, a);
+    } else {
+      exact = str(Z3_get_numeral_string(c, a));
       check(ctx);
-      int e = 0;
-      fits = std::isfinite(dv) && std::frexp(dv, &e) == 0.5;
-      if (fits) {
-        char buf[400];
-        std::snprintf(buf, sizeof(buf), "%.0f", dv);
-        fits = ds == buf;
-        dexp = e - 1;
+      // Exact double when |num| <= 2^53 and the denominator is a power of two.
+      Ast num = k == Z3_REAL_SORT ? own_ast(ctx, Z3_get_numerator(c, a)) : a;
+      Ast den = k == Z3_REAL_SORT ? own_ast(ctx, Z3_get_denominator(c, a)) : Ast();
+      int64_t n64 = 0;
+      bool fits = Z3_get_numeral_int64(c, num, &n64);
+      if (!fits && k == Z3_BV_SORT) {
+        uint64_t u64 = 0;
+        fits = Z3_get_numeral_uint64(c, num, &u64) && u64 <= (1ULL << 53);
+        n64 = static_cast<int64_t>(u64);
       }
+      check(ctx);
+      // The denominator must be a power of two, 2^dexp; dexp up to 1023 is
+      // checked through the exact decimal digits of the power.
+      int dexp = 0;
+      if (fits && den.get()) {
+        double dv = Z3_get_numeral_double(c, den);
+        std::string ds = str(Z3_get_numeral_string(c, den));
+        check(ctx);
+        int e = 0;
+        fits = std::isfinite(dv) && std::frexp(dv, &e) == 0.5;
+        if (fits) {
+          char buf[400];
+          std::snprintf(buf, sizeof(buf), "%.0f", dv);
+          fits = ds == buf;
+          dexp = e - 1;
+        }
+      }
+      exact_double = fits && n64 <= (1LL << 53) && n64 >= -(1LL << 53);
+      value = exact_double ? std::ldexp(static_cast<double>(n64), -dexp) : NA_REAL;
+      approx = exact_double ? value : k == Z3_BV_SORT ? std::strtod(exact.c_str(), nullptr) : approx_double(ctx, a);
     }
-    bool exact_double = fits && n64 <= (1LL << 53) && n64 >= -(1LL << 53);
-    double value = exact_double ? std::ldexp(static_cast<double>(n64), -dexp) : NA_REAL;
-    double approx = exact_double ? value : k == Z3_BV_SORT ? std::strtod(exact.c_str(), nullptr) : approx_double(ctx, a);
     std::string kind = k == Z3_INT_SORT ? "int" : k == Z3_REAL_SORT ? "real" : "bv";
     return Rcpp::List::create(Named("kind") = kind, Named("exact") = exact,
                               Named("exact_double") = exact_double, Named("value") = value,

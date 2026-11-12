@@ -21,6 +21,8 @@ which version they need.
   `Z3_DIR` and installs their DLLs and license beside z3r. z3r refuses to
   load with a Z3 library other than the release it was compiled against.
 * Ctrl-C interrupts a running check.
+* `z3_trace()` switches Z3's debug traces; `z3_context()` can enable
+  concurrent reference count decrements.
 
 ## Expressions
 
@@ -35,6 +37,13 @@ which version they need.
 * Inspection (`z3_kind()`, `z3_decl()`, `z3_args()`, `z3_decl_info()`,
   `z3_quantifier_info()`), substitution, simplification with parameters,
   identifiers and print modes.
+* Strings with SMT-LIB escapes or from raw bytes, and their escaped and
+  byte forms (`z3_string_escaped()`, `z3_string_bytes()`); rationals from
+  a numerator and denominator; integer constant names; `z3_sort_name()`.
+* Quantifiers and lambdas over de Bruijn indexed variables
+  (`z3_quantifier_db()`) and printable patterns (`z3_pattern()`).
+* `z3_ast_map()`, a dictionary keyed by Z3 terms, and
+  `z3_format_terms()`.
 
 ## Solving
 
@@ -43,10 +52,14 @@ which version they need.
   (`z3_all_models()`), models with staleness protection, hand-built models,
   unsatisfiable cores, proofs, consequences, cubes, units and trails,
   congruence classes, solving for variables, initial values, typed
-  parameters, statistics and DIMACS export.
+  parameters, statistics (also as Z3's text, `z3_statistics_text()`) and
+  DIMACS export.
+* Timeouts for a single check (`z3_check(timeout = )`), and
+  `z3_interrupt()`, which stops a check from inside its own callbacks.
 * Optimization with hard and soft constraints, objectives (including the
   cost of soft constraint groups) and priorities, unbounded and
-  non-attained optima, and model callbacks.
+  non-attained optima, model callbacks, and the best bounds found so far
+  when a check returns `"unknown"`.
 * User propagators, clause callbacks and the proof checker callback. R
   errors and interrupts are raised safely after the check, callbacks
   cannot reenter their own solver, and callback closures do not keep
@@ -57,8 +70,13 @@ which version they need.
 * Arithmetic, bit-vectors with overflow predicates, IEEE floating point,
   arrays (multi-index, map, default, lambdas), sets, strings, sequences,
   regular expressions and characters.
-* Algebraic datatypes: recursive, mutually recursive, enumerations, tuples,
-  lists and polymorphic datatypes.
+* Algebraic datatypes: recursive, mutually recursive, enumerations, tuples
+  (`z3_tuple_fields()`), lists and polymorphic datatypes.
+* Floating point formats by name or width (`z3_fp_sort(ctx, "half")`),
+  SMT-LIB rounding mode names, and numeric parts of numerals.
+* Function interpretations with defaults set after creation
+  (`z3_model_set_default()`); Datalog relation sorts
+  (`z3_relation_columns()`).
 * Uninterpreted and recursive functions, quantifiers with patterns and
   weights, special relations, pseudo-Boolean constraints.
 * Tactics, probes, goals and simplifiers.

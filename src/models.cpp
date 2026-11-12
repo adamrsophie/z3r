@@ -61,13 +61,18 @@ SEXP cpp_model_funcs(SEXP m_) {
     Ast decl = own_ast(ctx, decl_ast(d));
     names[i] = Rcpp::String(symbol_string(ctx, Z3_get_decl_name(c, d)));
     Ref<Z3_func_interp> fi = own(ctx, Z3_model_get_func_interp(c, m, d));
+    unsigned arity = Z3_func_interp_get_arity(c, fi);
     unsigned ne = Z3_func_interp_get_num_entries(c, fi);
+    check(ctx);
     Rcpp::List entries(ne);
     for (unsigned j = 0; j < ne; ++j) {
       Ref<Z3_func_entry> e = own(ctx, Z3_func_interp_get_entry(c, fi, j));
-      unsigned na = Z3_func_entry_get_num_args(c, e);
+      if (Z3_func_entry_get_num_args(c, e) != arity) {
+        fail("Z3 returned a function entry whose number of arguments differs from the arity of its "
+             "interpretation");
+      }
       AstVec args;
-      for (unsigned k = 0; k < na; ++k) args.push_back(own_ast(ctx, Z3_func_entry_get_arg(c, e, k)));
+      for (unsigned k = 0; k < arity; ++k) args.push_back(own_ast(ctx, Z3_func_entry_get_arg(c, e, k)));
       Ast value = own_ast(ctx, Z3_func_entry_get_value(c, e));
       entries[j] = Rcpp::List::create(Rcpp::Named("args") = wrap_expr_list(args),
                                       Rcpp::Named("value") = wrap_expr(value));
@@ -100,6 +105,34 @@ static Ast model_value(const CtxPtr& ctx, SEXP x, Z3_sort sort, const char* what
   return coerce_sort(lift(ctx, x, sort), sort, what);
 }
 
+// The default value of an interpretation of f with `arity` arguments may use
+// bound variable i for argument i + 1; checks their indices and sorts (Z3
+// would coerce them).
+static void check_default(Z3_context c, Z3_func_decl f, unsigned arity, const Ast& els) {
+  std::vector<Z3_sort> fv = free_var_sorts(c, els);
+  for (unsigned j = 0; j < fv.size(); ++j) {
+    if (!fv[j]) continue;
+    if (j >= arity || !Z3_is_eq_sort(c, fv[j], Z3_get_domain(c, f, j))) {
+      fail("the default value uses bound variable " + std::to_string(j) +
+           ", which is not an argument of this function with that sort");
+    }
+  }
+}
+
+// Z3 caches the values of shared subterms between evaluations in a model
+// and clears that cache only when the model completion flag changes, so a
+// changed model could report old values. Evaluating a constant once with
+// each flag changes it, and clears the cache.
+static void clear_eval_cache(const Ref<Z3_model>& m) {
+  Z3_context c = m.c();
+  Ast t = own_ast(m.ctx(), Z3_mk_true(c));
+  Z3_ast out = nullptr;
+  Z3_model_eval(c, m, t, true, &out);
+  check(m.ctx());
+  Z3_model_eval(c, m, t, false, &out);
+  check(m.ctx());
+}
+
 // Assigns a value to a constant (an application of a nullary declaration).
 // [[Rcpp::export(rng = false)]]
 void cpp_model_set_const(SEXP m_, SEXP constant, SEXP value) {
@@ -115,6 +148,7 @@ void cpp_model_set_const(SEXP m_, SEXP constant, SEXP value) {
   Ast v = model_value(ctx, value, Z3_get_sort(c, k), "the value");
   Z3_add_const_interp(c, m, d, v);
   check(ctx);
+  clear_eval_cache(m);
 }
 
 // Defines a function interpretation from (arguments, value) entries and a
@@ -131,16 +165,7 @@ void cpp_model_set_func(SEXP m_, SEXP decl_, Rcpp::List entries, SEXP otherwise)
   if (arity == 0) fail("this declaration has no arguments; use z3_model_set() for constants");
   Z3_sort range = Z3_get_range(c, f);
   Ast els = model_value(ctx, otherwise, range, "the default value");
-  // The default may use bound variable i for argument i + 1; check their
-  // indices and sorts (Z3 would coerce them).
-  std::vector<Z3_sort> fv = free_var_sorts(c, els);
-  for (unsigned j = 0; j < fv.size(); ++j) {
-    if (!fv[j]) continue;
-    if (j >= arity || !Z3_is_eq_sort(c, fv[j], Z3_get_domain(c, f, j))) {
-      fail("the default value uses bound variable " + std::to_string(j) +
-           ", which is not an argument of this function with that sort");
-    }
-  }
+  check_default(c, f, arity, els);
   auto ground = [&](const Ast& e, const char* what) {
     std::vector<Z3_sort> v = free_var_sorts(c, e);
     for (Z3_sort srt : v) {
@@ -167,6 +192,32 @@ void cpp_model_set_func(SEXP m_, SEXP decl_, Rcpp::List entries, SEXP otherwise)
     Z3_func_interp_add_entry(c, fi, keys[i], vals[i]);
     check(ctx);
   }
+  clear_eval_cache(m);
+}
+
+// Replaces the default value of the model's interpretation of a function,
+// keeping its entries.
+// [[Rcpp::export(rng = false)]]
+void cpp_model_set_else(SEXP m_, SEXP decl_, SEXP otherwise) {
+  const Ref<Z3_model>& m = model(m_);
+  const CtxPtr& ctx = m.ctx();
+  Z3_context c = ctx->c;
+  const Ast& decl = get_decl(decl_);
+  same_ctx(ctx, decl.ctx());
+  Z3_func_decl f = as_decl(decl);
+  if (Z3_get_arity(c, f) == 0) fail("this declaration has no arguments; use z3_model_set() for constants");
+  bool has = Z3_model_has_interp(c, m, f);
+  check(ctx);
+  // Z3_model_get_func_interp returns null without an error in that case.
+  if (!has) fail("the model has no interpretation of this function; define one with z3_model_set_function()");
+  Ref<Z3_func_interp> fi = own(ctx, Z3_model_get_func_interp(c, m, f));
+  unsigned arity = Z3_func_interp_get_arity(c, fi);
+  check(ctx);
+  Ast els = model_value(ctx, otherwise, Z3_get_range(c, f), "the default value");
+  check_default(c, f, arity, els);
+  Z3_func_interp_set_else(c, fi, els);
+  check(ctx);
+  clear_eval_cache(m);
 }
 
 // [[Rcpp::export(rng = false)]]

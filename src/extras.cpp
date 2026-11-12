@@ -86,6 +86,7 @@ void cpp_update_param(SEXP ctx_, std::string name, std::string value) {
   CtxPtr ctx = get_ctx(ctx_);
   Z3_update_param_value(ctx->c, name.c_str(), value.c_str());
   check(ctx);
+  ctx->note_param(name, value);
 }
 
 // Rational bounds of an algebraic number within 1/10^precision.

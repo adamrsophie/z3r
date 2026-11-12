@@ -42,6 +42,12 @@ SEXP cpp_rcf_mk(SEXP ctx_, std::string what, SEXP value_) {
     std::string v = as_string(value_, "value");
     return wrap_rcf(ctx, Z3_rcf_mk_rational(c, v.c_str()));
   }
+  if (what == "int") {
+    if (TYPEOF(value_) != INTSXP || Rf_xlength(value_) != 1 || INTEGER(value_)[0] == NA_INTEGER) {
+      fail("value must be a single non-missing integer");
+    }
+    return wrap_rcf(ctx, Z3_rcf_mk_small_int(c, INTEGER(value_)[0]));
+  }
   if (what == "pi") return wrap_rcf(ctx, Z3_rcf_mk_pi(c));
   if (what == "e") return wrap_rcf(ctx, Z3_rcf_mk_e(c));
   return wrap_rcf(ctx, Z3_rcf_mk_infinitesimal(c));

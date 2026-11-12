@@ -4,10 +4,13 @@
 \alias{z3_context}
 \title{Create a Z3 context}
 \usage{
-z3_context(...)
+z3_context(..., concurrent_dec_ref = FALSE)
 }
 \arguments{
 \item{...}{Named configuration parameters.}
+
+\item{concurrent_dec_ref}{\code{TRUE} to enable Z3's concurrent reference
+counting for this context (see Details); must be given by name.}
 }
 \value{
 An object of class \code{z3_context}.
@@ -32,6 +35,13 @@ life. The most useful are \code{proof = TRUE} (needed for \code{\link[=z3_proof]
 \code{auto_config}, \code{well_sorted_check} and \code{model_validate}. Values are R
 scalars of the parameter's type (\code{TRUE}/\code{FALSE}, a whole number, or a
 string); unknown names and values of the wrong type are errors.
+
+\code{concurrent_dec_ref = TRUE} makes Z3 queue reference count decrements
+and apply them the next time the context creates an object or takes a
+reference to one, so that other threads could release objects safely
+(\code{Z3_enable_concurrent_dec_ref}, Z3 4.10.0 or later). z3r releases
+objects only from R's main thread, so this only delays when Z3 frees
+memory.
 }
 \examples{
 ctx <- z3_context()

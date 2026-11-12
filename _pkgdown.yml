@@ -59,6 +59,7 @@ reference:
   - z3_global_param_set
   - z3_set_print_mode
   - z3_memory_usage
+  - z3_trace
 - title: Sorts
   contents:
   - z3_sorts
@@ -70,6 +71,7 @@ reference:
   - z3_int_val
   - z3_value
   - z3_decimal
+  - z3_string_escaped
   - z3_is_expr
 - title: Operators and functions
   contents:
@@ -83,6 +85,7 @@ reference:
   - z3_solver
   - z3_add
   - z3_check
+  - z3_interrupt
   - z3_model
   - z3_eval
   - as.list.z3_model
@@ -137,6 +140,7 @@ reference:
   contents:
   - z3_fixedpoint
   - z3_on_lemma
+  - z3_relation_columns
   - z3_model_project
 - title: Algebraic numbers
   contents:
@@ -151,6 +155,8 @@ reference:
   - z3_simplify_help
   - z3_identical
   - z3_ast_id
+  - z3_ast_map
+  - z3_format_terms
   - z3_to_smtlib
   - z3_parser
   - z3_from_symbolic

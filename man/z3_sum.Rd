@@ -47,7 +47,8 @@ modulus and remainder. \code{div} and \code{mod} follow the SMT-LIB Euclidean
 convention (\verb{0 <= mod(a, b) < abs(b)}); \code{rem} takes the sign of the
 divisor as in SMT-LIB. See \link{z3_operators} for how this differs from
 R.
-\item \code{z3_abs()} is the absolute value.
+\item \code{z3_abs()} is the absolute value: Z3's \code{abs} for Int and Real on Z3
+4.13.2 and later, and \verb{(ite (< x 0) (- x) x)} before.
 \item \code{z3_to_real()} converts Int to Real; \code{z3_to_int()} is the floor of a
 Real; \code{z3_is_int()} states that a Real is a whole number.
 }

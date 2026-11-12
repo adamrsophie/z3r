@@ -101,6 +101,16 @@ std::string cpp_sort_kind(SEXP x) {
   return kind_name(k);
 }
 
+// Name of the sort of a sort or an expression: "Int", or the name given to
+// an uninterpreted or datatype sort.
+// [[Rcpp::export(rng = false)]]
+Rcpp::String cpp_sort_name(SEXP x) {
+  Ast s = is_kind(x, Kind::Sort) ? get_sort(x) : sort_of(get_expr(x));
+  Z3_symbol sym = Z3_get_sort_name(s.c(), as_sort(s));
+  check(s.ctx());
+  return symbol_string(s.ctx(), sym);
+}
+
 // [[Rcpp::export(rng = false)]]
 Rcpp::String cpp_sort_to_string(SEXP x) {
   const Ast& s = get_sort(x);

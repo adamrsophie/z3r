@@ -107,6 +107,22 @@ info$names
 info$body
 ```
 
+Walks that meet the same subterm many times can remember results in
+`z3_ast_map()`, a dictionary keyed by Z3 terms. Equal terms are the same
+key, because Z3 shares structurally equal terms:
+
+```{r}
+seen <- z3_ast_map(ctx)
+count <- function(e) {
+  if (z3_ast_map_contains(seen, e)) return(invisible())
+  z3_ast_map_insert(seen, e, z3_int_val(ctx, length(z3_args(e))))
+  for (a in z3_args(e)) count(a)
+}
+count((x + y) * (x + y) + y)
+length(seen)
+z3_ast_map_get(seen, x + y)
+```
+
 ## Substitution
 
 ```{r}
@@ -135,6 +151,7 @@ xt <- z3_translate(x + 1, other)
 xt + z3_int(other, "x")
 st <- z3_translate(s, other)
 z3_check(st)
+z3_translate(list(a = x + 1, b = y), other)
 ```
 
 ## Global settings and logging

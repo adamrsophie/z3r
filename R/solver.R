@@ -44,7 +44,14 @@ print.z3_solver <- function(x, ...) {
               n, if (n == 1L) "" else "s",
               cpp_solver_num_scopes(x), if (cpp_solver_num_scopes(x) == 1L) "" else "s",
               if (is.na(status)) "not checked" else paste("last check:", status)))
+  print_kept_params(x)
   invisible(x)
+}
+
+# Z3 has no getter for parameters; z3r shows the ones it applied.
+print_kept_params <- function(x) {
+  p <- cpp_kept_params(x)
+  if (nzchar(p)) cat("parameters set: ", p, "\n", sep = "")
 }
 
 #' Add constraints
@@ -90,6 +97,19 @@ z3_add.z3_solver <- function(x, ...) {
 #' Assumptions are Boolean expressions that hold for this check only. They
 #' are not added to the solver.
 #'
+#' @section Timeouts:
+#' `timeout` limits this check to that many milliseconds, replacing any
+#' timeout of the solver or optimizer for this call only; a check that runs
+#' out of time returns `"unknown"`. Afterwards z3r sets the object's
+#' parameters back, also when the check fails or is interrupted: the
+#' timeout set with [z3_set_params()] returns, and without one the object
+#' gets the context's timeout as last set through z3r
+#' (`z3_context(timeout = )` or [z3_update_param()]), or none. Z3 cannot
+#' remove a parameter, so the object then keeps that value as its own: a
+#' later change of the context's timeout, or a global `timeout` set with
+#' [z3_global_param_set()], no longer reaches it. Printing the object shows
+#' the parameters z3r has set on it.
+#'
 #' @section Interrupting a check:
 #' While a check runs, Z3 installs its own handler for the interrupt signal
 #' (Z3's `ctrl_c` parameter, on by default). Pressing Ctrl-C (or the stop
@@ -100,10 +120,13 @@ z3_add.z3_solver <- function(x, ...) {
 #' for an interrupt, a timeout and a resource limit, so an interrupted
 #' optimizer check returns `"unknown"` instead. Front ends that do not send
 #' a signal (such as RGui on Windows) cannot interrupt Z3; set a `timeout`
-#' or `rlimit` with [z3_set_params()] there.
+#' or `rlimit` with [z3_set_params()] there. R code running inside the
+#' check (a callback) can stop it with [z3_interrupt()].
 #'
 #' @param x A `z3_solver` or `z3_optimize`.
 #' @param ... Assumptions: Boolean expressions or lists of them.
+#' @param timeout `NULL`, or a time limit in milliseconds (a positive whole
+#'   number) for this check only; see the Timeouts section.
 #' @return `"sat"`, `"unsat"` or `"unknown"`.
 #' @examples
 #' ctx <- z3_context()
@@ -114,11 +137,18 @@ z3_add.z3_solver <- function(x, ...) {
 #' z3_check(s)
 #' z3_check(s, p)
 #' z3_unsat_core(s)
+#' z3_check(s, timeout = 5000)
 #' @export
-z3_check <- function(x, ...) UseMethod("z3_check")
+z3_check <- function(x, ..., timeout = NULL) UseMethod("z3_check")
 
 #' @export
-z3_check.z3_solver <- function(x, ...) cpp_solver_check(x, flatten_args(...))
+z3_check.z3_solver <- function(x, ..., timeout = NULL) {
+  cpp_solver_check(x, flatten_args(...), check_timeout(timeout))
+}
+
+check_timeout <- function(timeout) {
+  if (is.null(timeout)) NULL else as_count(timeout, "timeout", positive = TRUE)
+}
 
 #' Model of the last satisfiable check
 #'
@@ -211,6 +241,36 @@ z3_reason_unknown <- function(x) UseMethod("z3_reason_unknown")
 #' @export
 z3_reason_unknown.z3_solver <- function(x) cpp_solver_reason_unknown(x)
 
+#' Interrupt a running check
+#'
+#' Stops the check that is running on `solver`. It is meant for R code that
+#' runs inside that check: the callbacks of a user propagator
+#' ([z3_propagator()]) or of [z3_on_clause()], which cannot otherwise use
+#' their own solver. The check then returns `"unknown"` and
+#' [z3_reason_unknown()] reports `"interrupted"`; the solver stays usable.
+#' Z3 notices the request at its next opportunity, so a callback may still
+#' run a few more times. When no check is running, `z3_interrupt()` does
+#' nothing.
+#'
+#' @param solver A `z3_solver`.
+#' @return `solver`, invisibly.
+#' @examples
+#' ctx <- z3_context()
+#' if (z3_version_at_least("4.12.3")) {
+#'   p <- z3_bools(ctx, paste0("p", 1:3))
+#'   s <- z3_solver(ctx)
+#'   z3_add(s, z3_or(p), z3_or(!p$p1, !p$p2))
+#'   # Stop the search at the first clause Z3 reports.
+#'   z3_on_clause(s, function(proof_hint, deps, literals) z3_interrupt(s))
+#'   z3_check(s)
+#' }
+#' @export
+z3_interrupt <- function(solver) {
+  if (!inherits(solver, "z3_solver")) stop("solver must be a z3_solver", call. = FALSE)
+  cpp_solver_interrupt(solver)
+  invisible(solver)
+}
+
 #' Incremental solving: scopes
 #'
 #' `z3_push()` opens a backtracking scope; `z3_pop()` removes every
@@ -285,20 +345,35 @@ z3_assertions.z3_solver <- function(x) cpp_solver_assertions(x)
 
 #' Solver statistics
 #'
-#' @param x A `z3_solver` or `z3_optimize`.
-#' @return A named list of numbers (counts, memory in megabytes, time in
-#'   seconds) reported by Z3 for the last check.
+#' `z3_statistics()` returns the statistics as numbers;
+#' `z3_statistics_text()` returns them as Z3 writes them, one
+#' `:name value` pair per entry.
+#'
+#' @param x A `z3_solver`, `z3_optimize` or `z3_fixedpoint`.
+#' @return `z3_statistics()` returns a named list of numbers (counts,
+#'   memory in megabytes, time in seconds) reported by Z3 for the last
+#'   check. `z3_statistics_text()` returns a string.
 #' @examples
 #' ctx <- z3_context()
 #' s <- z3_solver(ctx)
 #' z3_add(s, z3_int(ctx, "x") > 0)
 #' z3_check(s)
 #' names(z3_statistics(s))
+#' cat(z3_statistics_text(s), "\n")
 #' @export
 z3_statistics <- function(x) UseMethod("z3_statistics")
 
 #' @export
 z3_statistics.z3_solver <- function(x) cpp_solver_statistics(x)
+
+#' @rdname z3_statistics
+#' @export
+z3_statistics_text <- function(x) {
+  if (!inherits(x, c("z3_solver", "z3_optimize", "z3_fixedpoint"))) {
+    stop("x must be a z3_solver, z3_optimize or z3_fixedpoint", call. = FALSE)
+  }
+  cpp_statistics_text(x)
+}
 
 #' Solver and optimizer parameters
 #'
@@ -488,28 +563,42 @@ z3_set_initial_value <- function(x, var, value) {
 #' Help text and DIMACS export
 #'
 #' `z3_help()` returns Z3's description of the parameters of a solver,
-#' optimizer, fixedpoint engine, tactic or simplifier. `z3_to_dimacs()`
-#' writes the assertions of a propositional solver or goal in DIMACS CNF.
+#' optimizer, fixedpoint engine, tactic or simplifier; for a context, it
+#' describes the parameters of [z3_simplify()]. With `names_only = TRUE`
+#' it returns only the parameter names, as Z3 lists them.
+#' `z3_to_dimacs()` writes the assertions of a propositional solver or goal
+#' in DIMACS CNF.
 #'
 #' @param x A `z3_solver`, `z3_optimize`, `z3_fixedpoint`, `z3_tactic`,
-#'   `z3_simplifier` or (for DIMACS) `z3_goal`.
+#'   `z3_simplifier`, `z3_context` or (for DIMACS) `z3_goal`.
+#' @param names_only If `TRUE`, return only the parameter names.
 #' @param include_names Whether to include variable names as comments.
 #' @return A string.
 #' @examples
 #' ctx <- z3_context()
 #' s <- z3_solver(ctx)
 #' substr(z3_help(s), 1, 60)
+#' z3_help(z3_tactic(ctx, "simplify"), names_only = TRUE)
+#' substr(z3_help(ctx), 1, 60)
 #' p <- z3_bools(ctx, c("a", "b"))
 #' z3_add(s, p$a | p$b, !p$a)
 #' cat(z3_to_dimacs(s))
 #' @export
-z3_help <- function(x) {
+z3_help <- function(x, names_only = FALSE) {
+  kinds <- c("z3_solver", "z3_optimize", "z3_tactic", "z3_simplifier", "z3_fixedpoint", "z3_context")
+  if (!inherits(x, kinds)) {
+    stop("x must be a solver, optimizer, fixedpoint engine, tactic, simplifier or context", call. = FALSE)
+  }
+  if (!is.logical(names_only) || length(names_only) != 1L || is.na(names_only)) {
+    stop("names_only must be TRUE or FALSE", call. = FALSE)
+  }
+  if (names_only) return(cpp_param_names(x))
   if (inherits(x, "z3_solver")) return(cpp_solver_help(x))
   if (inherits(x, "z3_optimize")) return(cpp_optimize_help(x))
   if (inherits(x, "z3_tactic")) return(cpp_tactic_help(x))
   if (inherits(x, "z3_simplifier")) return(cpp_simplifier_help(x))
   if (inherits(x, "z3_fixedpoint")) return(cpp_fixedpoint_help(x))
-  stop("x must be a solver, optimizer, fixedpoint engine, tactic or simplifier", call. = FALSE)
+  cpp_simplify_help_text(x)
 }
 
 #' @rdname z3_help

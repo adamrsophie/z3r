@@ -19,7 +19,16 @@
 #' scalars of the parameter's type (`TRUE`/`FALSE`, a whole number, or a
 #' string); unknown names and values of the wrong type are errors.
 #'
+#' `concurrent_dec_ref = TRUE` makes Z3 queue reference count decrements
+#' and apply them the next time the context creates an object or takes a
+#' reference to one, so that other threads could release objects safely
+#' (`Z3_enable_concurrent_dec_ref`, Z3 4.10.0 or later). z3r releases
+#' objects only from R's main thread, so this only delays when Z3 frees
+#' memory.
+#'
 #' @param ... Named configuration parameters.
+#' @param concurrent_dec_ref `TRUE` to enable Z3's concurrent reference
+#'   counting for this context (see Details); must be given by name.
 #' @return An object of class `z3_context`.
 #' @seealso [z3_version()]
 #' @examples
@@ -27,7 +36,10 @@
 #' ctx
 #' pctx <- z3_context(proof = TRUE)
 #' @export
-z3_context <- function(...) {
+z3_context <- function(..., concurrent_dec_ref = FALSE) {
+  if (!isTRUE(concurrent_dec_ref) && !isFALSE(concurrent_dec_ref)) {
+    stop("concurrent_dec_ref must be TRUE or FALSE", call. = FALSE)
+  }
   config <- list(...)
   if (length(config) && (is.null(names(config)) || any(names(config) == ""))) {
     stop("configuration parameters must be named", call. = FALSE)
@@ -40,7 +52,7 @@ z3_context <- function(...) {
   }
   for (nm in names(config)) check_context_param(nm, config[[nm]])
   values <- vapply(config, param_string, character(1))
-  cpp_mk_context(names(config) %||% character(), unname(values))
+  cpp_mk_context(names(config) %||% character(), unname(values), concurrent_dec_ref)
 }
 
 # Configuration parameters Z3 accepts for a new context (Z3_set_param_value),
@@ -134,6 +146,29 @@ z3_context_of <- function(x) {
 #' @export
 z3_same_context <- function(x, y) {
   cpp_same_context(x, y)
+}
+
+#' Z3 trace messages
+#'
+#' `z3_trace(tag)` turns on Z3's internal trace messages for a tag, such as
+#' `"arith"` or `"spacer"`, and `z3_trace(tag, FALSE)` turns them off again
+#' (`Z3_enable_trace`, `Z3_disable_trace`). Only debug builds of Z3 trace;
+#' they write the messages to the file `.z3-trace` in the working
+#' directory. Release builds, which include the usual binary distributions
+#' of Z3, ignore both calls.
+#'
+#' @param tag Trace tags, a character vector.
+#' @param enable `TRUE` to turn the tags on, `FALSE` to turn them off.
+#' @return `tag`, invisibly.
+#' @examples
+#' z3_trace("arith")
+#' z3_trace("arith", enable = FALSE)
+#' @export
+z3_trace <- function(tag, enable = TRUE) {
+  if (!is.character(tag)) stop("tag must be a character vector", call. = FALSE)
+  if (!isTRUE(enable) && !isFALSE(enable)) stop("enable must be TRUE or FALSE", call. = FALSE)
+  for (t in tag) cpp_trace(t, enable)
+  invisible(tag)
 }
 
 .onLoad <- function(libname, pkgname) {

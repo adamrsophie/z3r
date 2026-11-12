@@ -85,6 +85,19 @@ q <- z3_forall(x, f(f(x)) == x, patterns = list(list(f(x))), weight = 1, qid = "
 z3_quantifier_info(q)[c("type", "names", "weight")]
 ```
 
+Z3 itself represents bound variables by de Bruijn indices, and
+`z3_quantifier_db()` builds quantifiers and lambdas in that form directly:
+`z3_bound_var(ctx, 0, I)` is the variable bound by the innermost binder.
+
+```{r}
+v <- z3_bound_var(ctx, 0, I)
+q <- z3_quantifier_db(list(I), "n", f(v) > v)
+q
+s <- z3_solver(ctx)
+z3_add(s, q, f(2) == 2)
+z3_check(s)
+```
+
 Quantified formulas are outside the fragments Z3 decides completely, so
 `"unknown"` answers are possible.
 

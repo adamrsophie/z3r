@@ -6,7 +6,7 @@
 \alias{z3_import_model_converter}
 \title{Help text and DIMACS export}
 \usage{
-z3_help(x)
+z3_help(x, names_only = FALSE)
 
 z3_to_dimacs(x, include_names = TRUE)
 
@@ -14,7 +14,9 @@ z3_import_model_converter(src, dst)
 }
 \arguments{
 \item{x}{A \code{z3_solver}, \code{z3_optimize}, \code{z3_fixedpoint}, \code{z3_tactic},
-\code{z3_simplifier} or (for DIMACS) \code{z3_goal}.}
+\code{z3_simplifier}, \code{z3_context} or (for DIMACS) \code{z3_goal}.}
+
+\item{names_only}{If \code{TRUE}, return only the parameter names.}
 
 \item{include_names}{Whether to include variable names as comments.}
 
@@ -25,8 +27,11 @@ A string.
 }
 \description{
 \code{z3_help()} returns Z3's description of the parameters of a solver,
-optimizer, fixedpoint engine, tactic or simplifier. \code{z3_to_dimacs()}
-writes the assertions of a propositional solver or goal in DIMACS CNF.
+optimizer, fixedpoint engine, tactic or simplifier; for a context, it
+describes the parameters of \code{\link[=z3_simplify]{z3_simplify()}}. With \code{names_only = TRUE}
+it returns only the parameter names, as Z3 lists them.
+\code{z3_to_dimacs()} writes the assertions of a propositional solver or goal
+in DIMACS CNF.
 }
 \details{
 \code{z3_import_model_converter(src, dst)} gives \code{dst} the model
@@ -38,6 +43,8 @@ copy of \code{src}'s problem).
 ctx <- z3_context()
 s <- z3_solver(ctx)
 substr(z3_help(s), 1, 60)
+z3_help(z3_tactic(ctx, "simplify"), names_only = TRUE)
+substr(z3_help(ctx), 1, 60)
 p <- z3_bools(ctx, c("a", "b"))
 z3_add(s, p$a | p$b, !p$a)
 cat(z3_to_dimacs(s))

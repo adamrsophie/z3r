@@ -12,11 +12,13 @@ z3_optimum(objective)
 }
 \value{
 A list of class \code{z3_optimum} with elements \code{status}, \code{value}
-(a \code{z3_expr} or \code{NULL}), \code{lower} and \code{upper} (bound text from Z3).
+(a \code{z3_expr} or \code{NULL}), \code{lower} and \code{upper} (bound text from Z3, or
+\code{NA}).
 }
 \description{
-Returns the optimum found by the last satisfiable \code{\link[=z3_check]{z3_check()}} of the
-objective's optimizer.
+Returns the optimum found by the last \code{\link[=z3_check]{z3_check()}} of the objective's
+optimizer that returned \code{"sat"}, or the best value found so far by one
+that returned \code{"unknown"}.
 }
 \details{
 An optimum is not always a finite, attained number:
@@ -27,6 +29,14 @@ without limit; \code{value} is \code{NULL}.
 \item \code{"not attained"}: the objective approaches \code{value} but never reaches
 it, as when maximizing \code{x} subject to \code{x < 3} over the reals. Z3
 represents this as \code{value - epsilon} or \code{value + epsilon}.
+\item \code{"unknown"}: the check stopped early, for example at a timeout, and
+returned \code{"unknown"}. \code{value} is the best value Z3 had reached, which
+is not proven optimal (\code{NULL} when Z3 had none), and \code{lower} and
+\code{upper} are the bounds known when it stopped. Before Z3 finds its
+first model these can be trivial bounds, such as the total weight of
+the soft constraints. When Z3 stopped before setting up the objective
+it reports zero for both bounds; z3r then returns \code{NA} for both,
+which also happens, rarely, when the bound is exactly zero.
 }
 
 Over nonlinear arithmetic the result can be non-optimal; Z3 does not

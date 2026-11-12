@@ -65,18 +65,27 @@ z3_uninterpreted_sort <- function(ctx, name) cpp_uninterpreted_sort(ctx, name)
 #' @return For `z3_sort()`, the `z3_sort` of `x`. For `z3_sort_kind()`, one
 #'   of `"bool"`, `"int"`, `"real"`, `"bitvector"`, `"array"`, `"string"`,
 #'   `"uninterpreted"` or another lower-case Z3 sort kind; `x` may be an
-#'   expression or a sort.
+#'   expression or a sort. For `z3_sort_name()`, the name of the sort as
+#'   Z3 stores it, such as `"Int"` or the name given to an uninterpreted or
+#'   datatype sort, without the parameters of sorts such as bit-vectors
+#'   (use [format()] for the full sort); `x` may be an expression or a
+#'   sort.
 #' @examples
 #' ctx <- z3_context()
 #' x <- z3_int(ctx, "x")
 #' z3_sort(x)
 #' z3_sort_kind(x / 2)
+#' z3_sort_name(z3_uninterpreted_sort(ctx, "Person"))
 #' @export
 z3_sort <- function(x) cpp_sort_of(x)
 
 #' @rdname z3_sort
 #' @export
 z3_sort_kind <- function(x) cpp_sort_kind(x)
+
+#' @rdname z3_sort
+#' @export
+z3_sort_name <- function(x) cpp_sort_name(x)
 
 #' @export
 format.z3_sort <- function(x, ...) {

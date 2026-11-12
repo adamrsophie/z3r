@@ -221,5 +221,25 @@ z3_check(s)
 head(unlist(z3_statistics(s)), 6)
 ```
 
+`z3_statistics_text()` gives the same statistics as Z3 prints them.
+
+## Time limits and interruption
+
+`timeout` limits one check to that many milliseconds; a check that runs out
+of time returns `"unknown"`, and the solver keeps its own settings for the
+next check:
+
+```{r}
+s <- z3_solver(ctx)
+z3_add(s, x * x * x + y * y * y == 33, x > 0)
+r <- z3_check(s, timeout = 50)
+r
+if (r == "unknown") z3_reason_unknown(s)
+```
+
+Inside a callback (`vignette("propagators")`), `z3_interrupt(s)` stops the
+running check, which then returns `"unknown"` with the reason
+`"interrupted"`.
+
 `vignette("tactics")` shows solvers built from tactics, and
 `vignette("propagators")` shows how R code can join the search.

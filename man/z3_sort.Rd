@@ -3,11 +3,14 @@
 \name{z3_sort}
 \alias{z3_sort}
 \alias{z3_sort_kind}
+\alias{z3_sort_name}
 \title{Sort of an expression}
 \usage{
 z3_sort(x)
 
 z3_sort_kind(x)
+
+z3_sort_name(x)
 }
 \arguments{
 \item{x}{A \code{z3_expr}.}
@@ -16,7 +19,11 @@ z3_sort_kind(x)
 For \code{z3_sort()}, the \code{z3_sort} of \code{x}. For \code{z3_sort_kind()}, one
 of \code{"bool"}, \code{"int"}, \code{"real"}, \code{"bitvector"}, \code{"array"}, \code{"string"},
 \code{"uninterpreted"} or another lower-case Z3 sort kind; \code{x} may be an
-expression or a sort.
+expression or a sort. For \code{z3_sort_name()}, the name of the sort as
+Z3 stores it, such as \code{"Int"} or the name given to an uninterpreted or
+datatype sort, without the parameters of sorts such as bit-vectors
+(use \code{\link[=format]{format()}} for the full sort); \code{x} may be an expression or a
+sort.
 }
 \description{
 Sort of an expression
@@ -26,4 +33,5 @@ ctx <- z3_context()
 x <- z3_int(ctx, "x")
 z3_sort(x)
 z3_sort_kind(x / 2)
+z3_sort_name(z3_uninterpreted_sort(ctx, "Person"))
 }

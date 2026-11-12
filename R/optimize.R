@@ -50,6 +50,7 @@ print.z3_optimize <- function(x, ...) {
               length(cpp_optimize_objectives(x)),
               if (length(cpp_optimize_objectives(x)) == 1L) "" else "s",
               if (is.na(status)) "not checked" else paste("last check:", status)))
+  print_kept_params(x)
   invisible(x)
 }
 
@@ -60,7 +61,9 @@ z3_add.z3_optimize <- function(x, ...) {
 }
 
 #' @export
-z3_check.z3_optimize <- function(x, ...) cpp_optimize_check(x, flatten_args(...))
+z3_check.z3_optimize <- function(x, ..., timeout = NULL) {
+  cpp_optimize_check(x, flatten_args(...), check_timeout(timeout))
+}
 
 #' @export
 z3_model.z3_optimize <- function(x) cpp_optimize_model(x)
@@ -188,8 +191,9 @@ z3_add_soft <- function(opt, constraint, weight = 1, id = "soft") {
 
 #' Optimal value of an objective
 #'
-#' Returns the optimum found by the last satisfiable [z3_check()] of the
-#' objective's optimizer.
+#' Returns the optimum found by the last [z3_check()] of the objective's
+#' optimizer that returned `"sat"`, or the best value found so far by one
+#' that returned `"unknown"`.
 #'
 #' An optimum is not always a finite, attained number:
 #'
@@ -199,6 +203,14 @@ z3_add_soft <- function(opt, constraint, weight = 1, id = "soft") {
 #' * `"not attained"`: the objective approaches `value` but never reaches
 #'   it, as when maximizing `x` subject to `x < 3` over the reals. Z3
 #'   represents this as `value - epsilon` or `value + epsilon`.
+#' * `"unknown"`: the check stopped early, for example at a timeout, and
+#'   returned `"unknown"`. `value` is the best value Z3 had reached, which
+#'   is not proven optimal (`NULL` when Z3 had none), and `lower` and
+#'   `upper` are the bounds known when it stopped. Before Z3 finds its
+#'   first model these can be trivial bounds, such as the total weight of
+#'   the soft constraints. When Z3 stopped before setting up the objective
+#'   it reports zero for both bounds; z3r then returns `NA` for both,
+#'   which also happens, rarely, when the bound is exactly zero.
 #'
 #' Over nonlinear arithmetic the result can be non-optimal; Z3 does not
 #' guarantee optimality there.
@@ -206,7 +218,8 @@ z3_add_soft <- function(opt, constraint, weight = 1, id = "soft") {
 #' @param objective A `z3_objective` from [z3_minimize()],
 #'   [z3_maximize()] or [z3_add_soft()].
 #' @return A list of class `z3_optimum` with elements `status`, `value`
-#'   (a `z3_expr` or `NULL`), `lower` and `upper` (bound text from Z3).
+#'   (a `z3_expr` or `NULL`), `lower` and `upper` (bound text from Z3, or
+#'   `NA`).
 #' @inherit z3_optimize examples
 #' @export
 z3_optimum <- function(objective) {
@@ -215,18 +228,35 @@ z3_optimum <- function(objective) {
          call. = FALSE)
   }
   b <- cpp_optimize_bounds(objective$optimizer, objective$index, objective$serial)
-  bound <- if (objective$maximize) b$upper else b$lower
+  stopped <- b$status == "unknown"
+  # After "sat" the optimum is the bound Z3 proved: the upper bound when
+  # maximizing. After "unknown" the best value so far is the bound its
+  # models reached: the lower bound when maximizing.
+  upper_side <- objective$maximize != stopped
+  bound <- if (upper_side) b$upper else b$lower
   inf <- sign(z3_value(bound$infinity, exact = FALSE))
   eps <- sign(z3_value(bound$epsilon, exact = FALSE))
-  status <- if (inf != 0) "unbounded" else if (eps != 0) "not attained" else "optimal"
+  lower <- bound_text(b$lower)
+  upper <- bound_text(b$upper)
+  # Z3 reports zero bounds when it stopped before setting up the objective.
+  none <- stopped && is_zero_bound(b$lower) && is_zero_bound(b$upper)
+  if (none) lower <- upper <- NA_character_
+  status <- if (stopped) "unknown" else if (inf != 0) "unbounded" else if (eps != 0) "not attained" else "optimal"
+  value <- if (upper_side) b$upper_value else b$lower_value
+  if (eps != 0) value <- bound$value  # the finite part of value +/- epsilon
+  if (none || inf != 0) value <- NULL
   structure(list(
     status = status,
-    value = if (inf == 0) bound$value else NULL,
+    value = value,
     maximize = objective$maximize,
     epsilon = eps,
-    lower = bound_text(b$lower),
-    upper = bound_text(b$upper)
+    lower = lower,
+    upper = upper
   ), class = "z3_optimum")
+}
+
+is_zero_bound <- function(b) {
+  all(vapply(b, function(e) sign(z3_value(e, exact = FALSE)) == 0, logical(1)))
 }
 
 bound_text <- function(b) {
@@ -243,7 +273,9 @@ print.z3_optimum <- function(x, ...) {
     optimal = format(x$value),
     unbounded = if (x$maximize) "+oo (unbounded)" else "-oo (unbounded)",
     `not attained` = sprintf("%s (%s, not attained)", format(x$value),
-                             if (x$maximize) "supremum" else "infimum")
+                             if (x$maximize) "supremum" else "infimum"),
+    unknown = if (is.null(x$value)) "unknown (no value found before the check stopped)"
+              else sprintf("%s (best so far, not proven optimal)", format(x$value))
   )
   cat("<z3_optimum> ", what, "\n", sep = "")
   invisible(x)

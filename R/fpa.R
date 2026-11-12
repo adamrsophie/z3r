@@ -4,8 +4,10 @@
 #' including rounding, signed zeros, infinities and NaN. A format has
 #' `ebits` exponent bits and `sbits` significand bits (counting the hidden
 #' bit): `z3_fp_sort(ctx, 11, 53)` is double precision, the format of R's
-#' numbers. `z3_fp16_sort()`, `z3_fp32_sort()`, `z3_fp64_sort()` and
-#' `z3_fp128_sort()` are the standard formats.
+#' numbers. The standard formats also have names: `z3_fp_sort(ctx, "half")`,
+#' `"single"`, `"double"` and `"quadruple"`, or by width
+#' `z3_fp_sort(ctx, 16)`, `32`, `64` and `128`, the same as `z3_fp16_sort()`,
+#' `z3_fp32_sort()`, `z3_fp64_sort()` and `z3_fp128_sort()`.
 #'
 #' **Values.** `z3_fp(ctx, name, sort)` makes a constant. R numbers combined
 #' with a floating point expression are converted to its format only when
@@ -24,7 +26,10 @@
 #'
 #' **Explicit rounding.** `z3_rounding(ctx, mode)` gives a rounding mode:
 #' `"RNE"` (nearest, ties to even), `"RNA"` (nearest, ties away from zero),
-#' `"RTP"` (toward +Inf), `"RTN"` (toward -Inf), `"RTZ"` (toward zero).
+#' `"RTP"` (toward +Inf), `"RTN"` (toward -Inf), `"RTZ"` (toward zero), or
+#' by its SMT-LIB name, which [z3_value()] returns:
+#' `"roundNearestTiesToEven"`, `"roundNearestTiesToAway"`,
+#' `"roundTowardPositive"`, `"roundTowardNegative"`, `"roundTowardZero"`.
 #' `z3_fp_add()`, `z3_fp_sub()`, `z3_fp_mul()`, `z3_fp_div()`,
 #' `z3_fp_fma()`, `z3_fp_sqrt()` and `z3_fp_round_to_integral()` take it as
 #' their first argument.
@@ -47,22 +52,39 @@
 #' a numeral (class, sign, exponent and significand).
 #'
 #' @param ctx A [z3_context()].
-#' @param ebits,sbits Exponent and significand widths.
+#' @param ebits,sbits Exponent and significand widths. With `sbits` omitted,
+#'   `ebits` names a standard format: `"half"`, `"single"`, `"double"`,
+#'   `"quadruple"`, or a width 16, 32, 64 or 128.
 #' @param name Name of a constant.
 #' @param sort A floating point sort.
 #' @param x,y,z Floating point expressions or R numbers (any value for
 #'   `z3_fp_to_fp()`).
 #' @param rounding A rounding mode from `z3_rounding()`.
-#' @param mode Rounding mode name.
+#' @param mode Rounding mode name, short (`"RNE"`) or SMT-LIB
+#'   (`"roundNearestTiesToEven"`).
 #' @param negative Sign of an infinity or zero.
 #' @param bv,sign,exponent,significand Bit-vector expressions.
 #' @param size Width of the resulting bit-vector.
 #' @param biased For `z3_fp_numeral_parts()`: report the biased exponent.
+#' @param numeric For `z3_fp_numeral_parts()`: also give the sign, exponent
+#'   and fraction as numbers.
 #' @return A `z3_expr` or `z3_sort`; `z3_fp_sort_info()` returns the two
-#'   widths; `z3_fp_numeral_parts()` a list.
+#'   widths; `z3_fp_numeral_parts()` a list: `class` (`"normal"`,
+#'   `"subnormal"`, `"zero"`, `"infinite"` or `"nan"`) and `negative`;
+#'   `significand` and `exponent` as decimal strings for finite values; and
+#'   for every value but NaN the fields as bit-vectors (`sign_bv`,
+#'   `exponent_bv`, `significand_bv`). With `numeric = TRUE`, values other
+#'   than NaN also have `sign` (0 or 1), `exponent_value` and `fraction`
+#'   (the fraction bits without the hidden bit, as an integer), each a
+#'   double while exact (at most 2^53 in magnitude) and a decimal string
+#'   beyond.
 #' @examples
 #' ctx <- z3_context()
 #' D <- z3_fp64_sort(ctx)
+#' z3_fp_sort(ctx, "double") == D
+#' parts <- z3_fp_numeral_parts(z3_fp_val(ctx, 1.5, D), numeric = TRUE)
+#' parts[c("sign", "exponent_value", "fraction")]
+#' z3_value(z3_rounding(ctx, "roundTowardZero"))
 #' x <- z3_fp(ctx, "x", D)
 #' s <- z3_solver(ctx)
 #' # 0.1 + 0.2 != 0.3 in double precision, as in R
@@ -80,24 +102,33 @@ NULL
 #' @rdname z3_fp
 #' @export
 z3_fp_sort <- function(ctx, ebits, sbits) {
+  if (missing(sbits)) {
+    name <- if (is.numeric(ebits)) as.character(ebits) else ebits
+    formats <- c("half", "single", "double", "quadruple", "16", "32", "64", "128")
+    if (!is.character(name) || length(name) != 1L || !name %in% formats) {
+      stop("without sbits, ebits must name a format: \"half\", \"single\", \"double\", ",
+           "\"quadruple\", or a width 16, 32, 64 or 128", call. = FALSE)
+    }
+    return(cpp_fp_sort_named(ctx, name))
+  }
   cpp_fp_sort(ctx, as_count(ebits, "ebits"), as_count(sbits, "sbits"))
 }
 
 #' @rdname z3_fp
 #' @export
-z3_fp16_sort <- function(ctx) cpp_fp_sort(ctx, 5L, 11L)
+z3_fp16_sort <- function(ctx) cpp_fp_sort_named(ctx, "16")
 
 #' @rdname z3_fp
 #' @export
-z3_fp32_sort <- function(ctx) cpp_fp_sort(ctx, 8L, 24L)
+z3_fp32_sort <- function(ctx) cpp_fp_sort_named(ctx, "32")
 
 #' @rdname z3_fp
 #' @export
-z3_fp64_sort <- function(ctx) cpp_fp_sort(ctx, 11L, 53L)
+z3_fp64_sort <- function(ctx) cpp_fp_sort_named(ctx, "64")
 
 #' @rdname z3_fp
 #' @export
-z3_fp128_sort <- function(ctx) cpp_fp_sort(ctx, 15L, 113L)
+z3_fp128_sort <- function(ctx) cpp_fp_sort_named(ctx, "128")
 
 #' @rdname z3_fp
 #' @export
@@ -121,7 +152,9 @@ z3_fp_val <- function(ctx, x, sort, rounding = NULL) {
 
 #' @rdname z3_fp
 #' @export
-z3_rounding <- function(ctx, mode = c("RNE", "RNA", "RTP", "RTN", "RTZ")) {
+z3_rounding <- function(ctx, mode = c("RNE", "RNA", "RTP", "RTN", "RTZ", "roundNearestTiesToEven",
+                                       "roundNearestTiesToAway", "roundTowardPositive",
+                                       "roundTowardNegative", "roundTowardZero")) {
   cpp_rounding_mode(ctx, match.arg(mode))
 }
 
@@ -273,7 +306,9 @@ z3_fp_from_unsigned <- function(rounding, bv, sort) fp_op("from_unsigned", round
 
 #' @rdname z3_fp
 #' @export
-z3_fp_numeral_parts <- function(x, biased = FALSE) cpp_fp_numeral_parts(x, isTRUE(biased))
+z3_fp_numeral_parts <- function(x, biased = FALSE, numeric = FALSE) {
+  cpp_fp_numeral_parts(x, isTRUE(biased), isTRUE(numeric))
+}
 
 #' @rdname z3_fp
 #' @param exponent_value Unbiased exponent, a whole number or string.

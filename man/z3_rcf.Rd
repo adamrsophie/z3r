@@ -56,8 +56,10 @@ exponent, unary \code{-}) and comparison operators.
 }
 \details{
 \itemize{
-\item \code{z3_rcf(ctx, "1/3")} makes a rational; \code{z3_rcf_pi()}, \code{z3_rcf_e()} and
-\code{z3_rcf_infinitesimal()} the special elements.
+\item \code{z3_rcf(ctx, "1/3")} makes a rational and \code{z3_rcf(ctx, 5)} an integer
+(whole numbers within R's integer range use Z3's small integer
+constructor); \code{z3_rcf_pi()}, \code{z3_rcf_e()} and \code{z3_rcf_infinitesimal()}
+the special elements.
 \item \code{z3_rcf_roots(coeffs)} finds all real roots of the polynomial
 \verb{coeffs[[1]] + coeffs[[2]] x + ...}, exactly.
 \item \code{format()} prints the number; \code{z3_rcf_decimal(x, digits)} gives

@@ -5,8 +5,10 @@
 #' are `z3_rcf` objects with arithmetic (`+ - * /`, `^` with a whole
 #' exponent, unary `-`) and comparison operators.
 #'
-#' * `z3_rcf(ctx, "1/3")` makes a rational; `z3_rcf_pi()`, `z3_rcf_e()` and
-#'   `z3_rcf_infinitesimal()` the special elements.
+#' * `z3_rcf(ctx, "1/3")` makes a rational and `z3_rcf(ctx, 5)` an integer
+#'   (whole numbers within R's integer range use Z3's small integer
+#'   constructor); `z3_rcf_pi()`, `z3_rcf_e()` and `z3_rcf_infinitesimal()`
+#'   the special elements.
 #' * `z3_rcf_roots(coeffs)` finds all real roots of the polynomial
 #'   `coeffs[[1]] + coeffs[[2]] x + ...`, exactly.
 #' * `format()` prints the number; `z3_rcf_decimal(x, digits)` gives
@@ -39,6 +41,7 @@ z3_rcf <- function(ctx, value) {
     if (length(value) != 1L || !is.finite(value) || value != floor(value) || abs(value) > 2^53) {
       stop("numeric values must be whole numbers up to 2^53; give rationals as strings", call. = FALSE)
     }
+    if (abs(value) <= .Machine$integer.max) return(cpp_rcf_mk(ctx, "int", as.integer(value)))
     value <- format(value, scientific = FALSE)
   }
   value <- check_numeral(value, "^[+-]?[0-9]+(/[0-9]+)?$", "a rational such as \"-3/7\"")
