@@ -124,9 +124,18 @@ void collect_free_vars(Z3_context c, Z3_ast a, unsigned depth, std::vector<Z3_so
       for (unsigned k = 0; k < n; ++k) collect_free_vars(c, Z3_get_app_arg(c, app, k), depth, out, seen);
       break;
     }
-    case Z3_QUANTIFIER_AST:
-      collect_free_vars(c, Z3_get_quantifier_body(c, a), depth + Z3_get_quantifier_num_bound(c, a), out, seen);
+    case Z3_QUANTIFIER_AST: {
+      unsigned inner = depth + Z3_get_quantifier_num_bound(c, a);
+      collect_free_vars(c, Z3_get_quantifier_body(c, a), inner, out, seen);
+      // Patterns and no-patterns use the same variables as the body.
+      for (unsigned k = 0, n = Z3_get_quantifier_num_patterns(c, a); k < n; ++k) {
+        collect_free_vars(c, Z3_pattern_to_ast(c, Z3_get_quantifier_pattern_ast(c, a, k)), inner, out, seen);
+      }
+      for (unsigned k = 0, n = Z3_get_quantifier_num_no_patterns(c, a); k < n; ++k) {
+        collect_free_vars(c, Z3_get_quantifier_no_pattern_ast(c, a, k), inner, out, seen);
+      }
       break;
+    }
     default:
       break;
   }
@@ -134,9 +143,13 @@ void collect_free_vars(Z3_context c, Z3_ast a, unsigned depth, std::vector<Z3_so
 }  // namespace
 
 std::vector<Z3_sort> free_var_sorts(Z3_context c, Z3_ast a) {
+  return free_var_sorts(c, std::vector<Z3_ast>{a});
+}
+
+std::vector<Z3_sort> free_var_sorts(Z3_context c, const std::vector<Z3_ast>& terms) {
   std::vector<Z3_sort> out;
   std::set<std::pair<unsigned, unsigned>> seen;
-  collect_free_vars(c, a, 0, out, seen);
+  for (Z3_ast a : terms) collect_free_vars(c, a, 0, out, seen);
   return out;
 }
 
@@ -1276,7 +1289,7 @@ Rcpp::RawVector cpp_string_bytes(SEXP x) {
       if (close == std::string::npos) fail("Z3 returned a malformed string escape");
       unsigned long cp = std::strtoul(buf.substr(i + 3, close - i - 3).c_str(), nullptr, 16);
       if (cp > 255) {
-        char hex[16];
+        char hex[32];
         std::snprintf(hex, sizeof(hex), "U+%04lX", cp);
         fail(std::string("the string contains the character ") + hex +
              ", which does not fit in a byte; use z3_value() or z3_string_escaped()");

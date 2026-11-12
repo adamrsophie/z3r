@@ -204,13 +204,15 @@ z3_add_soft <- function(opt, constraint, weight = 1, id = "soft") {
 #'   it, as when maximizing `x` subject to `x < 3` over the reals. Z3
 #'   represents this as `value - epsilon` or `value + epsilon`.
 #' * `"unknown"`: the check stopped early, for example at a timeout, and
-#'   returned `"unknown"`. `value` is the best value Z3 had reached, which
-#'   is not proven optimal (`NULL` when Z3 had none), and `lower` and
-#'   `upper` are the bounds known when it stopped. Before Z3 finds its
-#'   first model these can be trivial bounds, such as the total weight of
-#'   the soft constraints. When Z3 stopped before setting up the objective
-#'   it reports zero for both bounds; z3r then returns `NA` for both,
-#'   which also happens, rarely, when the bound is exactly zero.
+#'   returned `"unknown"`. `value` is the objective's value in the best
+#'   model Z3 had found, which is not proven optimal; it is `NULL` when Z3
+#'   had no model that satisfies the hard constraints and the check's
+#'   assumptions. `lower` and `upper` are the bounds known when it stopped.
+#'   Before Z3 finds its first model these can be trivial bounds, such as
+#'   the total weight of the soft constraints. When Z3 stopped before
+#'   setting up the objective it reports zero for both bounds; z3r then
+#'   returns `NA` for both, which also happens, rarely, when the bound is
+#'   exactly zero.
 #'
 #' Over nonlinear arithmetic the result can be non-optimal; Z3 does not
 #' guarantee optimality there.
@@ -227,29 +229,32 @@ z3_optimum <- function(objective) {
     stop("objective must be a z3_objective from z3_minimize() or z3_maximize()",
          call. = FALSE)
   }
-  b <- cpp_optimize_bounds(objective$optimizer, objective$index, objective$serial)
-  stopped <- b$status == "unknown"
-  # After "sat" the optimum is the bound Z3 proved: the upper bound when
-  # maximizing. After "unknown" the best value so far is the bound its
-  # models reached: the lower bound when maximizing.
-  upper_side <- objective$maximize != stopped
-  bound <- if (upper_side) b$upper else b$lower
-  inf <- sign(z3_value(bound$infinity, exact = FALSE))
-  eps <- sign(z3_value(bound$epsilon, exact = FALSE))
+  b <- cpp_optimize_bounds(objective$optimizer, objective$index, objective$serial,
+                           objective$maximize)
   lower <- bound_text(b$lower)
   upper <- bound_text(b$upper)
-  # Z3 reports zero bounds when it stopped before setting up the objective.
-  none <- stopped && is_zero_bound(b$lower) && is_zero_bound(b$upper)
-  if (none) lower <- upper <- NA_character_
-  status <- if (stopped) "unknown" else if (inf != 0) "unbounded" else if (eps != 0) "not attained" else "optimal"
-  value <- if (upper_side) b$upper_value else b$lower_value
+  if (b$status == "unknown") {
+    # Z3 reports zero bounds when it stopped before setting up the objective.
+    if (is_zero_bound(b$lower) && is_zero_bound(b$upper)) lower <- upper <- NA_character_
+    return(new_optimum("unknown", b$incumbent, objective$maximize, 0, lower, upper))
+  }
+  # The optimum is the bound Z3 proved: the upper bound when maximizing.
+  bound <- if (objective$maximize) b$upper else b$lower
+  inf <- sign(z3_value(bound$infinity, exact = FALSE))
+  eps <- sign(z3_value(bound$epsilon, exact = FALSE))
+  status <- if (inf != 0) "unbounded" else if (eps != 0) "not attained" else "optimal"
+  value <- if (objective$maximize) b$upper_value else b$lower_value
   if (eps != 0) value <- bound$value  # the finite part of value +/- epsilon
-  if (none || inf != 0) value <- NULL
+  if (inf != 0) value <- NULL
+  new_optimum(status, value, objective$maximize, eps, lower, upper)
+}
+
+new_optimum <- function(status, value, maximize, epsilon, lower, upper) {
   structure(list(
     status = status,
     value = value,
-    maximize = objective$maximize,
-    epsilon = eps,
+    maximize = maximize,
+    epsilon = epsilon,
     lower = lower,
     upper = upper
   ), class = "z3_optimum")

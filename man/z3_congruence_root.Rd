@@ -35,5 +35,5 @@ b <- z3_int(ctx, "b")
 s <- z3_solver(ctx)
 z3_add(s, a == b)
 z3_check(s)
-z3_congruence_root(s, a)
+if (z3_version_at_least("4.12.0")) z3_congruence_root(s, a)
 }

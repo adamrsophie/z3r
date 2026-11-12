@@ -65,6 +65,10 @@ cpp_tactic_apply <- function(t_, g_, params) {
     .Call(`_z3r_cpp_tactic_apply`, t_, g_, params)
 }
 
+cpp_apply_result_to_string <- function(r_) {
+    .Call(`_z3r_cpp_apply_result_to_string`, r_)
+}
+
 cpp_parse_smtlib2 <- function(ctx_, text_, is_file, sorts, decls) {
     .Call(`_z3r_cpp_parse_smtlib2`, ctx_, text_, is_file, sorts, decls)
 }
@@ -773,8 +777,8 @@ cpp_optimize_unsat_core <- function(o_) {
     .Call(`_z3r_cpp_optimize_unsat_core`, o_)
 }
 
-cpp_optimize_bounds <- function(o_, idx, serial) {
-    .Call(`_z3r_cpp_optimize_bounds`, o_, idx, serial)
+cpp_optimize_bounds <- function(o_, idx, serial, maximize) {
+    .Call(`_z3r_cpp_optimize_bounds`, o_, idx, serial, maximize)
 }
 
 cpp_optimize_objectives <- function(o_) {
@@ -799,6 +803,10 @@ cpp_optimize_reason_unknown <- function(o_) {
 
 cpp_optimize_statistics <- function(o_) {
     .Call(`_z3r_cpp_optimize_statistics`, o_)
+}
+
+cpp_optimize_interrupt <- function(o_) {
+    invisible(.Call(`_z3r_cpp_optimize_interrupt`, o_))
 }
 
 cpp_optimize_set_params <- function(o_, params) {

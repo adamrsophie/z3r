@@ -7,7 +7,7 @@
 z3_interrupt(solver)
 }
 \arguments{
-\item{solver}{A \code{z3_solver}.}
+\item{solver}{A \code{z3_solver} or \code{z3_optimize}.}
 }
 \value{
 \code{solver}, invisibly.
@@ -16,11 +16,18 @@ z3_interrupt(solver)
 Stops the check that is running on \code{solver}. It is meant for R code that
 runs inside that check: the callbacks of a user propagator
 (\code{\link[=z3_propagator]{z3_propagator()}}) or of \code{\link[=z3_on_clause]{z3_on_clause()}}, which cannot otherwise use
-their own solver. The check then returns \code{"unknown"} and
-\code{\link[=z3_reason_unknown]{z3_reason_unknown()}} reports \code{"interrupted"}; the solver stays usable.
-Z3 notices the request at its next opportunity, so a callback may still
-run a few more times. When no check is running, \code{z3_interrupt()} does
-nothing.
+their own solver, and the model callback of an optimizer
+(\code{\link[=z3_on_model]{z3_on_model()}}). The check then returns \code{"unknown"}; the solver or
+optimizer stays usable. For a solver \code{\link[=z3_reason_unknown]{z3_reason_unknown()}} reports
+\code{"interrupted"}. An optimizer keeps the best model found so far, whose
+objective values \code{\link[=z3_optimum]{z3_optimum()}} reports. Z3 notices the request at its
+next opportunity, so a callback may still run a few more times. When no
+check is running, \code{z3_interrupt()} does nothing.
+}
+\details{
+Z3 can interrupt a single solver but not a single optimizer; for an
+optimizer \code{z3_interrupt()} interrupts its context while the optimizer's
+check runs.
 }
 \examples{
 ctx <- z3_context()
@@ -32,4 +39,13 @@ if (z3_version_at_least("4.12.3")) {
   z3_on_clause(s, function(proof_hint, deps, literals) z3_interrupt(s))
   z3_check(s)
 }
+
+# Stop an optimizer at its first model.
+x <- z3_int(ctx, "x")
+opt <- z3_optimize(ctx)
+z3_add(opt, x >= 0, x <= 100)
+obj <- z3_maximize(opt, x)
+z3_on_model(opt, function(model) z3_interrupt(opt))
+z3_check(opt)
+z3_optimum(obj)
 }

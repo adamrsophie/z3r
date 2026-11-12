@@ -246,13 +246,19 @@ z3_reason_unknown.z3_solver <- function(x) cpp_solver_reason_unknown(x)
 #' Stops the check that is running on `solver`. It is meant for R code that
 #' runs inside that check: the callbacks of a user propagator
 #' ([z3_propagator()]) or of [z3_on_clause()], which cannot otherwise use
-#' their own solver. The check then returns `"unknown"` and
-#' [z3_reason_unknown()] reports `"interrupted"`; the solver stays usable.
-#' Z3 notices the request at its next opportunity, so a callback may still
-#' run a few more times. When no check is running, `z3_interrupt()` does
-#' nothing.
+#' their own solver, and the model callback of an optimizer
+#' ([z3_on_model()]). The check then returns `"unknown"`; the solver or
+#' optimizer stays usable. For a solver [z3_reason_unknown()] reports
+#' `"interrupted"`. An optimizer keeps the best model found so far, whose
+#' objective values [z3_optimum()] reports. Z3 notices the request at its
+#' next opportunity, so a callback may still run a few more times. When no
+#' check is running, `z3_interrupt()` does nothing.
 #'
-#' @param solver A `z3_solver`.
+#' Z3 can interrupt a single solver but not a single optimizer; for an
+#' optimizer `z3_interrupt()` interrupts its context while the optimizer's
+#' check runs.
+#'
+#' @param solver A `z3_solver` or `z3_optimize`.
 #' @return `solver`, invisibly.
 #' @examples
 #' ctx <- z3_context()
@@ -264,10 +270,24 @@ z3_reason_unknown.z3_solver <- function(x) cpp_solver_reason_unknown(x)
 #'   z3_on_clause(s, function(proof_hint, deps, literals) z3_interrupt(s))
 #'   z3_check(s)
 #' }
+#'
+#' # Stop an optimizer at its first model.
+#' x <- z3_int(ctx, "x")
+#' opt <- z3_optimize(ctx)
+#' z3_add(opt, x >= 0, x <= 100)
+#' obj <- z3_maximize(opt, x)
+#' z3_on_model(opt, function(model) z3_interrupt(opt))
+#' z3_check(opt)
+#' z3_optimum(obj)
 #' @export
 z3_interrupt <- function(solver) {
-  if (!inherits(solver, "z3_solver")) stop("solver must be a z3_solver", call. = FALSE)
-  cpp_solver_interrupt(solver)
+  if (inherits(solver, "z3_optimize")) {
+    cpp_optimize_interrupt(solver)
+  } else if (inherits(solver, "z3_solver")) {
+    cpp_solver_interrupt(solver)
+  } else {
+    stop("solver must be a z3_solver or z3_optimize", call. = FALSE)
+  }
   invisible(solver)
 }
 
@@ -501,7 +521,7 @@ z3_trail <- function(x) cpp_solver_literals(x, "trail")
 #' s <- z3_solver(ctx)
 #' z3_add(s, a == b)
 #' z3_check(s)
-#' z3_congruence_root(s, a)
+#' if (z3_version_at_least("4.12.0")) z3_congruence_root(s, a)
 #' @export
 z3_congruence_root <- function(x, a) cpp_solver_congruence(x, "root", a, NULL)
 
@@ -530,7 +550,7 @@ z3_congruence_explain <- function(x, a, b) cpp_solver_congruence(x, "explain", a
 #' y <- z3_int(ctx, "y")
 #' s <- z3_solver(ctx)
 #' z3_add(s, x + 2 * y == 10)
-#' z3_solve_for(s, list(x))
+#' if (z3_version_at_least("4.14.0")) z3_solve_for(s, list(x))
 #' @export
 z3_solve_for <- function(x, vars) cpp_solver_solve_for(x, as_list(vars))
 
@@ -550,7 +570,7 @@ z3_solve_for <- function(x, vars) cpp_solver_solve_for(x, as_list(vars))
 #' x <- z3_int(ctx, "x")
 #' s <- z3_solver(ctx, simple = TRUE)
 #' z3_add(s, x > 0)
-#' z3_set_initial_value(s, x, 42)
+#' if (z3_version_at_least("4.13.2")) z3_set_initial_value(s, x, 42)
 #' z3_check(s)
 #' @export
 z3_set_initial_value <- function(x, var, value) {

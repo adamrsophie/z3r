@@ -78,4 +78,23 @@ test_that("member names that collide are refused", {
   I <- z3_int_sort(ctx)
   expect_error(z3_datatype(ctx, "D2", a = list(x = I), b = list(x = I)), "used twice")
   expect_error(z3_datatype(ctx, "D3", p = list(is_q = I), q = list()), "used twice")
+  expect_error(z3_datatypes(ctx, list(T1 = list(a = list(x = I), b = list(x = I)))),
+               "used twice in datatype T1")
+  expect_error(z3_enum_sort(ctx, "E1", c("a", "is_a")), "used twice in datatype E1")
+  expect_error(z3_enum_sort(ctx, "E2", c("sort", "b")), "reserved")
+})
+
+test_that("a refused datatype leaves its name free for a corrected one", {
+  # The names are checked before Z3 declares the sort.
+  ctx <- z3_context()
+  I <- z3_int_sort(ctx)
+  expect_error(z3_enum_sort(ctx, "E", c("a", "is_a")), "used twice")
+  E <- z3_enum_sort(ctx, "E", c("a", "b"))
+  expect_identical(attr(E, "constructors"), c("a", "b"))
+  expect_error(z3_datatype(ctx, "D", p = list(is_q = I), q = list()), "used twice")
+  D <- z3_datatype(ctx, "D", p = list(v = I), q = list())
+  expect_identical(attr(D, "constructors"), c("p", "q"))
+  expect_error(z3_datatype(ctx, "P", P = list(x = I, x = I)), "used twice")
+  P <- z3_datatype(ctx, "P", P = list(x = I, y = I))
+  expect_identical(format(P$sort), "P")
 })

@@ -57,6 +57,44 @@ test_that("a per-call timeout stops a hard check", {
   expect_match(z3_reason_unknown(s), "timeout|canceled")
 })
 
+test_that("an explicit unlimited timeout survives a per-call timeout", {
+  # The context's timeout must not replace the object's own unlimited one.
+  ctx <- z3_context(timeout = 1)
+  x <- z3_int(ctx, "x")
+  s <- z3_solver(ctx, timeout = 4294967295)
+  z3_add(s, x > 0)
+  expect_identical(z3_check(s, timeout = 60000), "sat")
+  expect_output(print(s), "timeout 4294967295")
+  expect_false(any(grepl("timeout 1\\b", capture.output(print(s)), perl = TRUE)))
+  opt <- z3_optimize(ctx)
+  z3_set_params(opt, timeout = 4294967295)
+  z3_add(opt, x > 0, x < 5)
+  z3_maximize(opt, x)
+  expect_identical(z3_check(opt, timeout = 60000), "sat")
+  expect_output(print(opt), "timeout 4294967295")
+  expect_false(any(grepl("timeout 1\\b", capture.output(print(opt)), perl = TRUE)))
+})
+
+test_that("optimizer options survive later parameter sets and per-call timeouts", {
+  # Z3 resets the optimizer options a parameter set leaves out.
+  ctx <- z3_context()
+  p <- z3_bool(ctx, "p")
+  opt <- z3_optimize(ctx)
+  z3_add_soft(opt, p, weight = 2)
+  z3_set_params(opt, pp.wcnf = TRUE)
+  expect_match(z3_to_smtlib(opt), "p wcnf")
+  z3_set_params(opt, pp.neat = FALSE)
+  expect_match(z3_to_smtlib(opt), "p wcnf")
+  z3_check(opt, timeout = 60000)
+  expect_match(z3_to_smtlib(opt), "p wcnf")
+  skip_if_not(z3_version_at_least("4.15.5"))
+  copy <- z3_translate(opt, z3_context())
+  expect_match(z3_to_smtlib(copy), "p wcnf")
+  z3_check(copy, timeout = 60000)
+  expect_match(z3_to_smtlib(copy), "p wcnf")
+  expect_output(print(copy), "wcnf")
+})
+
 test_that("other parameters survive a per-call timeout", {
   ctx <- z3_context()
   s <- z3_solver(ctx, random_seed = 7)
@@ -170,6 +208,10 @@ test_that("applying a tactic returns a printable result", {
   expect_match(format(res), "goals")
   expect_output(print(res), "<z3_apply_result: 1 subgoal>")
   expect_output(print(res), "goals")
+  # The subgoals belong to the result, so its text follows changes to them.
+  expect_false(grepl("42", format(res), fixed = TRUE))
+  z3_add(res[[1]], x != 42)
+  expect_match(format(res), "42")
   g2 <- z3_goal(ctx)
   z3_add(g2, x < 0 | x > 5)
   split <- z3_apply_tactic(z3_tactic(ctx, "split-clause"), g2)
@@ -202,20 +244,62 @@ test_that("objective values after a failed check are refused", {
   expect_error(z3_optimum(obj), "last z3_check\\(\\) failed")
 })
 
-test_that("an optimizer stopped early reports the best value so far", {
+test_that("an optimizer stopped before its first model has no best value", {
   ctx <- z3_context()
   x <- z3_int(ctx, "x")
   opt <- z3_optimize(ctx)
   z3_add(opt, hard_constraints(ctx))
   obj <- z3_maximize(opt, x)
+  # Z3 sets the bounds of a soft constraint to [0, 7] before any model.
+  soft <- z3_add_soft(opt, x > 5, weight = 7)
+  models <- 0
+  z3_on_model(opt, function(m) models <<- models + 1)
   status <- z3_check(opt, timeout = 1)
-  skip_if(status != "unknown", "Z3 finished within the time limit")
-  o <- z3_optimum(obj)
-  expect_identical(o$status, "unknown")
-  expect_true(is.null(o$value) || inherits(o$value, "z3_expr"))
-  expect_type(o$lower, "character")
-  expect_type(o$upper, "character")
-  expect_output(print(o), "unknown|best so far")
+  skip_if(status != "unknown" || models > 0, "Z3 reported a model within the time limit")
+  for (o in list(z3_optimum(obj), z3_optimum(soft))) {
+    expect_identical(o$status, "unknown")
+    expect_null(o$value)
+    expect_type(o$lower, "character")
+    expect_type(o$upper, "character")
+    expect_output(print(o), "no value found")
+  }
   # A model is still refused after "unknown".
   expect_error(z3_model(opt), "last result was \"unknown\"")
+})
+
+test_that("an optimizer interrupted after a model reports that model's value", {
+  ctx <- z3_context()
+  x <- z3_int(ctx, "x")
+  opt <- z3_optimize(ctx)
+  z3_add(opt, x >= 0, x <= 100)
+  obj <- z3_maximize(opt, x)
+  stop_now <- TRUE
+  seen <- NULL
+  z3_on_model(opt, function(m) {
+    seen <<- z3_value(z3_eval(m, x, completion = TRUE))
+    if (stop_now) z3_interrupt(opt)
+  })
+  # The timeout only guards against a hang; the interrupt comes first.
+  status <- z3_check(opt, timeout = 60000)
+  skip_if(status != "unknown", "Z3 finished before it noticed the interrupt")
+  expect_false(is.null(seen))
+  o <- z3_optimum(obj)
+  expect_identical(o$status, "unknown")
+  expect_identical(z3_value(o$value), seen)
+  expect_output(print(o), "best so far")
+  # The optimizer stays usable.
+  stop_now <- FALSE
+  expect_identical(z3_check(opt), "sat")
+  expect_identical(z3_value(z3_optimum(obj)$value), 100)
+})
+
+test_that("z3_interrupt() on an optimizer does nothing when no check runs", {
+  ctx <- z3_context()
+  x <- z3_int(ctx, "x")
+  opt <- z3_optimize(ctx)
+  z3_add(opt, x >= 0, x <= 5)
+  obj <- z3_maximize(opt, x)
+  expect_invisible(z3_interrupt(opt))
+  expect_identical(z3_check(opt), "sat")
+  expect_identical(z3_value(z3_optimum(obj)$value), 5)
 })

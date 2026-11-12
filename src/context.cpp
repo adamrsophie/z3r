@@ -94,6 +94,7 @@ const char* kind_tag(Kind k) {
     case Kind::Callback: return "z3r_callback";
     case Kind::Parser: return "z3r_parser";
     case Kind::AstMap: return "z3r_ast_map";
+    case Kind::ApplyResult: return "z3r_apply_result";
   }
   return "z3r_unknown";
 }
@@ -116,6 +117,7 @@ const char* kind_class(Kind k) {
     case Kind::Callback: return "z3_callback";
     case Kind::Parser: return "z3_parser";
     case Kind::AstMap: return "z3_ast_map";
+    case Kind::ApplyResult: return "z3_apply_result_ref";
   }
   return "z3_unknown";
 }
@@ -138,6 +140,7 @@ const char* kind_label(Kind k) {
     case Kind::Callback: return "a solver callback handle (z3_callback)";
     case Kind::Parser: return "an SMT-LIB2 parser (z3_parser)";
     case Kind::AstMap: return "a Z3 AST map (z3_ast_map)";
+    case Kind::ApplyResult: return "a tactic result (z3_apply_result)";
   }
   return "a Z3 object";
 }

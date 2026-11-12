@@ -82,9 +82,17 @@ sq () { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
 rpath_for () {
   # Embed a run-time search path for libraries outside the default locations.
   # -Xlinker passes the directory as one argument, even with commas in it.
+  # On Linux the path is written as an RPATH, not a RUNPATH: R puts the
+  # system library directory on LD_LIBRARY_PATH, which outranks a RUNPATH,
+  # so a distribution libz3 would replace the Z3 chosen here.
   case "$1" in
     ""|/usr/lib|/usr/lib64|/lib|/lib64|/usr/lib/*-linux-gnu) echo "" ;;
-    *) echo "-Xlinker -rpath -Xlinker `sq "$1"`" ;;
+    *)
+      case "`uname -s`" in
+        Linux) echo "-Xlinker -rpath -Xlinker `sq "$1"` -Xlinker --disable-new-dtags" ;;
+        *) echo "-Xlinker -rpath -Xlinker `sq "$1"`" ;;
+      esac
+      ;;
   esac
 }
 

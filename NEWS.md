@@ -16,7 +16,8 @@ which version they need.
   contexts.
 * `configure` locates Z3 through `PKG_CPPFLAGS`/`PKG_LIBS`,
   `Z3_INCLUDE_DIR`/`Z3_LIB_DIR`, `pkg-config` or common prefixes, links it
-  by full path, and refuses mismatched headers and libraries.
+  by full path (on Linux with a run-time path that `LD_LIBRARY_PATH`
+  cannot override), and refuses mismatched headers and libraries.
   `configure.win` supports official Windows release archives through
   `Z3_DIR` and installs their DLLs and license beside z3r. z3r refuses to
   load with a Z3 library other than the release it was compiled against.
@@ -54,12 +55,13 @@ which version they need.
   congruence classes, solving for variables, initial values, typed
   parameters, statistics (also as Z3's text, `z3_statistics_text()`) and
   DIMACS export.
-* Timeouts for a single check (`z3_check(timeout = )`), and
-  `z3_interrupt()`, which stops a check from inside its own callbacks.
+* Timeouts for a single check (`z3_check(timeout = )`), which keep the
+  other parameters of a solver or optimizer, and `z3_interrupt()`, which
+  stops a solver's or optimizer's check from inside its own callbacks.
 * Optimization with hard and soft constraints, objectives (including the
   cost of soft constraint groups) and priorities, unbounded and
-  non-attained optima, model callbacks, and the best bounds found so far
-  when a check returns `"unknown"`.
+  non-attained optima, model callbacks, and, when a check returns
+  `"unknown"`, the bounds and the value of the best model found so far.
 * User propagators, clause callbacks and the proof checker callback. R
   errors and interrupts are raised safely after the check, callbacks
   cannot reenter their own solver, and callback closures do not keep

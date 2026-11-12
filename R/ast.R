@@ -126,7 +126,7 @@ z3_apply <- function(decl, ...) cpp_apply_decl(z3_decl(decl), flatten_args(...))
 #' z3_simplify(z3_substitute(x * y, list(x, y), list(2, 5)))
 #' f <- z3_function(ctx, "f", z3_int_sort(ctx), z3_int_sort(ctx))
 #' v0 <- z3_bound_var(ctx, 0, z3_int_sort(ctx))
-#' z3_substitute_funs(f(x) + f(1), f, v0 * v0)
+#' if (z3_version_at_least("4.9.0")) z3_substitute_funs(f(x) + f(1), f, v0 * v0)
 #' @export
 z3_substitute <- function(x, from, to) {
   cpp_substitute(x, as_list(from), as_list(to))

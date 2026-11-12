@@ -142,6 +142,17 @@ test_that("de Bruijn quantifiers and lambdas", {
   expect_length(nq$no_patterns, 1)
   if (z3_version_at_least("4.12.3")) expect_identical(nq$id, "fpos")
 
+  # Variables in patterns and no-patterns must match their binders too, also
+  # in the annotations of a nested quantifier.
+  tt <- z3_bool_val(ctx, TRUE)
+  expect_error(z3_quantifier_db(B, "b", tt, patterns = z3_pattern(f(v0))),
+               "has sort Int but its binder 'b' has sort Bool")
+  expect_error(z3_quantifier_db(B, "b", tt, no_patterns = list(f(v0))),
+               "has sort Int but its binder 'b' has sort Bool")
+  nested <- z3_quantifier_db(I, "y", v0 > 0, no_patterns = list(f(v1)))
+  expect_error(z3_quantifier_db(B, "b", nested), "has sort Int but its binder 'b' has sort Bool")
+  expect_true(z3_is_well_sorted(z3_quantifier_db(I, "x", nested)))
+
   expect_error(z3_quantifier_db(list(I, I), "x", v0 > 0), "same length")
   expect_error(z3_quantifier_db(I, "x", v0 + 1), "Boolean")
   expect_error(z3_quantifier_db(B, "p", v0 > 0), "has sort")

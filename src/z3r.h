@@ -205,6 +205,17 @@ inline void ensure_solver_ready(Z3_context c, Z3_solver s) { Z3_solver_get_num_s
 void raise_callback_errors(std::vector<CallbackPtr>& cbs);
 void raise_proof_check_error(const CtxPtr& ctx);
 
+// A parameter value z3r has applied to a solver or optimizer. Z3 has no
+// getter, so z3r keeps the values, in a form that does not depend on the
+// context: the set can be applied again or rebuilt for a translated copy.
+struct KeptParam {
+  std::string name;
+  Z3_param_kind kind;
+  double number;     // bool (0 or 1), uint and double values
+  std::string text;  // symbol and string values
+};
+typedef std::vector<KeptParam> KeptParams;
+
 struct SolverHolder {
   Ref<Z3_solver> s;
   std::vector<CallbackPtr> callbacks;
@@ -214,10 +225,7 @@ struct SolverHolder {
   bool checked = false;
   Z3_lbool status = Z3_L_UNDEF;
   void touch() { ++generation; }
-  // Parameters z3r has applied (Z3 has no getter) and the timeout among
-  // them (4294967295: none). See keep_params().
-  Ref<Z3_params> params;
-  unsigned timeout = 4294967295u;
+  KeptParams params;  // what z3r has set on the solver; see with_params()
 };
 
 struct OptimizeHolder {
@@ -229,9 +237,9 @@ struct OptimizeHolder {
   bool checked = false;
   Z3_lbool status = Z3_L_UNDEF;
   bool returned = false;  // the last check returned without an error
+  AstVec assumptions;     // of the last check
   void touch() { ++generation; }
-  Ref<Z3_params> params;  // as for SolverHolder
-  unsigned timeout = 4294967295u;
+  KeptParams params;  // as for SolverHolder
   // Z3 reuses objective indices after a pop, so each objective also gets a
   // serial number; handles carry both and are refused once popped.
   std::vector<uint64_t> objectives;  // serial of the objective at each index
@@ -255,7 +263,7 @@ struct FixedpointHolder {
 };
 
 enum class Kind { Context, Sort, Expr, FuncDecl, Solver, Model, Optimize, Goal, Tactic, Probe,
-                  Simplifier, Fixedpoint, Rcf, Callback, Parser, AstMap };
+                  Simplifier, Fixedpoint, Rcf, Callback, Parser, AstMap, ApplyResult };
 
 const char* kind_tag(Kind k);
 const char* kind_class(Kind k);
@@ -375,12 +383,18 @@ AstVec expr_list(const CtxPtr& ctx, SEXP lst, const char* what);
 // Shared helpers (solver.cpp)
 const char* lbool_string(Z3_lbool r);
 Ref<Z3_params> make_params(const CtxPtr& ctx, Z3_param_descrs descrs, SEXP values);
-// Adds values that Z3 accepted for a solver or optimizer to `kept`, the set
-// z3r has applied to it (Z3 has no getter), and records their timeout. A
-// per-call timeout applies the whole set again: Z3 resets some options to
-// their defaults when a later parameter set omits them.
-void keep_params(const CtxPtr& ctx, Z3_param_descrs descrs, SEXP values, Ref<Z3_params>& kept,
-                 unsigned& timeout);
+// `kept` with the values of a named R list added (a value replaces an
+// earlier one of the same name). Optimizers and per-call timeouts apply the
+// whole set: Z3 resets some optimizer options to their defaults when a
+// parameter set omits them.
+KeptParams with_params(const CtxPtr& ctx, Z3_param_descrs descrs, SEXP values, const KeptParams& kept);
+// A Z3 parameter set holding the kept values.
+Ref<Z3_params> kept_param_set(const CtxPtr& ctx, const KeptParams& kept);
+// The set to apply after a per-call timeout: the kept set with its own
+// timeout, or else with the context's timeout, which is then kept as well
+// (Z3 cannot remove a parameter).
+Ref<Z3_params> restored_params(const CtxPtr& ctx, KeptParams& kept);
+Ref<Z3_params> params_with_timeout(const CtxPtr& ctx, const KeptParams& kept, unsigned ms);
 SEXP describe_params(const CtxPtr& ctx, Z3_param_descrs raw_descrs);
 SEXP stats_list(const CtxPtr& ctx, Z3_stats raw_stats);
 // Z3 handles SIGINT itself during checks and returns unknown with this
@@ -404,6 +418,7 @@ Ast coerce_sort(const Ast& v, Z3_sort sort, const std::string& what);
 // Sorts of the free de Bruijn variables of an expression, by index (null for
 // indices that do not occur).
 std::vector<Z3_sort> free_var_sorts(Z3_context c, Z3_ast a);
+std::vector<Z3_sort> free_var_sorts(Z3_context c, const std::vector<Z3_ast>& terms);
 
 }  // namespace z3r
 

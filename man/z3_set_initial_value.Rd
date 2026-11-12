@@ -27,6 +27,6 @@ ctx <- z3_context()
 x <- z3_int(ctx, "x")
 s <- z3_solver(ctx, simple = TRUE)
 z3_add(s, x > 0)
-z3_set_initial_value(s, x, 42)
+if (z3_version_at_least("4.13.2")) z3_set_initial_value(s, x, 42)
 z3_check(s)
 }

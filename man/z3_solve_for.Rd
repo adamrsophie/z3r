@@ -27,5 +27,5 @@ x <- z3_int(ctx, "x")
 y <- z3_int(ctx, "y")
 s <- z3_solver(ctx)
 z3_add(s, x + 2 * y == 10)
-z3_solve_for(s, list(x))
+if (z3_version_at_least("4.14.0")) z3_solve_for(s, list(x))
 }

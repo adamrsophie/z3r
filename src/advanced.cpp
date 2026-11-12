@@ -178,8 +178,15 @@ SEXP cpp_quantifier_db(std::string type, Rcpp::List sorts, Rcpp::CharacterVector
     labels.push_back(Rf_translateCharUTF8(nm));
     syms.push_back(mk_symbol(ctx, labels.back()));
   }
-  // Z3 does not check that the variables it binds have the declared sorts.
-  std::vector<Z3_sort> fv = free_var_sorts(c, body);
+  std::vector<Z3_pattern> pats = make_patterns(ctx, patterns, keep);
+  AstVec nopats = expr_list(ctx, no_patterns, "no-patterns");
+  std::vector<Z3_ast> rn = raw(nopats);
+  // Z3 does not check that the variables it binds have the declared sorts,
+  // in the body, the patterns or the no-patterns.
+  std::vector<Z3_ast> scope = rn;
+  scope.push_back(body);
+  for (Z3_pattern p : pats) scope.push_back(Z3_pattern_to_ast(c, p));
+  std::vector<Z3_sort> fv = free_var_sorts(c, scope);
   for (R_xlen_t k = 0; k < n && k < static_cast<R_xlen_t>(fv.size()); ++k) {
     Z3_sort want = ss[n - 1 - k];
     if (fv[k] && !Z3_is_eq_sort(c, fv[k], want)) {
@@ -193,9 +200,6 @@ SEXP cpp_quantifier_db(std::string type, Rcpp::List sorts, Rcpp::CharacterVector
     q = Z3_mk_lambda(c, nd, ss.data(), syms.data(), body);
     return wrap_expr(own_ast(ctx, q));
   }
-  std::vector<Z3_pattern> pats = make_patterns(ctx, patterns, keep);
-  AstVec nopats = expr_list(ctx, no_patterns, "no-patterns");
-  std::vector<Z3_ast> rn = raw(nopats);
   if (!pats.empty() && !rn.empty()) fail("a quantifier takes patterns or no-patterns, not both");
   if (weight < 0) fail("weight must be a non-negative integer");
   unsigned w = static_cast<unsigned>(weight);
@@ -347,12 +351,19 @@ SEXP cpp_tactic_apply(SEXP t_, SEXP g_, SEXP params) {
   unsigned n = Z3_apply_result_get_num_subgoals(c, r);
   Rcpp::List out(n);
   for (unsigned i = 0; i < n; ++i) out[i] = wrap_goal(ctx, Z3_apply_result_get_subgoal(c, r, i));
-  // The result itself does not outlive this call; keep Z3's text of it for
-  // print() and format().
-  std::string text = str(Z3_apply_result_to_string(c, r));
-  check(ctx);
-  out.attr("text") = Rcpp::String(text);
+  // The subgoals are the result's own goals, so the result is kept for
+  // format(), which shows later changes to them.
+  out.attr("result") = make_xptr(new Ref<Z3_apply_result>(r), Kind::ApplyResult);
   out.attr("class") = "z3_apply_result";
+  return out;
+}
+
+// Z3's text of a tactic result.
+// [[Rcpp::export(rng = false)]]
+Rcpp::String cpp_apply_result_to_string(SEXP r_) {
+  const Ref<Z3_apply_result>& r = *get_xptr<Ref<Z3_apply_result>>(r_, Kind::ApplyResult);
+  std::string out = str(Z3_apply_result_to_string(r.c(), r));
+  check(r.ctx());
   return out;
 }
 

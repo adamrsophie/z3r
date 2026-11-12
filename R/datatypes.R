@@ -104,18 +104,20 @@ z3_datatypes <- function(ctx, specs) {
       anyDuplicated(names(specs))) {
     stop("specs must be a list of datatypes with distinct names", call. = FALSE)
   }
-  built <- lapply(specs, datatype_spec, names(specs))
+  built <- Map(function(cons, self) datatype_spec(cons, names(specs), self), specs, names(specs))
   sorts <- cpp_mk_datatypes(ctx, names(specs), unname(built))
   stats::setNames(lapply(sorts, new_datatype), names(specs))
 }
 
 # Constructor list for C++: name, recognizer, field names, sorts (NULL for a
 # reference to a datatype of the same declaration) and reference indices.
-datatype_spec <- function(constructors, datatype_names) {
+datatype_spec <- function(constructors, datatype_names, self = datatype_names) {
   if (!length(constructors) || is.null(names(constructors)) ||
       any(names(constructors) == "") || anyDuplicated(names(constructors))) {
     stop("a datatype needs constructors given as named arguments", call. = FALSE)
   }
+  check_part_names(self, names(constructors),
+                   unlist(lapply(constructors, function(f) if (is.list(f)) names(f))))
   Map(function(cname, fields) {
     if (!is.list(fields)) stop(sprintf("constructor '%s' needs a list of fields", cname), call. = FALSE)
     if (length(fields) && (is.null(names(fields)) || any(names(fields) == ""))) {
@@ -144,6 +146,21 @@ datatype_spec <- function(constructors, datatype_names) {
   }, names(constructors), constructors, USE.NAMES = FALSE)
 }
 
+# new_datatype() keeps the constructors, recognizers (is_<constructor>) and
+# accessors of a datatype by name in one list with `sort`, so their names
+# must all differ. Checked before Z3 declares the sort: Z3 keeps a declared
+# name, which would block a corrected second attempt.
+check_part_names <- function(datatype, constructors, accessors = NULL) {
+  keys <- c("sort", constructors, paste0("is_", constructors), accessors)
+  dup <- keys[duplicated(enc2utf8(keys))]
+  if (length(dup)) dup_part_name(dup[[1L]], datatype)
+}
+
+dup_part_name <- function(name, datatype) {
+  stop(sprintf("the name '%s' is used twice in datatype %s; constructor, recognizer (is_<constructor>) and accessor names must all differ, and 'sort' is reserved",
+               name, datatype), call. = FALSE)
+}
+
 decl_function <- function(decl) {
   f <- function(...) cpp_apply_decl(decl, flatten_args(...))
   structure(f, class = c("z3_function", "function"), decl = decl)
@@ -157,10 +174,7 @@ new_datatype <- function(sort, parts = cpp_datatype_parts(sort)) {
   # Constructors, recognizers and accessors share one list with `sort`, so
   # their names must all differ.
   add <- function(name, value) {
-    if (!is.null(out[[name]])) {
-      stop(sprintf("the name '%s' is used twice in datatype %s; constructor, recognizer (is_<constructor>) and accessor names must all differ, and 'sort' is reserved",
-                   name, format(sort)), call. = FALSE)
-    }
+    if (!is.null(out[[name]])) dup_part_name(name, format(sort))
     out[[name]] <<- value
   }
   for (p in parts) {
@@ -204,6 +218,7 @@ z3_enum_sort <- function(ctx, name, values) {
       anyDuplicated(values)) {
     stop("values must be distinct non-missing names", call. = FALSE)
   }
+  check_part_names(name, values)
   built <- cpp_mk_enumeration_sort(ctx, name, enc2utf8(values))
   new_datatype(built$sort, built$parts)
 }

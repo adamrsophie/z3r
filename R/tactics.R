@@ -93,7 +93,10 @@ print.z3_goal <- function(x, ...) {
 }
 
 #' @export
-format.z3_apply_result <- function(x, ...) attr(x, "text") %||% ""
+format.z3_apply_result <- function(x, ...) {
+  r <- attr(x, "result")
+  if (is.null(r)) "" else cpp_apply_result_to_string(r)
+}
 
 #' @export
 print.z3_apply_result <- function(x, ...) {

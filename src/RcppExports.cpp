@@ -199,6 +199,16 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cpp_apply_result_to_string
+Rcpp::String cpp_apply_result_to_string(SEXP r_);
+RcppExport SEXP _z3r_cpp_apply_result_to_string(SEXP r_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type r_(r_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_apply_result_to_string(r_));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cpp_parse_smtlib2
 SEXP cpp_parse_smtlib2(SEXP ctx_, SEXP text_, bool is_file, Rcpp::List sorts, Rcpp::List decls);
 RcppExport SEXP _z3r_cpp_parse_smtlib2(SEXP ctx_SEXP, SEXP text_SEXP, SEXP is_fileSEXP, SEXP sortsSEXP, SEXP declsSEXP) {
@@ -2127,14 +2137,15 @@ BEGIN_RCPP
 END_RCPP
 }
 // cpp_optimize_bounds
-SEXP cpp_optimize_bounds(SEXP o_, int idx, double serial);
-RcppExport SEXP _z3r_cpp_optimize_bounds(SEXP o_SEXP, SEXP idxSEXP, SEXP serialSEXP) {
+SEXP cpp_optimize_bounds(SEXP o_, int idx, double serial, bool maximize);
+RcppExport SEXP _z3r_cpp_optimize_bounds(SEXP o_SEXP, SEXP idxSEXP, SEXP serialSEXP, SEXP maximizeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::traits::input_parameter< SEXP >::type o_(o_SEXP);
     Rcpp::traits::input_parameter< int >::type idx(idxSEXP);
     Rcpp::traits::input_parameter< double >::type serial(serialSEXP);
-    rcpp_result_gen = Rcpp::wrap(cpp_optimize_bounds(o_, idx, serial));
+    Rcpp::traits::input_parameter< bool >::type maximize(maximizeSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_optimize_bounds(o_, idx, serial, maximize));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -2194,6 +2205,15 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< SEXP >::type o_(o_SEXP);
     rcpp_result_gen = Rcpp::wrap(cpp_optimize_statistics(o_));
     return rcpp_result_gen;
+END_RCPP
+}
+// cpp_optimize_interrupt
+void cpp_optimize_interrupt(SEXP o_);
+RcppExport SEXP _z3r_cpp_optimize_interrupt(SEXP o_SEXP) {
+BEGIN_RCPP
+    Rcpp::traits::input_parameter< SEXP >::type o_(o_SEXP);
+    cpp_optimize_interrupt(o_);
+    return R_NilValue;
 END_RCPP
 }
 // cpp_optimize_set_params
@@ -3272,6 +3292,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_z3r_cpp_goal_status", (DL_FUNC) &_z3r_cpp_goal_status, 1},
     {"_z3r_cpp_goal_to_string", (DL_FUNC) &_z3r_cpp_goal_to_string, 1},
     {"_z3r_cpp_tactic_apply", (DL_FUNC) &_z3r_cpp_tactic_apply, 3},
+    {"_z3r_cpp_apply_result_to_string", (DL_FUNC) &_z3r_cpp_apply_result_to_string, 1},
     {"_z3r_cpp_parse_smtlib2", (DL_FUNC) &_z3r_cpp_parse_smtlib2, 5},
     {"_z3r_cpp_eval_smtlib2", (DL_FUNC) &_z3r_cpp_eval_smtlib2, 2},
     {"_z3r_cpp_benchmark", (DL_FUNC) &_z3r_cpp_benchmark, 2},
@@ -3449,13 +3470,14 @@ static const R_CallMethodDef CallEntries[] = {
     {"_z3r_cpp_optimize_last_status", (DL_FUNC) &_z3r_cpp_optimize_last_status, 1},
     {"_z3r_cpp_optimize_model", (DL_FUNC) &_z3r_cpp_optimize_model, 1},
     {"_z3r_cpp_optimize_unsat_core", (DL_FUNC) &_z3r_cpp_optimize_unsat_core, 1},
-    {"_z3r_cpp_optimize_bounds", (DL_FUNC) &_z3r_cpp_optimize_bounds, 3},
+    {"_z3r_cpp_optimize_bounds", (DL_FUNC) &_z3r_cpp_optimize_bounds, 4},
     {"_z3r_cpp_optimize_objectives", (DL_FUNC) &_z3r_cpp_optimize_objectives, 1},
     {"_z3r_cpp_optimize_push", (DL_FUNC) &_z3r_cpp_optimize_push, 1},
     {"_z3r_cpp_optimize_pop", (DL_FUNC) &_z3r_cpp_optimize_pop, 1},
     {"_z3r_cpp_optimize_assertions", (DL_FUNC) &_z3r_cpp_optimize_assertions, 1},
     {"_z3r_cpp_optimize_reason_unknown", (DL_FUNC) &_z3r_cpp_optimize_reason_unknown, 1},
     {"_z3r_cpp_optimize_statistics", (DL_FUNC) &_z3r_cpp_optimize_statistics, 1},
+    {"_z3r_cpp_optimize_interrupt", (DL_FUNC) &_z3r_cpp_optimize_interrupt, 1},
     {"_z3r_cpp_optimize_set_params", (DL_FUNC) &_z3r_cpp_optimize_set_params, 2},
     {"_z3r_cpp_optimize_param_help", (DL_FUNC) &_z3r_cpp_optimize_param_help, 1},
     {"_z3r_cpp_optimize_to_string", (DL_FUNC) &_z3r_cpp_optimize_to_string, 1},

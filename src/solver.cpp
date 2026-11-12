@@ -32,29 +32,28 @@ void refuse_copy_with_callbacks(SolverHolder* h, const char* what) {
   }
 }
 
-// Sets the values of a named R list in a Z3 parameter set, using the
-// parameter descriptions of the target object to choose each value's type.
-// Returns the timeout among them, or `timeout` if there is none.
-static unsigned set_param_values(const CtxPtr& ctx, Z3_params p, Z3_param_descrs descrs, SEXP values,
-                                 unsigned timeout) {
+// Reads a named R list of parameter values, using the parameter
+// descriptions of the target object to choose each value's type.
+static KeptParams read_param_values(const CtxPtr& ctx, Z3_param_descrs descrs, SEXP values) {
   Z3_context c = ctx->c;
+  KeptParams out;
   Rcpp::List lst(values);
-  if (lst.size() == 0) return timeout;
+  if (lst.size() == 0) return out;
   Rcpp::CharacterVector names = lst.names();
   for (R_xlen_t i = 0; i < lst.size(); ++i) {
     std::string name = Rcpp::as<std::string>(names[i]);
     if (name.empty()) fail("all parameters must be named");
-    Z3_symbol sym = mk_symbol(ctx, name);
-    Z3_param_kind kind = Z3_param_descrs_get_kind(c, descrs, sym);
+    Z3_param_kind kind = Z3_param_descrs_get_kind(c, descrs, mk_symbol(ctx, name));
     check(ctx);
     SEXP v = lst[i];
     if (Rf_xlength(v) != 1) fail("parameter '" + name + "' must be a single value");
+    KeptParam kp{name, kind, 0, std::string()};
     switch (kind) {
       case Z3_PK_BOOL: {
         if (TYPEOF(v) != LGLSXP || LOGICAL(v)[0] == NA_LOGICAL) {
           fail("parameter '" + name + "' must be TRUE or FALSE");
         }
-        Z3_params_set_bool(c, p, sym, LOGICAL(v)[0] != 0);
+        kp.number = LOGICAL(v)[0] != 0;
         break;
       }
       case Z3_PK_UINT: {
@@ -64,8 +63,7 @@ static unsigned set_param_values(const CtxPtr& ctx, Z3_params p, Z3_param_descrs
             d != std::floor(d) || d > 4294967295.0) {
           fail("parameter '" + name + "' must be a non-negative whole number");
         }
-        Z3_params_set_uint(c, p, sym, static_cast<unsigned>(d));
-        if (name == "timeout") timeout = static_cast<unsigned>(d);
+        kp.number = d;
         break;
       }
       case Z3_PK_DOUBLE: {
@@ -74,7 +72,7 @@ static unsigned set_param_values(const CtxPtr& ctx, Z3_params p, Z3_param_descrs
         if (!num || ISNAN(d)) {
           fail("parameter '" + name + "' must be a number");
         }
-        Z3_params_set_double(c, p, sym, d);
+        kp.number = d;
         break;
       }
       case Z3_PK_SYMBOL:
@@ -82,33 +80,75 @@ static unsigned set_param_values(const CtxPtr& ctx, Z3_params p, Z3_param_descrs
         if (TYPEOF(v) != STRSXP || STRING_ELT(v, 0) == NA_STRING) {
           fail("parameter '" + name + "' must be a string");
         }
-        Z3_params_set_symbol(c, p, sym, mk_symbol(ctx, CHAR(STRING_ELT(v, 0))));
+        kp.text = CHAR(STRING_ELT(v, 0));
         break;
       }
       default:
         fail("unknown parameter '" + name + "'; z3_param_help() lists the "
              "parameters this object accepts");
     }
-    check(ctx);
+    out.push_back(kp);
   }
-  return timeout;
+  return out;
+}
+
+static void set_param(const CtxPtr& ctx, Z3_params p, const KeptParam& kp) {
+  Z3_context c = ctx->c;
+  Z3_symbol sym = mk_symbol(ctx, kp.name);
+  switch (kp.kind) {
+    case Z3_PK_BOOL: Z3_params_set_bool(c, p, sym, kp.number != 0); break;
+    case Z3_PK_UINT: Z3_params_set_uint(c, p, sym, static_cast<unsigned>(kp.number)); break;
+    case Z3_PK_DOUBLE: Z3_params_set_double(c, p, sym, kp.number); break;
+    default: Z3_params_set_symbol(c, p, sym, mk_symbol(ctx, kp.text)); break;
+  }
+  check(ctx);
+}
+
+Ref<Z3_params> kept_param_set(const CtxPtr& ctx, const KeptParams& kept) {
+  Ref<Z3_params> p = own(ctx, Z3_mk_params(ctx->c));
+  for (const KeptParam& kp : kept) set_param(ctx, p, kp);
+  return p;
 }
 
 // Builds a Z3 parameter set from a named R list.
 Ref<Z3_params> make_params(const CtxPtr& ctx, Z3_param_descrs descrs, SEXP values) {
-  Ref<Z3_params> p = own(ctx, Z3_mk_params(ctx->c));
+  Ref<Z3_params> p = kept_param_set(ctx, read_param_values(ctx, descrs, values));
   if (Rf_xlength(values) == 0) return p;
-  set_param_values(ctx, p, descrs, values, 0);
   Z3_params_validate(ctx->c, p, descrs);
   check(ctx);
   return p;
 }
 
-void keep_params(const CtxPtr& ctx, Z3_param_descrs descrs, SEXP values, Ref<Z3_params>& kept,
-                 unsigned& timeout) {
-  if (Rf_xlength(values) == 0) return;
-  if (!kept.get()) kept = own(ctx, Z3_mk_params(ctx->c));
-  timeout = set_param_values(ctx, kept, descrs, values, timeout);
+static void put_param(KeptParams& kept, const KeptParam& kp) {
+  for (KeptParam& old : kept) {
+    if (old.name == kp.name) {
+      old = kp;
+      return;
+    }
+  }
+  kept.push_back(kp);
+}
+
+KeptParams with_params(const CtxPtr& ctx, Z3_param_descrs descrs, SEXP values, const KeptParams& kept) {
+  KeptParams out = kept;
+  for (const KeptParam& kp : read_param_values(ctx, descrs, values)) put_param(out, kp);
+  return out;
+}
+
+Ref<Z3_params> restored_params(const CtxPtr& ctx, KeptParams& kept) {
+  bool has_timeout = false;
+  for (const KeptParam& kp : kept) has_timeout = has_timeout || kp.name == "timeout";
+  if (!has_timeout) {
+    kept.push_back(KeptParam{"timeout", Z3_PK_UINT, static_cast<double>(ctx->timeout), std::string()});
+  }
+  return kept_param_set(ctx, kept);
+}
+
+// The kept set with a timeout for one check.
+Ref<Z3_params> params_with_timeout(const CtxPtr& ctx, const KeptParams& kept, unsigned ms) {
+  KeptParams once = kept;
+  put_param(once, KeptParam{"timeout", Z3_PK_UINT, static_cast<double>(ms), std::string()});
+  return kept_param_set(ctx, once);
 }
 
 SEXP describe_params(const CtxPtr& ctx, Z3_param_descrs raw_descrs) {
@@ -170,11 +210,11 @@ using namespace z3r;
 
 static SolverHolder* solver(SEXP x) { return solver_of(x); }
 
-// Gives a solver a timeout for one check (see keep_params()). Z3 cannot
-// remove a parameter, so the destructor applies the kept set again with the
-// timeout z3r set before (or else the context's timeout), also when the
-// check fails. apply() runs after construction so that the destructor runs
-// even if it throws.
+// Gives a solver a timeout for one check. Z3 cannot remove a parameter, so
+// the destructor applies the kept set again with the timeout z3r set before
+// (or else the context's timeout, which the kept set then records), also
+// when the check fails. apply() runs after construction so that the
+// destructor runs even if it throws.
 struct SolverTimeout {
   SolverHolder* h = nullptr;
   void apply(SolverHolder* holder, SEXP ms) {
@@ -182,18 +222,19 @@ struct SolverTimeout {
     int v = Rf_asInteger(ms);
     if (v == NA_INTEGER || v < 1) fail("timeout must be a positive whole number of milliseconds");
     const CtxPtr& ctx = holder->s.ctx();
-    if (!holder->params.get()) holder->params = own(ctx, Z3_mk_params(ctx->c));
+    Ref<Z3_params> p = params_with_timeout(ctx, holder->params, static_cast<unsigned>(v));
     h = holder;
-    Z3_params_set_uint(ctx->c, h->params, Z3_mk_string_symbol(ctx->c, "timeout"), static_cast<unsigned>(v));
-    Z3_solver_set_params(ctx->c, h->s, h->params);
+    Z3_solver_set_params(ctx->c, h->s, p);
     check(ctx);
   }
   ~SolverTimeout() {
     if (!h) return;
     Z3_context c = h->s.c();
-    unsigned restore = h->timeout != 4294967295u ? h->timeout : h->s.ctx()->timeout;
-    Z3_params_set_uint(c, h->params, Z3_mk_string_symbol(c, "timeout"), restore);
-    Z3_solver_set_params(c, h->s, h->params);
+    try {
+      Ref<Z3_params> p = restored_params(h->s.ctx(), h->params);
+      Z3_solver_set_params(c, h->s, p);
+    } catch (...) {
+    }
     Z3_set_error(c, Z3_OK);  // a destructor cannot raise it; the set was accepted before
   }
 };
@@ -464,20 +505,28 @@ void cpp_solver_set_params(SEXP s_, SEXP params) {
   SolverHolder* h = solver(s_);
   const CtxPtr& ctx = h->s.ctx();
   Ref<Z3_param_descrs> d = own(ctx, Z3_solver_get_param_descrs(ctx->c, h->s));
-  Ref<Z3_params> p = make_params(ctx, d, params);
+  make_params(ctx, d, params);  // validates the new values
+  // Some solvers (the combined solver's solver2_timeout, ignore_solver1,
+  // solver2_unknown) reset the options a set omits, so apply the whole kept
+  // set.
+  KeptParams kept = with_params(ctx, d, params, h->params);
+  Ref<Z3_params> p = kept_param_set(ctx, kept);
   Z3_solver_set_params(ctx->c, h->s, p);
   check(ctx);
-  keep_params(ctx, d, params, h->params, h->timeout);
+  h->params = std::move(kept);
 }
 
 // Parameters z3r has applied to a solver or optimizer, as Z3 writes them
 // ("" if none).
 // [[Rcpp::export(rng = false)]]
 Rcpp::String cpp_kept_params(SEXP x) {
-  const Ref<Z3_params>& kept = is_kind(x, Kind::Optimize) ? optimizer_of(x)->params : solver(x)->params;
-  if (!kept.get()) return Rcpp::String("");
-  std::string out = str(Z3_params_to_string(kept.c(), kept));
-  check(kept.ctx());
+  bool opt = is_kind(x, Kind::Optimize);
+  const CtxPtr& ctx = opt ? optimizer_of(x)->o.ctx() : solver(x)->s.ctx();
+  const KeptParams& kept = opt ? optimizer_of(x)->params : solver(x)->params;
+  if (kept.empty()) return Rcpp::String("");
+  Ref<Z3_params> p = kept_param_set(ctx, kept);
+  std::string out = str(Z3_params_to_string(ctx->c, p));
+  check(ctx);
   return out;
 }
 
@@ -664,7 +713,10 @@ SEXP cpp_solver_translate(SEXP s_, SEXP target_ctx) {
   CtxPtr target = get_ctx(target_ctx);
   Z3_solver t = Z3_solver_translate(h->s.c(), h->s, target->c);
   check(h->s.ctx());
-  return wrap_solver(target, t);
+  SEXP out = PROTECT(wrap_solver(target, t));
+  get_xptr<SolverHolder>(out, Kind::Solver)->params = h->params;  // Z3 copies the parameters
+  UNPROTECT(1);
+  return out;
 }
 
 // [[Rcpp::export(rng = false)]]

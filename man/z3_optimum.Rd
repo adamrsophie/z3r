@@ -30,13 +30,15 @@ without limit; \code{value} is \code{NULL}.
 it, as when maximizing \code{x} subject to \code{x < 3} over the reals. Z3
 represents this as \code{value - epsilon} or \code{value + epsilon}.
 \item \code{"unknown"}: the check stopped early, for example at a timeout, and
-returned \code{"unknown"}. \code{value} is the best value Z3 had reached, which
-is not proven optimal (\code{NULL} when Z3 had none), and \code{lower} and
-\code{upper} are the bounds known when it stopped. Before Z3 finds its
-first model these can be trivial bounds, such as the total weight of
-the soft constraints. When Z3 stopped before setting up the objective
-it reports zero for both bounds; z3r then returns \code{NA} for both,
-which also happens, rarely, when the bound is exactly zero.
+returned \code{"unknown"}. \code{value} is the objective's value in the best
+model Z3 had found, which is not proven optimal; it is \code{NULL} when Z3
+had no model that satisfies the hard constraints and the check's
+assumptions. \code{lower} and \code{upper} are the bounds known when it stopped.
+Before Z3 finds its first model these can be trivial bounds, such as
+the total weight of the soft constraints. When Z3 stopped before
+setting up the objective it reports zero for both bounds; z3r then
+returns \code{NA} for both, which also happens, rarely, when the bound is
+exactly zero.
 }
 
 Over nonlinear arithmetic the result can be non-optimal; Z3 does not
