@@ -1,0 +1,26 @@
+pandoc: 3.8.3
+pkgdown: 2.2.1
+pkgdown_sha: ~
+articles:
+  algebraic: algebraic.html
+  arrays-sets: arrays-sets.html
+  bitvectors: bitvectors.html
+  datatypes: datatypes.html
+  floating-point: floating-point.html
+  functions-quantifiers: functions-quantifiers.html
+  horn: horn.html
+  logic: logic.html
+  numbers: numbers.html
+  optimization: optimization.html
+  propagators: propagators.html
+  smtlib-inspection: smtlib-inspection.html
+  solving: solving.html
+  strings-regex: strings-regex.html
+  symcompr: symcompr.html
+  tactics: tactics.html
+  z3-5-theories: z3-5-theories.html
+  z3r: z3r.html
+last_built: 2026-11-12T23:14Z
+urls:
+  reference: https://adamrsophie.github.io/z3r/reference
+  article: https://adamrsophie.github.io/z3r/articles
