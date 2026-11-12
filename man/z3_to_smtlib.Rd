@@ -8,20 +8,24 @@
 \alias{z3_eval_smtlib}
 \title{SMT-LIB2 import and export}
 \usage{
-z3_to_smtlib(x, logic = "")
+z3_to_smtlib(x, logic = "", state = FALSE)
 
 z3_from_smtlib(ctx, text)
 
 z3_read_smtlib(ctx, file)
 
-z3_add_smtlib(x, text)
+z3_add_smtlib(x, text = NULL, file = NULL)
 
 z3_eval_smtlib(ctx, text)
 }
 \arguments{
-\item{x}{A \code{z3_solver}, a \code{z3_optimize}, or a list of Boolean \code{z3_expr}.}
+\item{x}{A \code{z3_solver}, \code{z3_optimize} or \code{z3_fixedpoint}; for
+\code{z3_to_smtlib()} also a list of Boolean \code{z3_expr}.}
 
-\item{logic}{SMT-LIB logic for the benchmark header when \code{x} is a list.}
+\item{logic}{SMT-LIB logic for the benchmark header.}
+
+\item{state}{For a solver, write Z3's internal solver state instead of a
+benchmark.}
 
 \item{ctx}{A \code{\link[=z3_context]{z3_context()}}.}
 
@@ -41,16 +45,21 @@ format, using Z3's own printer and parser.
 }
 \details{
 \itemize{
-\item \code{z3_to_smtlib()} writes a solver's or optimizer's assertions (and
-objectives) as an SMT-LIB2 script with the needed declarations, or a
-list of Boolean expressions as an SMT-LIB2 benchmark.
+\item \code{z3_to_smtlib()} writes a solver's assertions, or a list of Boolean
+expressions, as a standard SMT-LIB2 benchmark with the needed
+declarations and a final \code{(check-sat)}. For an optimizer it writes the
+assertions and objectives; for a fixedpoint engine its rules. With
+\code{state = TRUE}, a solver is written in Z3's own format, which after a
+check also records Z3's internal model conversion steps and is not
+portable to other solvers.
 \item \code{z3_from_smtlib()} parses SMT-LIB2 text and returns the asserted
 formulas as a list of \code{z3_expr}. Declarations in the text create
 constants in \code{ctx}; a declared constant is the same object as one made
 with the same name and sort, for example by \code{\link[=z3_int]{z3_int()}}. Commands other
 than declarations and assertions (such as \code{check-sat}) are ignored.
 \item \code{z3_read_smtlib()} does the same for a file.
-\item \code{z3_add_smtlib()} parses text directly into a solver or optimizer.
+\item \code{z3_add_smtlib()} parses text or a file directly into a solver,
+optimizer or fixedpoint engine.
 \item \code{z3_eval_smtlib()} runs SMT-LIB2 commands in Z3's interpreter and
 returns its output text, exactly as the \code{z3} command-line tool would
 print it. Its declarations are kept in the context.

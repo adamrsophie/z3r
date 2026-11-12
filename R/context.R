@@ -12,15 +12,44 @@
 #' or [save()] and restored in another session; a restored object reports
 #' that it is no longer valid. Use [z3_to_smtlib()] to store constraints.
 #'
+#' Configuration parameters fix properties of the context for its whole
+#' life. The most useful are `proof = TRUE` (needed for [z3_proof()]),
+#' `unsat_core`, `timeout` (milliseconds, for every solver of the context),
+#' `auto_config`, `well_sorted_check` and `model_validate`. Values are R
+#' scalars; unknown names are an error.
+#'
+#' @param ... Named configuration parameters.
 #' @return An object of class `z3_context`.
 #' @seealso [z3_version()]
 #' @examples
 #' ctx <- z3_context()
 #' ctx
+#' pctx <- z3_context(proof = TRUE)
 #' @export
-z3_context <- function() {
-  cpp_mk_context()
+z3_context <- function(...) {
+  config <- list(...)
+  if (length(config) && (is.null(names(config)) || any(names(config) == ""))) {
+    stop("configuration parameters must be named", call. = FALSE)
+  }
+  unknown <- setdiff(names(config), context_params)
+  if (length(unknown)) {
+    stop(sprintf("unknown context parameter%s: %s; valid names are %s",
+                 if (length(unknown) > 1L) "s" else "", paste(unknown, collapse = ", "),
+                 paste(context_params, collapse = ", ")), call. = FALSE)
+  }
+  values <- vapply(config, param_string, character(1))
+  cpp_mk_context(names(config) %||% character(), unname(values))
 }
+
+# Configuration parameters Z3 accepts for a new context (Z3_set_param_value).
+context_params <- c(
+  "auto_config", "ctrl_c", "debug_ref_count", "dot_proof_file", "dump_models",
+  "encoding", "model", "model_validate", "proof", "rlimit", "smtlib2_compliant",
+  "stats", "timeout", "trace", "trace_file_name", "type_check", "unsat_core",
+  "well_sorted_check"
+)
+
+`%||%` <- function(a, b) if (is.null(a)) b else a
 
 #' @export
 print.z3_context <- function(x, ...) {
@@ -42,9 +71,22 @@ print.z3_context <- function(x, ...) {
 #'   z3r warns when it is loaded if the two versions differ.
 #' @examples
 #' z3_version()
+#' z3_version_at_least("4.12.2")
 #' @export
 z3_version <- function() {
   cpp_version()
+}
+
+#' @rdname z3_version
+#' @param version A version string such as `"4.12.2"`.
+#' @return For `z3_version_at_least()`, `TRUE` when the Z3 headers z3r was
+#'   compiled with are at least `version`, so that features needing that
+#'   version are available.
+#' @export
+z3_version_at_least <- function(version) {
+  h <- cpp_version()$headers
+  if (identical(h, "unknown")) h <- "4.8.13"
+  numeric_version(h) >= numeric_version(version)
 }
 
 #' Context of a Z3 object

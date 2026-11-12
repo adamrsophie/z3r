@@ -2,19 +2,30 @@
 % Please edit documentation in R/context.R
 \name{z3_version}
 \alias{z3_version}
+\alias{z3_version_at_least}
 \title{Z3 library version}
 \usage{
 z3_version()
+
+z3_version_at_least(version)
+}
+\arguments{
+\item{version}{A version string such as \code{"4.12.2"}.}
 }
 \value{
 A list with elements \code{runtime} (the version of the loaded Z3
 library, major.minor.build.revision), \code{headers} (the version of the Z3
 headers z3r was compiled with) and \code{full} (Z3's full version string).
 z3r warns when it is loaded if the two versions differ.
+
+For \code{z3_version_at_least()}, \code{TRUE} when the Z3 headers z3r was
+compiled with are at least \code{version}, so that features needing that
+version are available.
 }
 \description{
 Reports the version of the Z3 shared library z3r is running against.
 }
 \examples{
 z3_version()
+z3_version_at_least("4.12.2")
 }

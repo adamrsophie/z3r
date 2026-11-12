@@ -2,12 +2,12 @@
 % Please edit documentation in R/functions.R
 \name{z3_function}
 \alias{z3_function}
-\alias{z3_decl}
+\alias{z3_fresh_function}
 \title{Uninterpreted functions}
 \usage{
 z3_function(ctx, name, domain, range)
 
-z3_decl(f)
+z3_fresh_function(ctx, prefix, domain, range)
 }
 \arguments{
 \item{ctx}{A \code{\link[=z3_context]{z3_context()}}.}
@@ -19,11 +19,11 @@ sort for a one-argument function).}
 
 \item{range}{The result \code{z3_sort}.}
 
-\item{f}{A \code{z3_function}.}
+\item{prefix}{Prefix for the generated name of \code{z3_fresh_function()}.}
 }
 \value{
 A function of class \code{z3_function}. Its declaration is available
-with \code{z3_decl()}.
+with \code{\link[=z3_decl]{z3_decl()}}.
 }
 \description{
 Declares a function symbol with typed arguments and result. Z3 treats it

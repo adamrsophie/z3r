@@ -82,11 +82,13 @@ std::string cpp_optimize_check(SEXP o_, Rcpp::List assumptions) {
   AstVec as;
   for (R_xlen_t i = 0; i < assumptions.size(); ++i) as.push_back(bool_arg(ctx, assumptions[i], "assumptions"));
   std::vector<Z3_ast> r = raw(as);
+  for (CallbackPtr& cb : h->callbacks) cb->error.clear();
   Z3_lbool st = Z3_optimize_check(ctx->c, h->o, static_cast<unsigned>(r.size()),
                                   r.empty() ? nullptr : r.data());
   h->checked = true;
   h->checked_at = h->generation;
   h->status = Z3_L_UNDEF;
+  raise_callback_errors(h->callbacks);
   check(ctx);
   h->status = st;
   if (st == Z3_L_UNDEF) forward_interrupt(st, str(Z3_optimize_get_reason_unknown(ctx->c, h->o)));
@@ -228,4 +230,54 @@ void cpp_optimize_from_string(SEXP o_, SEXP text_) {
   Z3_optimize_from_string(h->o.c(), h->o, text.c_str());
   check(h->o.ctx());
   h->touch();
+}
+
+// [[Rcpp::export(rng = false)]]
+std::string cpp_optimize_help(SEXP o_) {
+  OptimizeHolder* h = optimizer(o_);
+  std::string out = str(Z3_optimize_get_help(h->o.c(), h->o));
+  check(h->o.ctx());
+  return out;
+}
+
+// [[Rcpp::export(rng = false)]]
+void cpp_optimize_from_file(SEXP o_, SEXP file_) {
+  OptimizeHolder* h = optimizer(o_);
+  std::string file = as_string(file_, "file");
+  Z3_optimize_from_file(h->o.c(), h->o, file.c_str());
+  check(h->o.ctx());
+  h->touch();
+}
+
+// [[Rcpp::export(rng = false)]]
+void cpp_optimize_initial_value(SEXP o_, SEXP var, SEXP value) {
+#if Z3R_AT_LEAST(4, 13, 2)
+  OptimizeHolder* h = optimizer(o_);
+  const CtxPtr& ctx = h->o.ctx();
+  Ast v = lift(ctx, var, nullptr);
+  Ast val = lift(ctx, value, Z3_get_sort(ctx->c, v));
+  Z3_optimize_set_initial_value(ctx->c, h->o, v, val);
+  check(ctx);
+#else
+  (void)o_; (void)var; (void)value;
+  needs_version("z3_set_initial_value() for optimizers", "4.13.2");
+#endif
+}
+
+// [[Rcpp::export(rng = false)]]
+SEXP cpp_optimize_translate(SEXP o_, SEXP target_) {
+#if Z3R_AT_LEAST(4, 15, 5)
+  OptimizeHolder* h = optimizer(o_);
+  CtxPtr target = get_ctx(target_);
+  Z3_optimize t = Z3_optimize_translate(h->o.c(), h->o, target->c);
+  check(h->o.ctx());
+  OptimizeHolder* nh = new OptimizeHolder();
+  std::unique_ptr<OptimizeHolder> guard(nh);
+  nh->o = own(target, t);
+  guard.release();
+  return make_xptr(nh, Kind::Optimize);
+#else
+  (void)o_; (void)target_;
+  needs_version("z3_translate() for optimizers", "4.15.5");
+#endif
 }

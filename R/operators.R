@@ -205,3 +205,67 @@ z3_to_int <- function(x) cpp_op("to_int", list(x), integer())
 #' @rdname z3_sum
 #' @export
 z3_is_int <- function(x) cpp_op("is_int", list(x), integer())
+
+#' Cardinality and pseudo-Boolean constraints
+#'
+#' `z3_atmost(..., k)` and `z3_atleast(..., k)` state that at most (at
+#' least) `k` of the Boolean arguments are true. `z3_pble()`, `z3_pbge()`
+#' and `z3_pbeq()` compare a weighted sum of Booleans, `sum(coeffs[i] *
+#' lits[i])`, with `k`. Coefficients and `k` are integers. Z3 solves these
+#' with dedicated procedures, which is much faster than encoding them with
+#' [z3_ite()].
+#'
+#' @param ... Boolean expressions or lists of them.
+#' @param lits A list of Boolean expressions.
+#' @param coeffs Integer coefficients, one per literal.
+#' @param k The bound, an integer.
+#' @return A Boolean `z3_expr`.
+#' @examples
+#' ctx <- z3_context()
+#' p <- z3_bools(ctx, letters[1:4])
+#' s <- z3_solver(ctx)
+#' z3_add(s, z3_atleast(p, k = 3), z3_pble(p, c(1, 2, 3, 4), 6))
+#' z3_check(s)
+#' unlist(z3_model_values(z3_model(s)))
+#' @export
+z3_atmost <- function(..., k) cpp_pb("atmost", flatten_args(...), integer(), pb_int(k, "k"))
+
+#' @rdname z3_atmost
+#' @export
+z3_atleast <- function(..., k) cpp_pb("atleast", flatten_args(...), integer(), pb_int(k, "k"))
+
+#' @rdname z3_atmost
+#' @export
+z3_pble <- function(lits, coeffs, k) cpp_pb("pble", as_list(lits), pb_int(coeffs, "coeffs"), pb_int(k, "k"))
+
+#' @rdname z3_atmost
+#' @export
+z3_pbge <- function(lits, coeffs, k) cpp_pb("pbge", as_list(lits), pb_int(coeffs, "coeffs"), pb_int(k, "k"))
+
+#' @rdname z3_atmost
+#' @export
+z3_pbeq <- function(lits, coeffs, k) cpp_pb("pbeq", as_list(lits), pb_int(coeffs, "coeffs"), pb_int(k, "k"))
+
+pb_int <- function(x, what) {
+  if (!is.numeric(x) || anyNA(x) || any(x != floor(x)) || any(abs(x) > .Machine$integer.max)) {
+    stop(sprintf("%s must be whole numbers within R's integer range", what), call. = FALSE)
+  }
+  as.integer(x)
+}
+
+#' Divisibility
+#'
+#' `z3_divides(a, b)` states that the integer `a` divides `b`. `a` is
+#' usually a numeral.
+#'
+#' @param a,b Int expressions or R whole numbers.
+#' @return A Boolean `z3_expr`.
+#' @examples
+#' ctx <- z3_context()
+#' x <- z3_int(ctx, "x")
+#' s <- z3_solver(ctx)
+#' z3_add(s, z3_divides(7, x), x > 50, x < 60)
+#' z3_check(s)
+#' z3_eval(z3_model(s), x)
+#' @export
+z3_divides <- function(a, b) cpp_misc_op("divides", list(a, b), integer())

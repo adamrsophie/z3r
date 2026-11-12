@@ -210,3 +210,45 @@ z3_bvsdiv_no_overflow <- bv_bin("bvsdiv_no_overflow")
 #' @rdname z3_bitvectors
 #' @export
 z3_bv_width <- function(x) cpp_bv_width(x)
+
+#' @rdname z3_bitvectors
+#' @export
+z3_bvneg_no_overflow <- function(x) cpp_misc_op("bvneg_no_overflow", list(x), integer())
+
+#' @rdname z3_bitvectors
+#' @param i Bit index for `z3_bit2bool()` (0 is the least significant bit).
+#' @export
+z3_bit2bool <- function(x, i) cpp_misc_op("bit2bool", list(x), as_count(i, "i"))
+
+#' @rdname z3_bitvectors
+#' @export
+z3_bvredand <- function(x) cpp_op("bvredand", list(x), integer())
+
+#' @rdname z3_bitvectors
+#' @export
+z3_bvredor <- function(x) cpp_op("bvredor", list(x), integer())
+
+#' @rdname z3_bitvectors
+#' @export
+z3_rotate_left_by <- bv_bin("rotate_left_by")
+
+#' @rdname z3_bitvectors
+#' @export
+z3_rotate_right_by <- bv_bin("rotate_right_by")
+
+#' @rdname z3_bitvectors
+#' @export
+z3_ubv_to_str <- function(x) cpp_seq_op("ubv_to_str", list(x), integer())
+
+#' @rdname z3_bitvectors
+#' @export
+z3_sbv_to_str <- function(x) cpp_seq_op("sbv_to_str", list(x), integer())
+
+#' @rdname z3_bitvectors
+#' @param ctx A [z3_context()].
+#' @param bits A logical vector, least significant bit first.
+#' @export
+z3_bv_from_bits <- function(ctx, bits) {
+  if (!is.logical(bits)) stop("bits must be a logical vector", call. = FALSE)
+  cpp_bv_from_bits(ctx, bits)
+}

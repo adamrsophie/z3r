@@ -1,0 +1,125 @@
+---
+title: "User propagators and solver callbacks"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{User propagators and solver callbacks}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+has_up <- z3r::z3_version_at_least("4.13.0")
+```
+
+```{r}
+library(z3r)
+ctx <- z3_context()
+```
+
+A user propagator is R code that takes part in Z3's search. Z3 reports when
+registered terms receive values; the propagator answers with consequences or
+conflicts. This implements constraints that are hard to write as formulas,
+for example ones computed by an R function. User propagators need Z3 4.13.0
+or later.
+
+## How the search talks to R
+
+* `push(cb)` and `pop(cb, n)`: Z3 opens and closes backtracking scopes. The
+  propagator must undo its own bookkeeping on `pop`.
+* `fixed(cb, term, value)`: a registered Boolean or bit-vector term got a
+  value.
+* `eq(cb, a, b)`, `diseq(cb, a, b)`: registered terms became equal or
+  different.
+* `final(cb)`: a complete assignment exists; the last chance to object.
+* `created(cb, term)`: a term built with a propagator function appeared.
+* `decide(cb, term, index, phase)`: Z3 is about to branch.
+
+Inside a callback, `z3_propagate_conflict(cb, fixed)` says that the current
+values of `fixed` are inconsistent, and `z3_propagate_consequence(cb, fixed,
+consequence)` adds a consequence they imply.
+
+## At most two of six
+
+```{r, eval = has_up}
+p <- z3_bools(ctx, paste0("p", 1:6))
+s <- z3_solver(ctx)
+
+true_terms <- list()   # terms currently assigned TRUE
+marks <- integer()     # length of true_terms at each push
+
+z3_propagator(s,
+  push = function(cb) marks <<- c(marks, length(true_terms)),
+  pop = function(cb, n) {
+    keep <- marks[length(marks) - n + 1]
+    true_terms <<- true_terms[seq_len(keep)]
+    marks <<- marks[seq_len(length(marks) - n)]
+  },
+  fixed = function(cb, term, value) {
+    if (isTRUE(z3_value(value))) {
+      true_terms[[length(true_terms) + 1]] <<- term
+      if (length(true_terms) > 2) z3_propagate_conflict(cb, true_terms)
+    }
+  })
+for (v in p) z3_propagate_register(s, v)
+z3_add(s, z3_or(p[1:3]), z3_or(p[4:6]))
+z3_check(s)
+unlist(z3_model_values(z3_model(s)))
+```
+
+The propagator alone enforces the cardinality limit; Z3 learns from each
+conflict it reports. Forcing three terms true makes the problem
+unsatisfiable:
+
+```{r, eval = has_up}
+z3_add(s, p$p1, p$p2, p$p4)
+z3_check(s)
+```
+
+## Errors and safety
+
+An error raised in a callback stops the check and is reported as an R error
+afterwards, so R and Z3 stay consistent:
+
+```{r, eval = has_up, error = TRUE}
+s <- z3_solver(ctx)
+z3_propagator(s, push = function(cb) NULL, pop = function(cb, n) NULL,
+              fixed = function(cb, term, value) stop("not allowed"))
+z3_propagate_register(s, p$p1)
+z3_add(s, p$p1)
+z3_check(s)
+```
+
+The `cb` handle is valid only while its callback runs. Z3 sometimes copies a
+solver internally; the copy does not call R, and z3r warns when that happens
+during a check.
+
+## Watching the search
+
+`z3_on_clause()` sees every clause the solver asserts, learns or deletes:
+
+```{r, eval = has_up}
+x <- z3_bools(ctx, paste0("x", 1:6))
+s <- z3_solver(ctx)
+learned <- 0
+z3_on_clause(s, function(proof_hint, deps, literals) learned <<- learned + 1)
+z3_add(s, z3_atleast(x, k = 4), z3_atmost(x, k = 3))
+z3_check(s)
+learned
+```
+
+`z3_on_model()` reports every improved model during optimization:
+
+```{r}
+n <- z3_int(ctx, "n")
+opt <- z3_optimize(ctx)
+z3_add(opt, n >= 0, n <= 100, n %% 9 == 4)
+z3_maximize(opt, n)
+improvements <- c()
+z3_on_model(opt, function(m) improvements <<- c(improvements, z3_value(z3_eval(m, n))))
+z3_check(opt)
+improvements
+```
+
+From Z3 5.3.2, `z3_set_proof_checker()` installs an R function that checks
+proofs produced by the SMT-LIB2 interpreter.

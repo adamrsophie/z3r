@@ -205,14 +205,23 @@ std::string cpp_solver_check(SEXP s_, Rcpp::List assumptions) {
     as.push_back(a);
   }
   std::vector<Z3_ast> r = raw(as);
+  for (CallbackPtr& cb : h->callbacks) { cb->error.clear(); cb->cloned = false; }
   Z3_lbool st = r.empty() ? Z3_solver_check(ctx->c, h->s)
                           : Z3_solver_check_assumptions(ctx->c, h->s,
                                                         static_cast<unsigned>(r.size()), r.data());
   h->checked = true;
   h->checked_at = h->generation;
   h->status = Z3_L_UNDEF;
+  raise_callback_errors(h->callbacks);
   check(ctx);
   h->status = st;
+  for (CallbackPtr& cb : h->callbacks) {
+    if (cb->cloned) {
+      Rf_warning("Z3 copied the solver during this check; callbacks did not run in the copy, so "
+                 "constraints enforced only by a user propagator may not hold in the result");
+      break;
+    }
+  }
   if (st == Z3_L_UNDEF) forward_interrupt(st, str(Z3_solver_get_reason_unknown(ctx->c, h->s)));
   return lbool_string(st);
 }
@@ -345,4 +354,168 @@ void cpp_solver_from_string(SEXP s_, SEXP text_) {
   Z3_solver_from_string(h->s.c(), h->s, text.c_str());
   check(h->s.ctx());
   h->touch();
+}
+
+// ---------------------------------------------------------------------------
+// Proofs, consequences, cubes and solver internals
+
+// [[Rcpp::export(rng = false)]]
+SEXP cpp_solver_proof(SEXP s_) {
+  SolverHolder* h = solver(s_);
+  if (!h->checked || h->checked_at != h->generation || h->status != Z3_L_FALSE) {
+    fail("a proof is only available after z3_check() returns \"unsat\" and before the solver changes");
+  }
+  const CtxPtr& ctx = h->s.ctx();
+  Z3_ast p = Z3_solver_get_proof(ctx->c, h->s);
+  return wrap_expr(own_ast(ctx, p));
+}
+
+// [[Rcpp::export(rng = false)]]
+SEXP cpp_solver_consequences(SEXP s_, Rcpp::List assumptions, Rcpp::List variables) {
+  SolverHolder* h = solver(s_);
+  const CtxPtr& ctx = h->s.ctx();
+  AstVec as = expr_list(ctx, assumptions, "assumptions");
+  for (const Ast& a : as) if (!is_bool(a)) fail("assumptions must be Boolean");
+  AstVec vs = expr_list(ctx, variables, "variables");
+  Ref<Z3_ast_vector> va = make_ast_vector(ctx, as);
+  Ref<Z3_ast_vector> vv = make_ast_vector(ctx, vs);
+  Ref<Z3_ast_vector> out = own(ctx, Z3_mk_ast_vector(ctx->c));
+  Z3_lbool st = Z3_solver_get_consequences(ctx->c, h->s, va, vv, out);
+  h->checked = true;
+  h->checked_at = h->generation;
+  h->status = Z3_L_UNDEF;
+  check(ctx);
+  h->status = st;
+  if (st == Z3_L_UNDEF) forward_interrupt(st, str(Z3_solver_get_reason_unknown(ctx->c, h->s)));
+  unsigned n = Z3_ast_vector_size(ctx->c, out);
+  AstVec cons;
+  for (unsigned i = 0; i < n; ++i) cons.push_back(own_ast(ctx, Z3_ast_vector_get(ctx->c, out, i)));
+  return Rcpp::List::create(Rcpp::Named("status") = lbool_string(st),
+                            Rcpp::Named("consequences") = wrap_expr_list(cons));
+}
+
+// [[Rcpp::export(rng = false)]]
+SEXP cpp_solver_cube(SEXP s_, Rcpp::List vars, int backtrack_level) {
+  SolverHolder* h = solver(s_);
+  const CtxPtr& ctx = h->s.ctx();
+  AstVec vs = expr_list(ctx, vars, "variables");
+  Ref<Z3_ast_vector> vv = make_ast_vector(ctx, vs);
+  ensure_solver_ready(ctx->c, h->s);
+  check(ctx);
+  Z3_ast_vector cube = Z3_solver_cube(ctx->c, h->s, vv, static_cast<unsigned>(backtrack_level));
+  return wrap_ast_vector(ctx, cube);
+}
+
+// [[Rcpp::export(rng = false)]]
+SEXP cpp_solver_literals(SEXP s_, std::string which) {
+  SolverHolder* h = solver(s_);
+  const CtxPtr& ctx = h->s.ctx();
+  Z3_context c = ctx->c;
+  if (which == "units") return wrap_ast_vector(ctx, Z3_solver_get_units(c, h->s));
+  if (which == "non_units") return wrap_ast_vector(ctx, Z3_solver_get_non_units(c, h->s));
+  // trail with decision levels
+  Ref<Z3_ast_vector> trail = own(ctx, Z3_solver_get_trail(c, h->s));
+  unsigned n = Z3_ast_vector_size(c, trail);
+  std::vector<unsigned> levels(n);
+  if (n) Z3_solver_get_levels(c, h->s, trail, n, levels.data());
+  check(ctx);
+  AstVec lits;
+  for (unsigned i = 0; i < n; ++i) lits.push_back(own_ast(ctx, Z3_ast_vector_get(c, trail, i)));
+  Rcpp::IntegerVector lv(n);
+  for (unsigned i = 0; i < n; ++i) lv[i] = static_cast<int>(levels[i]);
+  return Rcpp::List::create(Rcpp::Named("literals") = wrap_expr_list(lits),
+                            Rcpp::Named("levels") = lv);
+}
+
+// [[Rcpp::export(rng = false)]]
+std::string cpp_solver_help(SEXP s_) {
+  SolverHolder* h = solver(s_);
+  std::string out = str(Z3_solver_get_help(h->s.c(), h->s));
+  check(h->s.ctx());
+  return out;
+}
+
+// [[Rcpp::export(rng = false)]]
+std::string cpp_solver_to_dimacs(SEXP s_, bool include_names) {
+  SolverHolder* h = solver(s_);
+  std::string out = str(Z3_solver_to_dimacs_string(h->s.c(), h->s, include_names));
+  check(h->s.ctx());
+  return out;
+}
+
+// [[Rcpp::export(rng = false)]]
+SEXP cpp_solver_translate(SEXP s_, SEXP target_ctx) {
+  SolverHolder* h = solver(s_);
+  CtxPtr target = get_ctx(target_ctx);
+  Z3_solver t = Z3_solver_translate(h->s.c(), h->s, target->c);
+  check(h->s.ctx());
+  return wrap_solver(target, t);
+}
+
+// [[Rcpp::export(rng = false)]]
+void cpp_solver_initial_value(SEXP s_, SEXP var, SEXP value) {
+#if Z3R_AT_LEAST(4, 13, 2)
+  SolverHolder* h = solver(s_);
+  const CtxPtr& ctx = h->s.ctx();
+  Ast v = lift(ctx, var, nullptr);
+  Ast val = lift(ctx, value, Z3_get_sort(ctx->c, v));
+  Z3_solver_set_initial_value(ctx->c, h->s, v, val);
+  check(ctx);
+#else
+  needs_version("z3_set_initial_value()", "4.13.2");
+#endif
+}
+
+// Congruence closure queries after a satisfiable check. what is "root",
+// "next" or "explain" (b is only used by "explain").
+// [[Rcpp::export(rng = false)]]
+SEXP cpp_solver_congruence(SEXP s_, std::string what, SEXP a_, SEXP b_) {
+  SolverHolder* h = solver(s_);
+  const CtxPtr& ctx = h->s.ctx();
+  if (!h->checked || h->checked_at != h->generation || h->status != Z3_L_TRUE) {
+    fail("congruence classes are only available after z3_check() returns \"sat\"");
+  }
+  Ast a = lift(ctx, a_, nullptr);
+  if (what == "explain") {
+#if Z3R_AT_LEAST(4, 14, 0)
+    Ast b = lift(ctx, b_, Z3_get_sort(ctx->c, a));
+    return wrap_expr(own_ast(ctx, Z3_solver_congruence_explain(ctx->c, h->s, a, b)));
+#else
+    (void)b_;
+    needs_version("z3_congruence_explain()", "4.14.0");
+#endif
+  }
+#if Z3R_AT_LEAST(4, 12, 0)
+  if (what == "root") return wrap_expr(own_ast(ctx, Z3_solver_congruence_root(ctx->c, h->s, a)));
+  return wrap_expr(own_ast(ctx, Z3_solver_congruence_next(ctx->c, h->s, a)));
+#else
+  needs_version("z3_congruence_root()", "4.12.0");
+#endif
+}
+
+// Solves the current assertions for some variables: terms[i] is a term for
+// variables[i] that holds under the conjunction of guards.
+// [[Rcpp::export(rng = false)]]
+SEXP cpp_solver_solve_for(SEXP s_, Rcpp::List variables) {
+#if Z3R_AT_LEAST(4, 14, 0)
+  SolverHolder* h = solver(s_);
+  const CtxPtr& ctx = h->s.ctx();
+  AstVec vs = expr_list(ctx, variables, "variables");
+  Ref<Z3_ast_vector> vv = make_ast_vector(ctx, vs);
+  Ref<Z3_ast_vector> terms = own(ctx, Z3_mk_ast_vector(ctx->c));
+  Ref<Z3_ast_vector> guards = own(ctx, Z3_mk_ast_vector(ctx->c));
+  Z3_solver_solve_for(ctx->c, h->s, vv, terms, guards);
+  check(ctx);
+  auto to_list = [&](const Ref<Z3_ast_vector>& v) {
+    unsigned n = Z3_ast_vector_size(ctx->c, v);
+    AstVec out;
+    for (unsigned i = 0; i < n; ++i) out.push_back(own_ast(ctx, Z3_ast_vector_get(ctx->c, v, i)));
+    return wrap_expr_list(out);
+  };
+  return Rcpp::List::create(Rcpp::Named("terms") = to_list(terms),
+                            Rcpp::Named("guards") = to_list(guards));
+#else
+  (void)s_; (void)variables;
+  needs_version("z3_solve_for()", "4.14.0");
+#endif
 }

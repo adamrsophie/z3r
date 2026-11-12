@@ -29,6 +29,8 @@ closest R type that represents it exactly.
    Int, Real, bit-vector \tab a double when exactly representable; otherwise a \code{gmp::bigz} or \code{gmp::bigq} if gmp is installed, or else a character string holding the exact value (\code{"1/3"}) \cr
    algebraic number \tab error when \code{exact = TRUE}; a nearby double when \code{exact = FALSE} \cr
    String \tab a UTF-8 character string \cr
+   floating point \tab a double (\code{NaN}, \code{Inf}, \code{-0} included); formats wider than double precision only when the value fits exactly, or rounded when \code{exact = FALSE} \cr
+   rounding mode \tab its name, such as \code{"roundNearestTiesToEven"} \cr
 }
 
 

@@ -1,0 +1,148 @@
+---
+title: "Optimization"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Optimization}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+```{r}
+library(z3r)
+ctx <- z3_context()
+x <- z3_int(ctx, "x")
+y <- z3_int(ctx, "y")
+```
+
+`z3_optimize()` is a solver that also minimizes or maximizes objectives and
+satisfies as many weighted soft constraints as it can. It finds global
+optima of linear integer and real problems, MaxSAT problems, and
+combinations with any other theory.
+
+## Objectives
+
+```{r}
+opt <- z3_optimize(ctx)
+z3_add(opt, x >= 0, y >= 0, x + 2 * y <= 14, 3 * x - y >= 0, x - y <= 2)
+profit <- z3_maximize(opt, 3 * x + 4 * y)
+z3_check(opt)
+z3_optimum(profit)
+z3_model_values(z3_model(opt))
+```
+
+## When the optimum is not a number
+
+An objective may be unbounded, or have a bound it never reaches. z3r says so
+instead of returning a misleading number:
+
+```{r}
+r <- z3_real(ctx, "r")
+o1 <- z3_optimize(ctx)
+z3_add(o1, x >= 0)
+h1 <- z3_maximize(o1, x)
+z3_check(o1)
+z3_optimum(h1)
+
+o2 <- z3_optimize(ctx)
+z3_add(o2, r < 3)
+h2 <- z3_maximize(o2, r)
+z3_check(o2)
+z3_optimum(h2)
+```
+
+The second optimum is a supremum: `r` can approach 3 but never equal it. Z3
+writes it as `3 - epsilon`.
+
+## Several objectives
+
+By default objectives are lexicographic: the first is optimized first.
+
+```{r}
+lex <- z3_optimize(ctx)
+z3_add(lex, x + y <= 10, x >= 0, y >= 0, x <= 7, y <= 7)
+hx <- z3_maximize(lex, x)
+hy <- z3_maximize(lex, y)
+z3_check(lex)
+c(x = z3_value(z3_optimum(hx)$value), y = z3_value(z3_optimum(hy)$value))
+```
+
+`priority = "box"` optimizes each objective on its own, and `"pareto"`
+enumerates Pareto-optimal points, one per call to `z3_check()`:
+
+```{r}
+box <- z3_optimize(ctx, priority = "box")
+z3_add(box, x + y <= 10, x >= 0, y >= 0, x <= 7, y <= 7)
+bx <- z3_maximize(box, x)
+by <- z3_maximize(box, y)
+z3_check(box)
+c(x = z3_value(z3_optimum(bx)$value), y = z3_value(z3_optimum(by)$value))
+```
+
+## Soft constraints (MaxSAT)
+
+Soft constraints are preferences with weights; the optimizer minimizes the
+total weight it has to give up. Groups of soft constraints (`id`) act as
+separate objectives.
+
+```{r}
+staff <- z3_bools(ctx, c("ana", "ben", "cai", "dee"))
+opt <- z3_optimize(ctx)
+# At least two people on shift, Ana and Ben are never on together
+z3_add(opt, z3_atleast(staff, k = 2), !(staff$ana & staff$ben))
+z3_add_soft(opt, !staff$ana, 3)   # Ana prefers to be off
+z3_add_soft(opt, !staff$cai, 1)
+z3_add_soft(opt, !staff$dee, 2)
+z3_add_soft(opt, staff$ben, 1)
+z3_check(opt)
+unlist(z3_model_values(z3_model(opt)))
+```
+
+## Scheduling with disjunctions
+
+Disjunctive constraints make the feasible region non-convex; this is where
+SMT-based optimization is at home.
+
+```{r}
+dur <- c(4, 3, 2, 5)
+start <- z3_ints(ctx, paste0("s", 1:4))
+opt <- z3_optimize(ctx)
+for (i in 1:4) z3_add(opt, start[[i]] >= 0)
+for (i in 1:3) for (j in (i + 1):4) {
+  z3_add(opt, start[[i]] + dur[i] <= start[[j]] | start[[j]] + dur[j] <= start[[i]])
+}
+z3_add(opt, start$s2 + dur[2] <= start$s4)       # job 2 before job 4
+end <- z3_int(ctx, "end")
+for (i in 1:4) z3_add(opt, end >= start[[i]] + dur[i])
+z3_add_soft(opt, start$s1 == 0, 2)                # prefer job 1 first
+mk <- z3_minimize(opt, end)
+z3_check(opt)
+z3_optimum(mk)
+unlist(z3_model_values(z3_model(opt))[paste0("s", 1:4)])
+```
+
+## Watching progress
+
+`z3_on_model()` calls an R function with every improved model, which is
+useful for long optimizations:
+
+```{r}
+opt <- z3_optimize(ctx)
+z3_add(opt, x >= 0, x <= 1000, x %% 7 == 3)
+z3_maximize(opt, x)
+seen <- c()
+z3_on_model(opt, function(m) seen <<- c(seen, z3_value(z3_eval(m, x))))
+z3_check(opt)
+seen
+```
+
+## Limits
+
+* Over nonlinear arithmetic, quantifiers and some other theories the
+  optimizer may return `"unknown"` or an answer that is not optimal.
+* An optimizer interrupted by Ctrl-C, a timeout or `rlimit` returns
+  `"unknown"` with reason `"canceled"`; Z3 does not distinguish them.
+* Optimizers do not support tactics or unsat-core minimization.

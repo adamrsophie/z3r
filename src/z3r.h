@@ -25,6 +25,21 @@
 #include <Rcpp.h>
 #include <z3.h>
 
+// Z3 version known at compile time. Functions added after the minimum
+// supported release (4.8.13) are compiled only when the headers have them;
+// see documentation/z3-api-first-version.tsv for when each one appeared.
+#if defined(__has_include)
+#if __has_include(<z3_version.h>)
+#include <z3_version.h>
+#endif
+#endif
+#ifdef Z3_MAJOR_VERSION
+#define Z3R_VERSION (Z3_MAJOR_VERSION * 10000 + Z3_MINOR_VERSION * 100 + Z3_BUILD_NUMBER)
+#else
+#define Z3R_VERSION 40813
+#endif
+#define Z3R_AT_LEAST(a, b, c) (Z3R_VERSION >= ((a) * 10000 + (b) * 100 + (c)))
+
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -34,10 +49,16 @@
 namespace z3r {
 
 [[noreturn]] void fail(const std::string& msg);
+// Error for a feature that needs a newer Z3 than the one z3r was built with.
+[[noreturn]] void needs_version(const char* feature, const char* version);
+
+struct CallbackState;
 
 struct Context {
   Z3_context c;
-  Context();
+  std::shared_ptr<CallbackState> proof_check;  // Z3_set_proof_check_callback
+  // config: pairs of Z3 configuration parameter names and values.
+  explicit Context(const std::vector<std::pair<std::string, std::string>>& config = {});
   ~Context();
   Context(const Context&) = delete;
   Context& operator=(const Context&) = delete;
@@ -66,6 +87,14 @@ Z3R_REFOPS(Z3_goal, Z3_goal_inc_ref, Z3_goal_dec_ref)
 Z3R_REFOPS(Z3_tactic, Z3_tactic_inc_ref, Z3_tactic_dec_ref)
 Z3R_REFOPS(Z3_apply_result, Z3_apply_result_inc_ref, Z3_apply_result_dec_ref)
 Z3R_REFOPS(Z3_func_interp, Z3_func_interp_inc_ref, Z3_func_interp_dec_ref)
+Z3R_REFOPS(Z3_probe, Z3_probe_inc_ref, Z3_probe_dec_ref)
+Z3R_REFOPS(Z3_fixedpoint, Z3_fixedpoint_inc_ref, Z3_fixedpoint_dec_ref)
+#if Z3R_AT_LEAST(4, 12, 2)
+Z3R_REFOPS(Z3_simplifier, Z3_simplifier_inc_ref, Z3_simplifier_dec_ref)
+#endif
+#if Z3R_AT_LEAST(4, 9, 0)
+Z3R_REFOPS(Z3_parser_context, Z3_parser_context_inc_ref, Z3_parser_context_dec_ref)
+#endif
 #undef Z3R_REFOPS
 
 // Reference-counted handle that also keeps its context alive.
@@ -126,8 +155,35 @@ struct ContextHolder {
   CtxPtr ctx;
 };
 
+// State of R callbacks registered with Z3 (user propagators, clause and
+// model callbacks). Owned by the solver, optimizer or context that uses it,
+// so it lives as long as Z3 may call it.
+struct CallbackState {
+  CtxPtr ctx;                // owning reference (solver and optimizer callbacks)
+  std::weak_ptr<Context> weak;  // used instead by context-owned callbacks
+  CtxPtr context() const { return ctx ? ctx : weak.lock(); }
+  SEXP fns = R_NilValue;     // named list of R functions, preserved
+  std::string error;         // first error raised by an R callback
+  std::string report;        // storage for strings returned to Z3
+  bool cloned = false;       // Z3 copied the solver; the copy has no callbacks
+  Ref<Z3_model> model;       // model updated by Z3_optimize_register_model_eh
+  ~CallbackState() {
+    if (fns != R_NilValue) R_ReleaseObject(fns);
+  }
+};
+typedef std::shared_ptr<CallbackState> CallbackPtr;
+
+// Some Z3 solver functions use the solver's internal state without creating
+// it first (Z3 creates it lazily), and crash on a solver that has not been
+// used yet. Z3_solver_get_num_scopes creates it; call this before them.
+inline void ensure_solver_ready(Z3_context c, Z3_solver s) { Z3_solver_get_num_scopes(c, s); }
+
+// Raises the first callback error recorded during a check, if any.
+void raise_callback_errors(std::vector<CallbackPtr>& cbs);
+
 struct SolverHolder {
   Ref<Z3_solver> s;
+  std::vector<CallbackPtr> callbacks;
   uint64_t generation = 0;      // bumped whenever the assertion stack changes
   uint64_t checked_at = 0;      // generation of the last check
   bool checked = false;
@@ -137,6 +193,7 @@ struct SolverHolder {
 
 struct OptimizeHolder {
   Ref<Z3_optimize> o;
+  std::vector<CallbackPtr> callbacks;
   uint64_t generation = 0;
   uint64_t checked_at = 0;
   bool checked = false;
@@ -144,7 +201,8 @@ struct OptimizeHolder {
   void touch() { ++generation; }
 };
 
-enum class Kind { Context, Sort, Expr, FuncDecl, Solver, Model, Optimize, Goal, Tactic };
+enum class Kind { Context, Sort, Expr, FuncDecl, Solver, Model, Optimize, Goal, Tactic, Probe,
+                  Simplifier, Fixedpoint, Rcf, Callback, Parser };
 
 const char* kind_tag(Kind k);
 const char* kind_class(Kind k);
@@ -188,6 +246,8 @@ inline bool is_kind(SEXP x, Kind k) {
 // Convenience accessors
 CtxPtr get_ctx(SEXP x);     // from a z3_context object
 CtxPtr ctx_of_any(SEXP x);  // from any z3r object
+CtxPtr fixedpoint_ctx(SEXP x);
+CtxPtr rcf_ctx(SEXP x);
 inline const Ast& get_expr(SEXP x) { return *get_xptr<Ast>(x, Kind::Expr); }
 inline const Ast& get_sort(SEXP x) { return *get_xptr<Ast>(x, Kind::Sort); }
 inline const Ast& get_decl(SEXP x) { return *get_xptr<Ast>(x, Kind::FuncDecl); }
@@ -217,6 +277,10 @@ std::string to_string(const Ast& a);
 Ast lift(const CtxPtr& ctx, SEXP x, Z3_sort hint);
 // Finds the context of the first z3_expr in a list; fails if there is none.
 CtxPtr ctx_from_list(SEXP args);
+// Shared helpers (ast.cpp)
+Ref<Z3_ast_vector> make_ast_vector(const CtxPtr& ctx, const AstVec& v);
+AstVec expr_list(const CtxPtr& ctx, SEXP lst, const char* what);
+
 // Shared helpers (solver.cpp)
 const char* lbool_string(Z3_lbool r);
 Ref<Z3_params> make_params(const CtxPtr& ctx, Z3_param_descrs descrs, SEXP values);
@@ -225,6 +289,13 @@ SEXP stats_list(const CtxPtr& ctx, Z3_stats raw_stats);
 // Z3 handles SIGINT itself during checks and returns unknown with this
 // reason; z3r turns that into an ordinary R interrupt.
 void forward_interrupt(Z3_lbool status, const std::string& reason);
+
+// Floating point (fpa.cpp)
+bool is_fp(const Ast& e);
+bool is_rm(const Ast& e);
+bool fp_to_double(const Ast& a, double* out);
+Ast fp_literal(const CtxPtr& ctx, double v, bool is_na, Z3_sort sort);
+Ast fp_binary(const CtxPtr& ctx, const std::string& op, const Ast& a, const Ast& b);
 
 bool is_bool(const Ast& e);
 bool is_arith(const Ast& e);

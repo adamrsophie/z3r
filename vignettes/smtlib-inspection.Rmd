@@ -1,0 +1,148 @@
+---
+title: "SMT-LIB2, inspecting expressions and moving between contexts"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{SMT-LIB2, inspecting expressions and moving between contexts}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+```{r}
+library(z3r)
+ctx <- z3_context()
+x <- z3_int(ctx, "x")
+y <- z3_int(ctx, "y")
+```
+
+## SMT-LIB2
+
+SMT-LIB2 is the standard text format of SMT solvers. z3r writes and reads it
+with Z3's own printer and parser.
+
+```{r}
+s <- z3_solver(ctx)
+z3_add(s, x > 2, x < 5, x + y == 10)
+txt <- z3_to_smtlib(s)
+cat(txt)
+```
+
+Parsing returns the asserted formulas. Declared names map to the same
+constants as z3r's constructors:
+
+```{r}
+fs <- z3_from_smtlib(ctx, txt)
+fs
+z3_identical(fs[[1]], x > 2)
+```
+
+Text can go straight into a solver or optimizer, and files are read with
+`z3_read_smtlib()`:
+
+```{r}
+s2 <- z3_solver(ctx)
+z3_add_smtlib(s2, "(declare-const k Int) (assert (= (* 3 k) 21))")
+z3_check(s2)
+z3_model(s2)
+```
+
+`z3_eval_smtlib()` runs commands in Z3's interpreter, exactly as the `z3`
+command-line tool would, so any SMT-LIB2 example from the Z3 guide runs
+from R:
+
+```{r}
+cat(z3_eval_smtlib(ctx, "
+  (declare-datatypes () ((Color red green blue)))
+  (declare-const c Color)
+  (assert (not (= c red)))
+  (check-sat)
+  (get-value (c))
+"))
+```
+
+A list of formulas exports as a benchmark with a logic header:
+
+```{r}
+cat(z3_to_smtlib(list(x > 1, y < x), logic = "QF_LIA"))
+```
+
+## Inspecting expressions
+
+```{r}
+e <- x + 2 * y
+z3_kind(e)
+z3_decl_info(z3_decl(e))[c("name", "kind", "interpreted")]
+z3_args(e)
+z3_decl_info(z3_decl(z3_extract(z3_bv(ctx, "b", 8), 5, 2)))$parameters
+```
+
+A recursive walk turns expressions into other representations. A small
+printer that writes infix arithmetic:
+
+```{r}
+infix <- function(e) {
+  k <- z3_kind(e)
+  if (k == "numeral") return(format(e))
+  info <- z3_decl_info(z3_decl(e))
+  args <- vapply(z3_args(e), infix, "")
+  if (!info$interpreted) return(info$name)
+  op <- switch(info$kind, add = "+", sub = "-", mul = "*", le = "<=", lt = "<",
+               ge = ">=", gt = ">", eq = "==", NA)
+  if (is.na(op)) return(format(e))
+  paste0("(", paste(args, collapse = paste0(" ", op, " ")), ")")
+}
+infix(x + 2 * y <= 10)
+```
+
+Quantifiers expose their bound variables and body, in which bound variables
+appear as de Bruijn indices:
+
+```{r}
+q <- z3_forall(list(x, y), x + y >= x)
+info <- z3_quantifier_info(q)
+info$names
+info$body
+```
+
+## Substitution
+
+```{r}
+z3_substitute(x + y, x, 3)
+z3_simplify(z3_substitute(x * y, list(x, y), list(2, 5)))
+v0 <- z3_bound_var(ctx, 0, z3_int_sort(ctx))
+z3_substitute_vars(v0 * v0 + 1, list(y))
+```
+
+From Z3 4.9.0, `z3_substitute_funs()` replaces a function by a definition:
+
+```{r, eval = z3_version_at_least("4.9.0")}
+f <- z3_function(ctx, "f", z3_int_sort(ctx), z3_int_sort(ctx))
+z3_simplify(z3_substitute_funs(f(x) + f(2), f, v0 * v0))
+```
+
+## Contexts and translation
+
+Objects from different contexts never mix. `z3_translate()` copies
+expressions, solvers, optimizers, models and goals into another context:
+
+```{r, error = TRUE}
+other <- z3_context()
+x + z3_int(other, "x")
+xt <- z3_translate(x + 1, other)
+xt + z3_int(other, "x")
+st <- z3_translate(s, other)
+z3_check(st)
+```
+
+## Global settings and logging
+
+```{r}
+z3_global_param_get("model.completion")
+head(z3_global_param_help(ctx)[, c("name", "kind")], 4)
+```
+
+`z3_log_open(file)` records every Z3 API call made by z3r, for reproducing a
+problem in a bug report.

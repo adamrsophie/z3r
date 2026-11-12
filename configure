@@ -12,7 +12,7 @@
 
 Z3_MIN_MAJOR=4
 Z3_MIN_MINOR=8
-Z3_MIN_BUILD=12
+Z3_MIN_BUILD=13
 
 : "${R_HOME:=`R RHOME`}"
 if test -z "${R_HOME}"; then
@@ -48,7 +48,7 @@ int main(void) {
     return 3;
   }
 #endif
-  /* Unicode string support is required (Z3 4.8.12 and later). */
+  /* Unicode string support is required (Z3 4.8.13 and later). */
   void *p = (void *) &Z3_get_string_contents;
   if (!p) return 2;
   if (major != ${Z3_MIN_MAJOR}) return major > ${Z3_MIN_MAJOR} ? 0 : 1;
@@ -165,6 +165,14 @@ echo "configure: using Z3 ${Z3_FOUND_VERSION} (found via ${Z3_SOURCE})"
 echo "configure: Z3_CPPFLAGS=${Z3_CPPFLAGS}"
 echo "configure: Z3_LIBS=${Z3_LIBS}"
 
+# Replace src/Makevars only when it changes, so that switching to another Z3
+# rebuilds every object (they depend on Makevars) and an unchanged
+# configuration keeps incremental builds.
 sed -e "s|@Z3_CPPFLAGS@|${Z3_CPPFLAGS}|" -e "s|@Z3_LIBS@|${Z3_LIBS}|" \
-  src/Makevars.in > src/Makevars
+  src/Makevars.in > src/Makevars.new
+if cmp -s src/Makevars.new src/Makevars; then
+  rm -f src/Makevars.new
+else
+  mv src/Makevars.new src/Makevars
+fi
 exit 0

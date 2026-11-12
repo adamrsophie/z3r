@@ -29,7 +29,7 @@ int main(void) {
   if (!p) return 2;
   if (major != 4) return major > 4 ? 0 : 1;
   if (minor != 8) return minor > 8 ? 0 : 1;
-  return build >= 12 ? 0 : 1;
+  return build >= 13 ? 0 : 1;
 }
 EOF
   rm -f conftest.exe
@@ -83,7 +83,7 @@ rm -f conftest.cpp conftest.exe libz3.dll
 if test -z "${Z3_SOURCE}"; then
   cat >&2 <<EOF
 ------------------------------------------------------------------------
-configure.win: could not find a usable Z3 C library (4.8.12 or later).
+configure.win: could not find a usable Z3 C library (4.8.13 or later).
 
 1. Download and unpack an official release, for example
    z3-4.16.0-x64-win.zip from https://github.com/Z3Prover/z3/releases
@@ -103,5 +103,10 @@ fi
 
 echo "configure.win: using Z3 ${Z3_FOUND_VERSION} (found via ${Z3_SOURCE})"
 sed -e "s|@Z3_CPPFLAGS@|${Z3_CPPFLAGS}|" -e "s|@Z3_LIBS@|${Z3_LIBS}|" \
-    -e "s|@Z3_DLL@|${Z3_DLL}|" src/Makevars.win.in > src/Makevars.win
+    -e "s|@Z3_DLL@|${Z3_DLL}|" src/Makevars.win.in > src/Makevars.win.new
+if cmp -s src/Makevars.win.new src/Makevars.win; then
+  rm -f src/Makevars.win.new
+else
+  mv src/Makevars.win.new src/Makevars.win
+fi
 exit 0

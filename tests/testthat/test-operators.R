@@ -173,7 +173,7 @@ test_that("sum, prod and abs", {
   expect_identical(format(z3_sum(v)), "(+ a b c)")
   expect_identical(format(z3_prod(v$a, 2)), "(* a 2)")
   expect_identical(format(sum(v$a, v$b, 1)), "(+ a b 1)")
-  expect_identical(format(abs(v$a)), "(abs a)")
+  expect_identical(format(abs(v$a)), "(ite (< a 0) (- a) a)")
   expect_identical(z3_value(z3_simplify(abs(z3_int_val(ctx, -5)))), 5)
   expect_error(sqrt(v$a), "no exact counterpart")
   expect_error(max(v$a, v$b), "not defined")

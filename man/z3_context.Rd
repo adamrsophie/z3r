@@ -4,7 +4,10 @@
 \alias{z3_context}
 \title{Create a Z3 context}
 \usage{
-z3_context()
+z3_context(...)
+}
+\arguments{
+\item{...}{Named configuration parameters.}
 }
 \value{
 An object of class \code{z3_context}.
@@ -22,10 +25,17 @@ each context from a single R process.
 Z3 objects are external pointers. They cannot be saved with \code{\link[=saveRDS]{saveRDS()}}
 or \code{\link[=save]{save()}} and restored in another session; a restored object reports
 that it is no longer valid. Use \code{\link[=z3_to_smtlib]{z3_to_smtlib()}} to store constraints.
+
+Configuration parameters fix properties of the context for its whole
+life. The most useful are \code{proof = TRUE} (needed for \code{\link[=z3_proof]{z3_proof()}}),
+\code{unsat_core}, \code{timeout} (milliseconds, for every solver of the context),
+\code{auto_config}, \code{well_sorted_check} and \code{model_validate}. Values are R
+scalars; unknown names are an error.
 }
 \examples{
 ctx <- z3_context()
 ctx
+pctx <- z3_context(proof = TRUE)
 }
 \seealso{
 \code{\link[=z3_version]{z3_version()}}

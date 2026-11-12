@@ -4,10 +4,12 @@
 \alias{z3_simplify}
 \title{Simplify an expression}
 \usage{
-z3_simplify(x)
+z3_simplify(x, ...)
 }
 \arguments{
 \item{x}{A \code{z3_expr}.}
+
+\item{...}{Simplifier parameters.}
 }
 \value{
 A \code{z3_expr}.
@@ -16,9 +18,14 @@ A \code{z3_expr}.
 Applies Z3's algebraic simplifier. The result is equivalent to the input
 but not necessarily simpler in every case.
 }
+\details{
+Named parameters select options of Z3's simplifier, listed by
+\code{\link[=z3_simplify_help]{z3_simplify_help()}}.
+}
 \examples{
 ctx <- z3_context()
 x <- z3_int(ctx, "x")
 z3_simplify(x + 2 * x - 3 + 3)
 z3_simplify(z3_int_val(ctx, 7) \%/\% -2)
+z3_simplify((x + 1) * (x + 1), som = TRUE)
 }

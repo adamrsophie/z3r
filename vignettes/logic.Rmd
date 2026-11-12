@@ -1,0 +1,170 @@
+---
+title: "Boolean logic, puzzles and pseudo-Boolean constraints"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Boolean logic, puzzles and pseudo-Boolean constraints}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+```{r}
+library(z3r)
+ctx <- z3_context()
+```
+
+## Propositional logic
+
+```{r}
+p <- z3_bool(ctx, "p")
+q <- z3_bool(ctx, "q")
+r <- z3_bool(ctx, "r")
+p & q | !r
+z3_implies(p, q)
+z3_iff(p, q)
+z3_xor(p, q)
+z3_ite(p, q, r)
+```
+
+R's `&&` and `||` cannot be overloaded, so they are unavailable; use `&`,
+`|` or `z3_and()`/`z3_or()`, which also take lists.
+
+### Checking arguments
+
+An argument is valid when its premises together with the negated conclusion
+are unsatisfiable:
+
+```{r}
+valid <- function(premises, conclusion) {
+  s <- z3_solver(ctx)
+  z3_add(s, premises, !conclusion)
+  z3_check(s) == "unsat"
+}
+valid(list(z3_implies(p, q), p), q)          # modus ponens
+valid(list(z3_implies(p, q), !q), !p)        # modus tollens
+valid(list(z3_implies(p, q), q), p)          # affirming the consequent
+```
+
+### Truth tables
+
+```{r}
+f <- z3_xor(p, z3_implies(q, r))
+rows <- expand.grid(p = c(TRUE, FALSE), q = c(TRUE, FALSE), r = c(TRUE, FALSE))
+rows$f <- apply(rows, 1, function(v) {
+  m <- z3_model(ctx)
+  z3_model_set(m, p, v[["p"]])
+  z3_model_set(m, q, v[["q"]])
+  z3_model_set(m, r, v[["r"]])
+  z3_value(z3_eval(m, f))
+})
+rows
+```
+
+## Puzzles
+
+### Sudoku
+
+Integer variables with `z3_distinct()` constraints:
+
+```{r}
+puzzle <- matrix(c(
+  5, 3, 0, 0, 7, 0, 0, 0, 0,
+  6, 0, 0, 1, 9, 5, 0, 0, 0,
+  0, 9, 8, 0, 0, 0, 0, 6, 0,
+  8, 0, 0, 0, 6, 0, 0, 0, 3,
+  4, 0, 0, 8, 0, 3, 0, 0, 1,
+  7, 0, 0, 0, 2, 0, 0, 0, 6,
+  0, 6, 0, 0, 0, 0, 2, 8, 0,
+  0, 0, 0, 4, 1, 9, 0, 0, 5,
+  0, 0, 0, 0, 8, 0, 0, 7, 9), 9, byrow = TRUE)
+cell <- lapply(1:9, function(i) lapply(1:9, function(j) z3_int(ctx, sprintf("c%d%d", i, j))))
+s <- z3_solver(ctx)
+for (i in 1:9) for (j in 1:9) {
+  z3_add(s, cell[[i]][[j]] >= 1, cell[[i]][[j]] <= 9)
+  if (puzzle[i, j] > 0) z3_add(s, cell[[i]][[j]] == puzzle[i, j])
+}
+for (i in 1:9) z3_add(s, z3_distinct(cell[[i]]))
+for (j in 1:9) z3_add(s, z3_distinct(lapply(1:9, function(i) cell[[i]][[j]])))
+for (bi in 0:2) for (bj in 0:2) {
+  z3_add(s, z3_distinct(unlist(lapply(1:3, function(a) lapply(1:3, function(b) cell[[3 * bi + a]][[3 * bj + b]])), recursive = FALSE)))
+}
+z3_check(s)
+m <- z3_model(s)
+t(sapply(1:9, function(i) sapply(1:9, function(j) z3_value(z3_eval(m, cell[[i]][[j]])))))
+```
+
+### Eight queens
+
+```{r}
+n <- 8
+col <- z3_ints(ctx, paste0("q", 1:n))     # column of the queen in each row
+s <- z3_solver(ctx)
+for (i in 1:n) z3_add(s, col[[i]] >= 1, col[[i]] <= n)
+z3_add(s, z3_distinct(col))
+for (i in 1:(n - 1)) for (j in (i + 1):n) {
+  z3_add(s, col[[i]] - col[[j]] != i - j, col[[i]] - col[[j]] != j - i)
+}
+z3_check(s)
+unlist(z3_model_values(z3_model(s)))[paste0("q", 1:n)]
+```
+
+### Counting solutions
+
+Block each solution and ask again:
+
+```{r}
+count_solutions <- function(s, vars, limit = 100) {
+  n <- 0
+  while (n < limit && z3_check(s) == "sat") {
+    m <- z3_model(s)
+    z3_add(s, z3_or(lapply(vars, function(v) v != z3_eval(m, v))))
+    n <- n + 1
+  }
+  n
+}
+n <- 6
+col <- z3_ints(ctx, paste0("r", 1:n))
+s <- z3_solver(ctx)
+for (i in 1:n) z3_add(s, col[[i]] >= 1, col[[i]] <= n)
+z3_add(s, z3_distinct(col))
+for (i in 1:(n - 1)) for (j in (i + 1):n) {
+  z3_add(s, col[[i]] - col[[j]] != i - j, col[[i]] - col[[j]] != j - i)
+}
+count_solutions(s, col)
+```
+
+## Cardinality and pseudo-Boolean constraints
+
+"At most k of these" and weighted sums of Booleans have dedicated, fast
+procedures:
+
+```{r}
+x <- z3_bools(ctx, paste0("x", 1:6))
+s <- z3_solver(ctx)
+z3_add(s,
+  z3_atleast(x, k = 2),
+  z3_atmost(x, k = 3),
+  z3_pble(x, c(4, 3, 3, 2, 2, 1), 6),
+  z3_pbge(x, c(1, 1, 1, 0, 0, 0), 1))
+z3_check(s)
+chosen <- unlist(z3_model_values(z3_model(s)))[paste0("x", 1:6)]
+chosen
+sum(c(4, 3, 3, 2, 2, 1)[chosen])
+```
+
+A knapsack problem with `z3_optimize()` and the same constraints:
+
+```{r}
+value <- c(10, 13, 7, 8, 4, 3)
+weight <- c(5, 6, 3, 4, 2, 1)
+opt <- z3_optimize(ctx)
+z3_add(opt, z3_pble(x, weight, 11))
+total <- z3_sum(Map(function(b, v) z3_ite(b, v, 0), x, value))
+best <- z3_maximize(opt, total)
+z3_check(opt)
+z3_optimum(best)
+which(unlist(z3_model_values(z3_model(opt)))[paste0("x", 1:6)])
+```

@@ -1,2 +1,10 @@
 PKG_CPPFLAGS = @Z3_CPPFLAGS@
 PKG_LIBS = @Z3_LIBS@
+
+all: $(SHLIB)
+
+# Rebuild every object when the shared headers or the Z3 configuration
+# (written by configure) change.
+$(OBJECTS): z3r.h decl_kinds.h Makevars
+
+.PHONY: all

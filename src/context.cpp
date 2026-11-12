@@ -10,10 +10,16 @@ namespace z3r {
 
 void fail(const std::string& msg) { throw Rcpp::exception(msg.c_str(), false); }
 
-Context::Context() {
+void needs_version(const char* feature, const char* version) {
+  fail(std::string(feature) + " needs Z3 " + version +
+       " or later; z3r was built with an older Z3. Reinstall z3r against a newer Z3.");
+}
+
+Context::Context(const std::vector<std::pair<std::string, std::string>>& config) {
   Z3_config cfg = Z3_mk_config();
   if (!cfg) fail("could not create a Z3 configuration");
   Z3_set_param_value(cfg, "model", "true");
+  for (const auto& kv : config) Z3_set_param_value(cfg, kv.first.c_str(), kv.second.c_str());
   c = Z3_mk_context_rc(cfg);
   Z3_del_config(cfg);
   if (!c) fail("could not create a Z3 context");
@@ -43,6 +49,12 @@ const char* kind_tag(Kind k) {
     case Kind::Optimize: return "z3r_optimize";
     case Kind::Goal: return "z3r_goal";
     case Kind::Tactic: return "z3r_tactic";
+    case Kind::Probe: return "z3r_probe";
+    case Kind::Simplifier: return "z3r_simplifier";
+    case Kind::Fixedpoint: return "z3r_fixedpoint";
+    case Kind::Rcf: return "z3r_rcf";
+    case Kind::Callback: return "z3r_callback";
+    case Kind::Parser: return "z3r_parser";
   }
   return "z3r_unknown";
 }
@@ -58,6 +70,12 @@ const char* kind_class(Kind k) {
     case Kind::Optimize: return "z3_optimize";
     case Kind::Goal: return "z3_goal";
     case Kind::Tactic: return "z3_tactic";
+    case Kind::Probe: return "z3_probe";
+    case Kind::Simplifier: return "z3_simplifier";
+    case Kind::Fixedpoint: return "z3_fixedpoint";
+    case Kind::Rcf: return "z3_rcf";
+    case Kind::Callback: return "z3_callback";
+    case Kind::Parser: return "z3_parser";
   }
   return "z3_unknown";
 }
@@ -73,6 +91,12 @@ const char* kind_label(Kind k) {
     case Kind::Optimize: return "a Z3 optimizer (z3_optimize)";
     case Kind::Goal: return "a Z3 goal (z3_goal)";
     case Kind::Tactic: return "a Z3 tactic (z3_tactic)";
+    case Kind::Probe: return "a Z3 probe (z3_probe)";
+    case Kind::Simplifier: return "a Z3 simplifier (z3_simplifier)";
+    case Kind::Fixedpoint: return "a Z3 fixedpoint engine (z3_fixedpoint)";
+    case Kind::Rcf: return "a real closed field number (z3_rcf)";
+    case Kind::Callback: return "a solver callback handle (z3_callback)";
+    case Kind::Parser: return "an SMT-LIB2 parser (z3_parser)";
   }
   return "a Z3 object";
 }
@@ -186,8 +210,12 @@ SEXP cpp_version() {
 }
 
 // [[Rcpp::export(rng = false)]]
-SEXP cpp_mk_context() {
-  CtxPtr ctx = std::make_shared<Context>();
+SEXP cpp_mk_context(Rcpp::CharacterVector names, Rcpp::CharacterVector values) {
+  std::vector<std::pair<std::string, std::string>> config;
+  for (R_xlen_t i = 0; i < names.size(); ++i) {
+    config.emplace_back(Rcpp::as<std::string>(names[i]), Rcpp::as<std::string>(values[i]));
+  }
+  CtxPtr ctx = std::make_shared<Context>(config);
   return wrap_ctx(ctx);
 }
 
@@ -202,6 +230,15 @@ CtxPtr ctx_of_any(SEXP x) {
   if (is_kind(x, Kind::Model)) return get_xptr<Ref<Z3_model>>(x, Kind::Model)->ctx();
   if (is_kind(x, Kind::Goal)) return get_xptr<Ref<Z3_goal>>(x, Kind::Goal)->ctx();
   if (is_kind(x, Kind::Tactic)) return get_xptr<Ref<Z3_tactic>>(x, Kind::Tactic)->ctx();
+  if (is_kind(x, Kind::Probe)) return get_xptr<Ref<Z3_probe>>(x, Kind::Probe)->ctx();
+  if (is_kind(x, Kind::Fixedpoint)) return fixedpoint_ctx(x);
+  if (is_kind(x, Kind::Rcf)) return rcf_ctx(x);
+#if Z3R_AT_LEAST(4, 9, 0)
+  if (is_kind(x, Kind::Parser)) return get_xptr<Ref<Z3_parser_context>>(x, Kind::Parser)->ctx();
+#endif
+#if Z3R_AT_LEAST(4, 12, 2)
+  if (is_kind(x, Kind::Simplifier)) return get_xptr<Ref<Z3_simplifier>>(x, Kind::Simplifier)->ctx();
+#endif
   fail("expected a z3r object");
 }
 }  // namespace z3r

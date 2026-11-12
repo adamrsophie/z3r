@@ -1,0 +1,108 @@
+---
+title: "Algebraic numbers and real closed fields"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Algebraic numbers and real closed fields}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+```{r}
+library(z3r)
+ctx <- z3_context()
+```
+
+Z3 decides nonlinear real arithmetic exactly, and represents irrational
+solutions as *algebraic numbers*: a polynomial plus the index of one of its
+real roots. z3r gives exact arithmetic on them, and access to Z3's real
+closed field package, which adds pi, e and infinitesimals.
+
+## Algebraic numbers from models
+
+```{r}
+r <- z3_real(ctx, "r")
+s <- z3_solver(ctx)
+z3_add(s, r^2 == 2, r > 0)
+z3_check(s)
+root2 <- z3_eval(z3_model(s), r)
+root2
+z3_decimal(root2, 40)
+z3_algebraic_poly(root2)
+```
+
+Arithmetic stays exact:
+
+```{r}
+z3_algebraic("*", root2, root2)
+z3_algebraic("+", root2, 1)
+z3_algebraic("<", root2, z3_real_val(ctx, "1.4142136"))
+z3_algebraic_power(root2, 6)
+cbrt5 <- z3_algebraic_root(z3_real_val(ctx, 5), 3)
+z3_algebraic_power(cbrt5, 3)
+z3_algebraic_sign(z3_algebraic("-", cbrt5, root2))
+```
+
+## Roots of polynomials
+
+`z3_algebraic_roots()` finds all real roots of a polynomial in its last free
+variable. Free variables are made with `z3_bound_var()`:
+
+```{r}
+v <- z3_bound_var(ctx, 0, z3_real_sort(ctx))
+roots <- z3_algebraic_roots(v^3 - 3 * v + 1)
+roots
+vapply(roots, function(a) z3_value(a, exact = FALSE), 0)
+```
+
+## Real closed fields
+
+The real closed field package computes with real algebraic numbers, the
+transcendental constants pi and e, and infinitesimals, outside any solver:
+
+```{r}
+two <- z3_rcf(ctx, 2)
+zero <- z3_rcf(ctx, 0)
+one <- z3_rcf(ctx, 1)
+rs <- z3_rcf_roots(list(-two, zero, one))    # roots of x^2 - 2
+rs
+rs[[2]]^2 == two
+z3_rcf_decimal(rs[[2]] * rs[[2]] + 1, 10)
+```
+
+Transcendental numbers compare exactly against rationals:
+
+```{r}
+piv <- z3_rcf_pi(ctx)
+z3_rcf_decimal(piv, 30)
+piv > z3_rcf(ctx, "355/113") - z3_rcf(ctx, "1/1000000")
+z3_rcf_e(ctx) < z3_rcf(ctx, "2719/1000")
+```
+
+An infinitesimal is positive but smaller than every positive real:
+
+```{r}
+eps <- z3_rcf_infinitesimal(ctx)
+c(positive = eps > 0, tiny = eps < z3_rcf(ctx, "1/1000000000000"))
+format(one + eps)
+```
+
+From Z3 4.12.3, `z3_rcf_info()` describes a number's structure: for an
+algebraic number its defining polynomial, isolating interval and sign
+conditions.
+
+```{r, eval = z3_version_at_least("4.12.3")}
+info <- z3_rcf_info(rs[[2]])
+info$kind
+vapply(info$coefficients, format, "")
+```
+
+## Subresultants
+
+```{r}
+p <- z3_real(ctx, "p")
+z3_subresultants(p^2 - 1, p^2 - 3 * p + 2, p)
+```

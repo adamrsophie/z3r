@@ -14,3 +14,6 @@ inst/doc
 documentation/
 docs/
 .DS_Store
+src/Makevars.win
+src/Makevars.new
+src/Makevars.win.new

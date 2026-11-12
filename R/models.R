@@ -69,7 +69,8 @@ as.list.z3_model <- function(x, ...) {
 z3_model_values <- function(model) {
   lapply(as.list(model), function(v) {
     info <- cpp_value_info(v, 20L)
-    if (info$kind %in% c("bool", "int", "real", "bv", "string")) z3_value(v) else v
+    if (info$kind %in% c("bool", "int", "real", "bv", "string", "rm") ||
+        (info$kind == "fp" && info$exact_double)) z3_value(v) else v
   })
 }
 
@@ -108,3 +109,66 @@ print.z3_model <- function(x, ...) {
 
 #' @export
 as.character.z3_model <- function(x, ...) cpp_model_to_string(x)
+
+#' @rdname z3_model
+#' @export
+z3_model.z3_context <- function(x) cpp_mk_model(x)
+
+#' Build and query models
+#'
+#' `z3_model(ctx)` creates an empty model. `z3_model_set()` assigns a value
+#' to a constant; `z3_model_set_function()` defines a function by a table of
+#' entries and a default value. A hand-made model can be used with
+#' [z3_eval()] to evaluate expressions under chosen values.
+#'
+#' `z3_model_has()` tests whether a model interprets a constant or
+#' function. `z3_model_universes()` returns, for each uninterpreted sort of
+#' the model, the finite list of values the model uses for it.
+#' `z3_as_array_function()` returns the function behind an array value of
+#' the form `(_ as-array f)`, or `NULL`.
+#'
+#' @param model A `z3_model`.
+#' @param constant A constant (`z3_expr`).
+#' @param value A value of the constant's sort.
+#' @param f A `z3_function` or `z3_func_decl`.
+#' @param entries A list of entries, each `list(args = list(...), value = v)`.
+#' @param otherwise The value for all other arguments.
+#' @param x A constant, function, or (for `z3_as_array_function()`) an
+#'   array value.
+#' @return `z3_model_set()` and `z3_model_set_function()` return `model`
+#'   invisibly; the others return the requested information.
+#' @examples
+#' ctx <- z3_context()
+#' x <- z3_int(ctx, "x")
+#' f <- z3_function(ctx, "f", z3_int_sort(ctx), z3_int_sort(ctx))
+#' m <- z3_model(ctx)
+#' z3_model_set(m, x, 5)
+#' z3_model_set_function(m, f, list(list(args = list(5), value = 50)), 0)
+#' z3_eval(m, f(x) + f(1))
+#' @export
+z3_model_set <- function(model, constant, value) {
+  cpp_model_set_const(model, constant, value)
+  invisible(model)
+}
+
+#' @rdname z3_model_set
+#' @export
+z3_model_set_function <- function(model, f, entries = list(), otherwise) {
+  cpp_model_set_func(model, z3_decl(f), entries, otherwise)
+  invisible(model)
+}
+
+#' @rdname z3_model_set
+#' @export
+z3_model_has <- function(model, x) {
+  if (inherits(x, "z3_function")) x <- z3_decl(x)
+  cpp_model_has(model, x)
+}
+
+#' @rdname z3_model_set
+#' @export
+z3_model_universes <- function(model) cpp_model_universes(model)
+
+#' @rdname z3_model_set
+#' @export
+z3_as_array_function <- function(x) cpp_as_array_decl(x)

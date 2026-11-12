@@ -1,0 +1,94 @@
+---
+title: "Theories added in Z3 5: complex numbers, finite fields and finite sets"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Theories added in Z3 5: complex numbers, finite fields and finite sets}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(z3r)
+has_complex <- z3_version_at_least("5.3.2")
+has_ff <- z3_version_at_least("5.3.0")
+has_fs <- z3_version_at_least("5.0.0")
+```
+
+```{r}
+library(z3r)
+z3_version()$headers
+ctx <- z3_context()
+```
+
+The Z3 5 series adds new theories. z3r supports them when it is built
+against a Z3 that has them; on an older Z3 the functions report the version
+they need. The chunks below run only when the theory is available.
+
+## Complex numbers (Z3 5.3.2)
+
+```{r, eval = has_complex}
+z <- z3_const(ctx, "z", z3_complex_sort(ctx))
+w <- z3_const(ctx, "w", z3_complex_sort(ctx))
+s <- z3_solver(ctx)
+z3_add(s, z3_real_part(z) == 3, z3_imag_part(z) == -4,
+       z3_real_part(w) == z3_imag_part(z), z3_imag_part(w) == z3_real_part(z))
+z3_check(s)
+m <- z3_model(s)
+z3_eval(m, z)
+z3_eval(m, w)
+```
+
+## Finite fields (Z3 5.3.0)
+
+The field of integers modulo a prime. Square roots modulo 7:
+
+```{r, eval = has_ff}
+F7 <- z3_ff_sort(ctx, 7)
+a <- z3_const(ctx, "a", F7)
+roots <- function(v) {
+  s <- z3_solver(ctx)
+  z3_add(s, z3_ff_mul(a, a) == z3_val(ctx, v, F7))
+  out <- c()
+  while (z3_check(s) == "sat") {
+    r <- z3_eval(z3_model(s), a)
+    out <- c(out, format(r))
+    z3_add(s, a != r)
+  }
+  out
+}
+roots(2)
+roots(3)
+```
+
+2 is a square modulo 7 and 3 is not. Large primes are given as strings:
+
+```{r, eval = has_ff}
+z3_ff_size(z3_ff_sort(ctx, "21888242871839275222246405745257275088548364400416034343698204186575808495617"))
+```
+
+## Finite sets (Z3 5.0.0)
+
+Unlike the array-based sets of `z3_set_sort()`, finite sets have
+cardinality:
+
+```{r, eval = has_fs}
+I <- z3_int_sort(ctx)
+S <- z3_finite_set_sort(I)
+A <- z3_const(ctx, "A", S)
+s <- z3_solver(ctx)
+z3_add(s, z3_fs_member(1, A), z3_fs_member(3, A),
+       z3_fs_subset(A, z3_fs_union(z3_fs_singleton(z3_int_val(ctx, 1)), z3_fs_singleton(z3_int_val(ctx, 3)))))
+z3_check(s)
+z3_eval(z3_model(s), A)
+```
+
+The theory is new and incomplete in Z3 5.4.1: some problems mixing
+cardinality and ranges return `"unknown"`:
+
+```{r, eval = has_fs}
+s <- z3_solver(ctx)
+z3_add(s, z3_fs_size(A) == 3, z3_fs_subset(A, z3_fs_range(z3_int_val(ctx, 1), 4)))
+z3_check(s)
+z3_reason_unknown(s)
+```

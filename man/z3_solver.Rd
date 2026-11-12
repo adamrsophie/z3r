@@ -4,7 +4,7 @@
 \alias{z3_solver}
 \title{Create a solver}
 \usage{
-z3_solver(ctx, logic = NULL, ...)
+z3_solver(ctx, logic = NULL, simple = FALSE, ...)
 }
 \arguments{
 \item{ctx}{A \code{\link[=z3_context]{z3_context()}}.}
@@ -13,6 +13,10 @@ z3_solver(ctx, logic = NULL, ...)
 free linear integer arithmetic). A logic lets Z3 pick a specialized
 strategy; constraints outside the logic may then fail or return
 \code{"unknown"}.}
+
+\item{simple}{If \code{TRUE}, create Z3's simple solver: an incremental SMT
+solver without the tactic-based preprocessing of the default solver.
+Some features, such as \code{\link[=z3_trail]{z3_trail()}}, need it.}
 
 \item{...}{Solver parameters, passed to \code{\link[=z3_set_params]{z3_set_params()}}.}
 }

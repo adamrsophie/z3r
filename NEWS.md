@@ -1,44 +1,64 @@
 # z3r 0.1.0
 
-First version.
+First release. z3r targets Z3 5.4.1 and supports every Z3 release from
+4.8.13; features that need a newer Z3 than the one z3r was built with say
+which version they need.
 
 ## Native foundation
 
 * Contexts created with `Z3_mk_context_rc`; every Z3 object is reference
-  counted and keeps its context alive, so objects can be garbage collected in
-  any order.
-* Z3 errors become R errors without leaking references. Objects restored from
-  saved sessions fail with a clear message instead of crashing.
-* Objects from different contexts are rejected.
+  counted and keeps its context alive, so objects can be garbage collected
+  in any order. Context configuration (`z3_context(proof = TRUE, ...)`) is
+  validated.
+* Z3 errors become R errors without leaking references. Objects restored
+  from saved sessions fail with a clear message instead of crashing. Objects
+  from different contexts are rejected; `z3_translate()` copies between
+  contexts.
 * `configure` locates Z3 through `PKG_CPPFLAGS`/`PKG_LIBS`,
-  `Z3_INCLUDE_DIR`/`Z3_LIB_DIR`, `pkg-config` or common prefixes, links it by
-  full path, and refuses mismatched headers and libraries. `configure.win`
-  supports official Windows release archives through `Z3_DIR`.
+  `Z3_INCLUDE_DIR`/`Z3_LIB_DIR`, `pkg-config` or common prefixes, links it
+  by full path, and refuses mismatched headers and libraries.
+  `configure.win` supports official Windows release archives through
+  `Z3_DIR`. z3r warns at load time if the Z3 library changed.
+* Ctrl-C interrupts a running check.
 
 ## Expressions
 
-* Int, Real, Bool, bit-vector, String, array and uninterpreted sorts.
-* Exact numerals from strings, R numbers and `gmp` numbers, with a documented
-  conversion policy for doubles (`options(z3r.doubles = "error")` makes it
-  strict).
-* R operators with z3r's own sort checking; `/` is real division,
-  `%/%` and `%%` are SMT-LIB integer division and modulus.
-* `z3_value()` converts values to R without loss of precision.
+* Int, Real, Bool, bit-vector, floating point, rounding mode, String,
+  sequence, regular expression, character, array, set, datatype, finite
+  domain and uninterpreted sorts, plus the complex, finite field and finite
+  set sorts of Z3 5.
+* Exact numerals from strings, R numbers and `gmp` numbers, with a
+  documented conversion policy for doubles. `z3_value()` converts results to
+  R without loss of precision.
+* R operators with z3r's own sort checking.
+* Inspection (`z3_kind()`, `z3_decl()`, `z3_args()`, `z3_decl_info()`,
+  `z3_quantifier_info()`), substitution, simplification with parameters,
+  identifiers and print modes.
 
 ## Solving
 
-* Solvers with assertions, tracked assertions, assumptions, push/pop/reset,
-  models with staleness protection, unsatisfiable cores, reason for unknown,
-  typed parameters, statistics.
-* Ctrl-C interrupts a running solver check and raises an R interrupt.
-* Optimization with hard and soft constraints, minimize and maximize, multiple
-  objectives and priorities, unbounded and non-attained optima.
+* Solvers with assertions, tracked assertions, assumptions,
+  push/pop/reset, models with staleness protection, hand-built models,
+  unsatisfiable cores, proofs, consequences, cubes, units and trails,
+  congruence classes, solving for variables, initial values, typed
+  parameters, statistics and DIMACS export.
+* Optimization with hard and soft constraints, objectives and priorities,
+  unbounded and non-attained optima, and model callbacks.
+* User propagators, clause callbacks and the proof checker callback, with
+  R errors raised safely after the check.
 
-## Theories and tools
+## Theories and engines
 
-* Bit-vector arithmetic, signed and unsigned comparison and division, bitwise
-  operations, shifts, rotations, concatenation, extraction, extension,
-  conversions and overflow predicates.
-* Arrays, strings, uninterpreted functions, quantifiers with patterns.
-* Tactics, goals and solvers built from tactics.
-* SMT-LIB2 export, parsing, and the SMT-LIB2 command interpreter.
+* Arithmetic, bit-vectors with overflow predicates, IEEE floating point,
+  arrays (multi-index, map, default, lambdas), sets, strings, sequences,
+  regular expressions and characters.
+* Algebraic datatypes: recursive, mutually recursive, enumerations, tuples,
+  lists and polymorphic datatypes.
+* Uninterpreted and recursive functions, quantifiers with patterns and
+  weights, special relations, pseudo-Boolean constraints.
+* Tactics, probes, goals and simplifiers.
+* The fixedpoint engine for constrained Horn clauses (Spacer) and Datalog.
+* Real closed fields, algebraic number arithmetic and polynomial
+  subresultants.
+* SMT-LIB2 export, parsing and the SMT-LIB2 command interpreter.
+* Translation to and from the symcompR computer algebra package.

@@ -5,39 +5,87 @@
 \alias{z3_select}
 \alias{z3_store}
 \alias{z3_const_array}
+\alias{z3_array_map}
+\alias{z3_array_default}
+\alias{z3_array_ext}
+\alias{z3_as_array}
+\alias{z3_lambda}
+\alias{z3_array_sort_info}
 \title{Arrays}
 \usage{
 z3_array(ctx, name, domain, range)
 
-z3_select(a, i)
+z3_select(a, i, ...)
 
 z3_store(a, i, v)
 
 z3_const_array(domain, value)
+
+z3_array_map(f, ...)
+
+z3_array_default(a)
+
+z3_array_ext(a, b)
+
+z3_as_array(f)
+
+z3_lambda(vars, body)
+
+z3_array_sort_info(x)
 }
 \arguments{
 \item{ctx}{A \code{\link[=z3_context]{z3_context()}}.}
 
 \item{name}{Name of the array constant.}
 
-\item{domain, range}{\code{z3_sort} objects for indices and elements.}
+\item{domain, range}{\code{z3_sort} objects for indices (or a list of them) and
+elements.}
 
 \item{a}{An array expression.}
 
-\item{i}{An index (expression or R scalar).}
+\item{i}{An index (expression or R scalar), or for \code{z3_store()} on a
+multi-index array, a list of indices.}
+
+\item{...}{Further indices for multi-index arrays, or arrays for
+\code{z3_array_map()}.}
 
 \item{v}{A value (expression or R scalar).}
 
 \item{value}{The value of every element of a constant array.}
+
+\item{f}{A \code{z3_function} or \code{z3_func_decl}.}
+
+\item{b}{Another array.}
+
+\item{vars}{A constant or list of constants to bind.}
+
+\item{body}{An expression.}
+
+\item{x}{An array expression or array sort.}
 }
 \value{
 A \code{z3_expr}.
+
+\code{z3_array_sort_info()} returns a list with the index sorts
+(\code{domain}) and element sort (\code{range}).
 }
 \description{
 Z3 arrays are total functions from a domain sort to a range sort, with
 no length. \code{z3_select(a, i)} reads index \code{i}; \code{z3_store(a, i, v)} is a
 new array equal to \code{a} except that index \code{i} maps to \code{v}.
 \code{z3_const_array()} maps every index to the same value.
+}
+\details{
+Arrays may have several index sorts (give \code{domain} as a list); then
+\code{z3_select(a, i, j)} takes one index per sort and \code{z3_store(a, list(i, j), v)} takes the indices as a list.
+\itemize{
+\item \code{z3_array_map(f, a, b, ...)} applies a function pointwise.
+\item \code{z3_array_default(a)} is the value at all but finitely many indices.
+\item \code{z3_array_ext(a, b)} is an index at which two different arrays differ.
+\item \code{z3_as_array(f)} turns a function into an array.
+\item \code{z3_lambda(vars, body)} builds an array from an expression over bound
+constants, as in \code{z3_lambda(i, i * i)}.
+}
 }
 \examples{
 ctx <- z3_context()

@@ -43,6 +43,15 @@
 \alias{z3_bvmul_no_underflow}
 \alias{z3_bvsdiv_no_overflow}
 \alias{z3_bv_width}
+\alias{z3_bvneg_no_overflow}
+\alias{z3_bit2bool}
+\alias{z3_bvredand}
+\alias{z3_bvredor}
+\alias{z3_rotate_left_by}
+\alias{z3_rotate_right_by}
+\alias{z3_ubv_to_str}
+\alias{z3_sbv_to_str}
+\alias{z3_bv_from_bits}
 \title{Bit-vector operations}
 \usage{
 z3_bvult(x, y)
@@ -126,6 +135,24 @@ z3_bvmul_no_underflow(x, y)
 z3_bvsdiv_no_overflow(x, y)
 
 z3_bv_width(x)
+
+z3_bvneg_no_overflow(x)
+
+z3_bit2bool(x, i)
+
+z3_bvredand(x)
+
+z3_bvredor(x)
+
+z3_rotate_left_by(x, y)
+
+z3_rotate_right_by(x, y)
+
+z3_ubv_to_str(x)
+
+z3_sbv_to_str(x)
+
+z3_bv_from_bits(ctx, bits)
 }
 \arguments{
 \item{x, y}{Bit-vector expressions (or R whole numbers for one operand).}
@@ -139,6 +166,12 @@ z3_bv_width(x)
 \item{signed}{Signed (two's complement) interpretation.}
 
 \item{width}{Bit-vector width.}
+
+\item{i}{Bit index for \code{z3_bit2bool()} (0 is the least significant bit).}
+
+\item{ctx}{A \code{\link[=z3_context]{z3_context()}}.}
+
+\item{bits}{A logical vector, least significant bit first.}
 }
 \value{
 A \code{z3_expr}.

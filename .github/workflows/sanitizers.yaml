@@ -17,7 +17,7 @@ jobs:
       ASAN_OPTIONS: "detect_leaks=0:abort_on_error=1"
       UBSAN_OPTIONS: "print_stacktrace=1:halt_on_error=1"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install Z3 and R dependencies
         run: |
           apt-get update && apt-get install -y libz3-dev

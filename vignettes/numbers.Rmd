@@ -1,0 +1,211 @@
+---
+title: "Exact numbers, sorts and operators"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Exact numbers, sorts and operators}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+```{r}
+library(z3r)
+ctx <- z3_context()
+```
+
+Every Z3 expression has a *sort*: its type. z3r keeps sorts strict and
+numbers exact. This vignette explains how R values become Z3 values, what
+each operator means for each sort, and how results come back to R.
+
+## Sorts
+
+```{r}
+z3_int_sort(ctx)
+z3_real_sort(ctx)
+z3_bool_sort(ctx)
+z3_bv_sort(ctx, 16)
+z3_string_sort(ctx)
+z3_array_sort(z3_int_sort(ctx), z3_bool_sort(ctx))
+z3_uninterpreted_sort(ctx, "Person")
+```
+
+`Int` is the mathematical integers, with no overflow. `Real` is the exact
+reals: rationals, and algebraic numbers such as the square root of 2 in
+models. Neither is a machine type. Fixed-width machine integers are
+bit-vectors (see `vignette("bitvectors")`) and IEEE doubles are the floating
+point sorts (see `vignette("floating-point")`).
+
+Constants are created with a name and a sort. The same name and sort give
+the same constant:
+
+```{r}
+x <- z3_int(ctx, "x")
+z3_identical(x, z3_int(ctx, "x"))
+v <- z3_reals(ctx, c("a", "b", "c"))
+z3_sort(v$a)
+z3_sort_kind(v$a)
+```
+
+## From R values to Z3 values
+
+`z3_int_val()` and `z3_real_val()` build exact numerals. Strings are the
+safe way to give large or fractional values:
+
+```{r}
+z3_int_val(ctx, "123456789012345678901234567890")
+z3_real_val(ctx, "1/3")
+z3_real_val(ctx, "0.125")
+z3_real_val(ctx, "-2.5e-3")
+```
+
+Z3's own numeral parser silently misreads some malformed strings, so z3r
+validates them first:
+
+```{r, error = TRUE}
+z3_real_val(ctx, "1/-3")
+z3_real_val(ctx, "1.2.3")
+```
+
+R numbers mixed with expressions are converted by a fixed rule:
+
+* whole numbers become exact integers;
+* whole numbers beyond 2^53 are refused, because R may already have
+  rounded them;
+* other doubles become the rational of their shortest decimal form, so
+  `0.1` is 1/10, the value R prints;
+* `NA`, `NaN` and `Inf` are refused.
+
+```{r, error = TRUE}
+r <- z3_real(ctx, "r")
+r + 0.1
+x + 2^53
+x + 2^60
+```
+
+`options(z3r.doubles = "error")` makes every non-integer double an error,
+which forces exact strings everywhere. `gmp` numbers convert exactly:
+
+```{r}
+x * gmp::as.bigz("100000000000000000000")
+r + gmp::as.bigq(1, 7)
+```
+
+## Operators
+
+| Operator | Int / Real | Bool | bit-vector | floating point |
+|---|---|---|---|---|
+| `+ - *` | arithmetic | error | modular | IEEE, round to nearest even |
+| `/` | exact real division | error | error | IEEE division |
+| `^` | power | error | error | error |
+| `%/% %%` | Int: SMT-LIB div, mod | error | error | `%%`: IEEE remainder |
+| `== !=` | equation | equivalence | equation | structural equality |
+| `< <= > >=` | comparison | error | error | IEEE comparison |
+| `& \| !` | error | logic | bitwise | error |
+
+Int and Real mix by promoting the Int exactly. Everything else must have
+matching sorts:
+
+```{r, error = TRUE}
+p <- z3_bool(ctx, "p")
+x + r
+x + p
+```
+
+Z3's C API would have accepted `x + p` by converting the Boolean to 0 or 1;
+z3r refuses, because that is almost always a mistake.
+
+### Division
+
+`/` is real division, as in R:
+
+```{r}
+x / 2
+z3_sort_kind(x / 2)
+```
+
+`%/%` and `%%` are integer division and modulus with the SMT-LIB
+(Euclidean) convention: the remainder is never negative. This agrees with R
+for positive divisors and differs for negative ones:
+
+```{r}
+i <- function(v) z3_int_val(ctx, v)
+c(z3 = z3_value(z3_simplify(i(-7) %/% 2)), R = -7 %/% 2)
+c(z3 = z3_value(z3_simplify(i(7) %/% -2)), R = 7 %/% -2)
+c(z3 = z3_value(z3_simplify(i(7) %% -2)), R = 7 %% -2)
+```
+
+`z3_rem()` has the sign of the divisor. Division by zero is not an error in
+SMT: `x / 0` is some unspecified value, the same each time.
+
+### Powers
+
+A literal whole exponent up to 64 is expanded into a product, so the result
+keeps the sort of the base. Other powers use Z3's real power operator:
+
+```{r}
+x^3
+z3_sort_kind(x^3)
+z3_sort_kind(x^x)
+```
+
+### Scalars only
+
+z3r expressions are single formulas. R's recycling would silently build
+the wrong formula, so vectors are refused:
+
+```{r, error = TRUE}
+x + 1:3
+```
+
+Build several constraints with `lapply()` or `Map()` instead.
+
+### No accidental logic
+
+A formula never turns into `TRUE` or `FALSE`:
+
+```{r, error = TRUE}
+if (x > 0) "positive"
+```
+
+## From Z3 values back to R
+
+`z3_value()` returns a double only when the value is exactly representable;
+otherwise a `gmp` number, or the exact string when gmp is missing:
+
+```{r}
+z3_value(z3_int_val(ctx, 42))
+z3_value(z3_real_val(ctx, "1/4"))
+z3_value(z3_real_val(ctx, "1/3"))
+z3_value(z3_int_val(ctx, "9007199254740993"))
+z3_value(z3_real_val(ctx, "1/3"), exact = FALSE)
+```
+
+Irrational algebraic numbers come from nonlinear real problems. They have no
+exact R value, so `z3_value()` asks for `exact = FALSE`:
+
+```{r, error = TRUE}
+s <- z3_solver(ctx)
+z3_add(s, r^3 == 2)
+z3_check(s)
+cube_root <- z3_eval(z3_model(s), r)
+cube_root
+z3_value(cube_root)
+z3_value(cube_root, exact = FALSE)
+z3_decimal(cube_root, 30)
+```
+
+`vignette("algebraic")` shows exact arithmetic on such numbers.
+
+## Simplification and printing
+
+```{r}
+z3_simplify(x + 2 * x - 3 + 3)
+z3_simplify((x + 1)^2, som = TRUE)
+head(z3_simplify_help(ctx)[, c("name", "kind")])
+```
+
+Expressions print in SMT-LIB2 prefix form. `z3_set_print_mode()` switches a
+context to Z3's low-level form, which shows shared subterms.

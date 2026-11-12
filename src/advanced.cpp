@@ -73,7 +73,8 @@ SEXP cpp_decl_info(SEXP decl_) {
 bool cpp_is_const(SEXP x);
 
 // [[Rcpp::export(rng = false)]]
-SEXP cpp_quantifier(bool forall, Rcpp::List vars, SEXP body_, Rcpp::List patterns) {
+SEXP cpp_quantifier(bool forall, Rcpp::List vars, SEXP body_, Rcpp::List patterns,
+                    Rcpp::List no_patterns, int weight, std::string qid, std::string skid) {
   const Ast& body = get_expr(body_);
   const CtxPtr& ctx = body.ctx();
   Z3_context c = ctx->c;
@@ -107,11 +108,13 @@ SEXP cpp_quantifier(bool forall, Rcpp::List vars, SEXP body_, Rcpp::List pattern
     keep.push_back(own_ast(ctx, Z3_pattern_to_ast(c, p)));
     pats.push_back(p);
   }
-  Z3_ast q = forall
-      ? Z3_mk_forall_const(c, 0, static_cast<unsigned>(bound.size()), bound.data(),
-                           static_cast<unsigned>(pats.size()), pats.empty() ? nullptr : pats.data(), body)
-      : Z3_mk_exists_const(c, 0, static_cast<unsigned>(bound.size()), bound.data(),
-                           static_cast<unsigned>(pats.size()), pats.empty() ? nullptr : pats.data(), body);
+  AstVec nopats = expr_list(ctx, no_patterns, "no-patterns");
+  std::vector<Z3_ast> rn = raw(nopats);
+  if (weight < 0) fail("weight must be a non-negative integer");
+  Z3_ast q = Z3_mk_quantifier_const_ex(
+      c, forall, static_cast<unsigned>(weight), mk_symbol(ctx, qid), mk_symbol(ctx, skid),
+      static_cast<unsigned>(bound.size()), bound.data(), static_cast<unsigned>(pats.size()),
+      pats.empty() ? nullptr : pats.data(), static_cast<unsigned>(rn.size()), rn.empty() ? nullptr : rn.data(), body);
   return wrap_expr(own_ast(ctx, q));
 }
 

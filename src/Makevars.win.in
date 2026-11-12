@@ -12,3 +12,7 @@ z3dll: $(SHLIB)
 	fi
 
 .PHONY: all z3dll
+
+# Rebuild every object when the shared headers or the Z3 configuration
+# (written by configure.win) change.
+$(OBJECTS): z3r.h decl_kinds.h Makevars.win

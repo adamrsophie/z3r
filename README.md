@@ -1,4 +1,6 @@
-# z3r: Native R Interface to the Z3 Theorem Prover
+# z3r <img src="man/figures/logo.png" align="right" height="139" alt="z3r logo" />
+
+**Native R Interface to the Z3 Theorem Prover**
 
 <!-- badges: start -->
 [![R-CMD-check](https://github.com/adamrsophie/z3r/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/adamrsophie/z3r/actions/workflows/R-CMD-check.yaml)
@@ -31,27 +33,51 @@ supported by Microsoft or by the Z3 team.
 
 ## What it covers
 
-* Integers of unbounded size, exact rationals, Booleans, bit-vectors, arrays,
-  Unicode strings, uninterpreted sorts and functions.
-* R operators (`+ - * / ^ %/% %% == != < <= > >= & | !`) with strict sort
-  checking: Booleans are not numbers, bit-vectors are never mixed with
-  unbounded integers, and R's recycling rules are never applied to formulas.
-* Solving with `"sat"`, `"unsat"` and `"unknown"` kept distinct, models,
-  incremental solving with push/pop and assumptions, tracked assertions and
-  unsatisfiable cores, timeouts, deterministic resource limits, statistics.
-* Optimization: minimize, maximize, weighted soft constraints, multiple
-  objectives, with unbounded and non-attained optima reported as such.
-* Quantifiers, tactics and goals, and SMT-LIB2 import and export.
-* Exact conversion of results: values come back as doubles only when exactly
-  representable, otherwise as `gmp` numbers or exact strings.
+z3r targets Z3 5.4.1 (and works with every release from 4.8.13).
 
-`documentation/` is not part of the repository; see `NEWS.md` and the
-vignettes for what is implemented.
+* **Theories:** unbounded integers, exact reals and algebraic numbers,
+  Booleans, bit-vectors, IEEE floating point, arrays, sets, strings,
+  sequences, regular expressions, characters, algebraic datatypes,
+  uninterpreted and recursive functions, quantifiers, special relations,
+  pseudo-Boolean constraints, and the complex numbers, finite fields and
+  finite sets of Z3 5.
+* **Natural syntax:** R operators (`+ - * / ^ %/% %% == != < <= > >= & | !`)
+  with strict sort checking. Booleans are not numbers, bit-vectors never mix
+  with unbounded integers, and R's recycling rules never apply to formulas.
+* **Solving:** `"sat"`, `"unsat"` and `"unknown"` kept distinct; models;
+  push/pop and assumptions; unsatisfiable cores; proofs; consequences;
+  cubes; timeouts and deterministic resource limits; Ctrl-C.
+* **Optimization:** objectives, weighted soft constraints, priorities,
+  unbounded and non-attained optima reported as such.
+* **Engines and tools:** tactics, probes, simplifiers, constrained Horn
+  clauses (Spacer) and Datalog, real closed fields, user propagators written
+  in R, SMT-LIB2 import and export, and expression inspection and
+  substitution.
+* **Exact results:** values come back as doubles only when exactly
+  representable, otherwise as `gmp` numbers or exact strings.
+* **Interoperability:** exact translation to and from the
+  [symcompR](https://github.com/adamrsophie/symcompR) computer algebra
+  system.
 
 ## Installation
 
-z3r needs the Z3 C library and headers, version 4.8.12 or later. Nothing is
-downloaded during installation.
+z3r needs the Z3 C library and headers, version 4.8.13 or later (the first
+release with Z3's Unicode string API). Nothing is downloaded during
+installation. Ubuntu 22.04 and Debian 12 ship Z3 4.8.12, which is too old;
+use a newer distribution package or an official release archive there.
+Features that need a newer Z3 than the one z3r was built with report so
+when they are called.
+
+### Any platform: an official release
+
+Download the archive for your platform from the
+[Z3 releases page](https://github.com/Z3Prover/z3/releases) (for example
+`z3-5.4.1-arm64-osx-13.3.zip`), unpack it, and point z3r at it:
+
+```sh
+Z3_INCLUDE_DIR=/path/to/z3-5.4.1/include Z3_LIB_DIR=/path/to/z3-5.4.1/bin \
+  R -e 'remotes::install_github("adamrsophie/z3r")'
+```
 
 ### macOS
 
@@ -63,8 +89,8 @@ brew install z3
 remotes::install_github("adamrsophie/z3r")
 ```
 
-Verified with Homebrew Z3 4.16.0 and with the official Z3 5.3.3 release
-archive on Apple silicon.
+Verified with the official Z3 5.4.1 and 5.3.3 archives and with Homebrew's
+Z3 4.16.0 on Apple silicon.
 
 ### Linux
 
@@ -81,12 +107,12 @@ Verified on Ubuntu (arm64) with the distribution's `libz3-dev` 4.13.3.
 
 ### Windows
 
-Download an official release such as `z3-4.16.0-x64-win.zip` from the
+Download an official release such as `z3-5.4.1-x64-win.zip` from the
 [Z3 releases page](https://github.com/Z3Prover/z3/releases), unpack it, and
 point z3r at the unpacked folder:
 
 ```r
-Sys.setenv(Z3_DIR = "C:/path/to/z3-4.16.0-x64-win")
+Sys.setenv(Z3_DIR = "C:/path/to/z3-5.4.1-x64-win")
 remotes::install_github("adamrsophie/z3r")
 ```
 
@@ -117,11 +143,13 @@ build toolchains (Rtools and the macOS recipes); this has not been done.
 
 ## Learning more
 
-* `vignette("z3r")`: SMT solving for R users, exact numbers, incremental
-  solving, cores, optimization, and a scheduling example.
-* `vignette("theories")`: bit-vectors (including proving a bit trick correct
-  for all inputs), arrays, strings, functions, quantifiers, tactics, SMT-LIB2.
-* `?z3_operators`, `?z3_int_val`: operator semantics and numeric conversion.
+The [website](https://adamrsophie.github.io/z3r/) has the full reference and
+seventeen articles, from `vignette("z3r")` (SMT solving for R users) to one
+article per theory and engine: exact numbers, solving, optimization, logic
+puzzles, bit-vectors, floating point, arrays and sets, strings and regular
+expressions, datatypes, functions and quantifiers, tactics, Horn clauses,
+algebraic numbers, SMT-LIB2 and inspection, user propagators, the Z3 5
+theories, and symcompR.
 
 ## License
 

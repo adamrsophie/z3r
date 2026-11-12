@@ -1,0 +1,138 @@
+---
+title: "Functions, quantifiers and special relations"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Functions, quantifiers and special relations}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+```{r}
+library(z3r)
+ctx <- z3_context()
+I <- z3_int_sort(ctx)
+B <- z3_bool_sort(ctx)
+x <- z3_int(ctx, "x")
+y <- z3_int(ctx, "y")
+```
+
+## Uninterpreted functions
+
+An uninterpreted function has typed arguments and a result, and nothing else
+is known about it except congruence: equal arguments give equal results.
+That is often all an argument needs, and it lets Z3 abstract away details.
+
+```{r}
+f <- z3_function(ctx, "f", I, I)
+f
+s <- z3_solver(ctx)
+z3_add(s, x == y, f(x) != f(y))
+z3_check(s)
+```
+
+Models give a table and a default for the function:
+
+```{r}
+s <- z3_solver(ctx)
+z3_add(s, f(1) == 10, f(2) == 20, f(f(1)) == 1)
+z3_check(s)
+z3_model(s)
+z3_model_functions(z3_model(s))$f$entries[[1]]
+```
+
+Functions over uninterpreted sorts describe abstract structures:
+
+```{r}
+G <- z3_uninterpreted_sort(ctx, "G")
+op <- z3_function(ctx, "op", list(G, G), G)
+e <- z3_const(ctx, "e", G)
+a <- z3_const(ctx, "a", G)
+b <- z3_const(ctx, "b", G)
+c <- z3_const(ctx, "c", G)
+s <- z3_solver(ctx)
+z3_add(s,
+  z3_forall(list(a, b, c), op(op(a, b), c) == op(a, op(b, c))),
+  z3_forall(a, op(e, a) == a & op(a, e) == a),
+  z3_forall(a, op(a, a) == e))
+# In a group where every element is its own inverse, op is commutative:
+z3_add(s, !z3_forall(list(a, b), op(a, b) == op(b, a)))
+z3_check(s)
+```
+
+## Quantifiers
+
+`z3_forall()` and `z3_exists()` bind ordinary constants. Inside the
+quantifier the constants are bound; elsewhere they keep their meaning.
+
+```{r}
+s <- z3_solver(ctx)
+z3_add(s, z3_forall(x, f(x) >= x), f(3) < 3)
+z3_check(s)
+s <- z3_solver(ctx)
+z3_add(s, z3_exists(x, f(x) == 7 & x > 100))
+z3_check(s)
+```
+
+Patterns tell Z3 when to instantiate a quantifier; weights and identifiers
+tune and trace instantiation:
+
+```{r}
+q <- z3_forall(x, f(f(x)) == x, patterns = list(list(f(x))), weight = 1, qid = "involution")
+z3_quantifier_info(q)[c("type", "names", "weight")]
+```
+
+Quantified formulas are outside the fragments Z3 decides completely, so
+`"unknown"` answers are possible.
+
+## Recursive functions
+
+Recursive definitions are unfolded on demand:
+
+```{r}
+fact <- z3_rec_function(ctx, "fact", I, I)
+n <- z3_int(ctx, "n")
+z3_rec_define(fact, n, z3_ite(n <= 0, 1, n * fact(n - 1)))
+s <- z3_solver(ctx)
+z3_add(s, fact(x) == 720)
+z3_check(s)
+z3_eval(z3_model(s), x)
+```
+
+They combine with datatypes. The length of a list:
+
+```{r}
+L <- z3_list_sort(ctx, "IntList", I)
+len <- z3_rec_function(ctx, "len", L$sort, I)
+xs <- z3_const(ctx, "xs", L$sort)
+z3_rec_define(len, xs, z3_ite(L$is_nil(xs), 0, 1 + len(L$tail(xs))))
+ys <- z3_const(ctx, "ys", L$sort)
+s <- z3_solver(ctx)
+z3_add(s, len(ys) == 3, L$head(ys) == 5)
+z3_check(s)
+z3_eval(z3_model(s), ys)
+```
+
+## Special relations
+
+Orders and transitive closures have dedicated decision procedures:
+
+```{r}
+U <- z3_uninterpreted_sort(ctx, "U")
+u <- lapply(1:3, function(i) z3_const(ctx, paste0("u", i), U))
+le <- z3_partial_order(U)
+s <- z3_solver(ctx)
+z3_add(s, le(u[[1]], u[[2]]), le(u[[2]], u[[3]]), !le(u[[1]], u[[3]]))
+z3_check(s)
+reach <- z3_function(ctx, "edge", list(U, U), B)
+path <- z3_transitive_closure(reach)
+s <- z3_solver(ctx)
+z3_add(s, reach(u[[1]], u[[2]]), reach(u[[2]], u[[3]]), !path(u[[1]], u[[3]]))
+z3_check(s)
+```
+
+`z3_linear_order()`, `z3_tree_order()` and
+`z3_piecewise_linear_order()` are the other relations.

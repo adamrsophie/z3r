@@ -116,6 +116,9 @@ static Ast int_literal(const CtxPtr& ctx, const std::string& s, Z3_sort hint) {
       bool neg = !s.empty() && s[0] == '-';
       return bv_numeral(ctx, neg ? s.substr(1) : s, neg, hint);
     }
+#if Z3R_AT_LEAST(5, 3, 0)
+    if (k == Z3_FINITE_FIELD_SORT) return mk_numeral(ctx, s, hint);
+#endif
   }
   return mk_numeral(ctx, s, Z3_mk_int_sort(ctx->c));
 }
@@ -187,10 +190,16 @@ Ast lift(const CtxPtr& ctx, SEXP x, Z3_sort hint) {
     case INTSXP: {
       int v = INTEGER(x)[0];
       if (v == NA_INTEGER) fail("NA cannot be used in a Z3 expression");
+      if (hint && Z3_get_sort_kind(ctx->c, hint) == Z3_FLOATING_POINT_SORT) {
+        return fp_literal(ctx, static_cast<double>(v), false, hint);
+      }
       return int_literal(ctx, std::to_string(v), hint);
     }
     case REALSXP: {
       double v = REAL(x)[0];
+      if (hint && Z3_get_sort_kind(ctx->c, hint) == Z3_FLOATING_POINT_SORT) {
+        return fp_literal(ctx, v, ISNA(v), hint);
+      }
       if (ISNAN(v)) fail("NA and NaN cannot be used in a Z3 expression");
       if (!std::isfinite(v)) fail("Inf cannot be used in a Z3 expression");
       if (v == std::floor(v)) {
@@ -261,6 +270,13 @@ static void need_bv(const Ast& e, const std::string& op) {
 
 static void need_string(const Ast& e, const std::string& op) {
   if (!is_string(e)) fail(op_label(op) + " needs String arguments, got " + describe(e));
+}
+
+static bool is_seq(const Ast& e) { return sort_kind(e) == Z3_SEQ_SORT; }
+
+// Strings are sequences of characters; these operations accept any sequence.
+static void need_seq(const Ast& e, const std::string& op) {
+  if (!is_seq(e)) fail(op_label(op) + " needs String or sequence arguments, got " + describe(e));
 }
 
 static void need_same_bv(const Ast& a, const Ast& b, const std::string& op) {
@@ -411,6 +427,7 @@ static Ast binary(const CtxPtr& ctx, const std::string& op, SEXP x, SEXP y) {
     Z3_ast r[2] = {a, b};
     return own_ast(ctx, op == "&" ? Z3_mk_and(c, 2, r) : Z3_mk_or(c, 2, r));
   }
+  if (is_fp(a) || is_fp(b)) return fp_binary(ctx, op, a, b);
   if (is_bv(a) || is_bv(b)) {
     need_same_bv(a, b, op);
     if (op == "+") return own_ast(ctx, Z3_mk_bvadd(c, a, b));
@@ -453,11 +470,12 @@ static Ast unary(const CtxPtr& ctx, const std::string& op, const Ast& a) {
   }
   if (op == "-") {
     if (is_bv(a)) return own_ast(ctx, Z3_mk_bvneg(c, a));
+    if (is_fp(a)) return own_ast(ctx, Z3_mk_fpa_neg(c, a));
     need_arith(a, op);
     return own_ast(ctx, Z3_mk_unary_minus(c, a));
   }
   if (op == "+") {
-    if (!is_bv(a)) need_arith(a, op);
+    if (!is_bv(a) && !is_fp(a)) need_arith(a, op);
     return a;
   }
   fail("unary operator " + op_label(op) + " is not supported for Z3 expressions");
@@ -629,8 +647,12 @@ SEXP cpp_op(std::string op, SEXP args, Rcpp::IntegerVector params) {
   if (op == "abs") {
     nargs(1);
     Ast a = lift(ctx, VECTOR_ELT(args, 0), nullptr);
+    if (is_fp(a)) return wrap_expr(own_ast(ctx, Z3_mk_fpa_abs(c, a)));
     need_arith(a, op);
-    return wrap_expr(own_ast(ctx, Z3_mk_abs(c, a)));
+    Ast zero = own_ast(ctx, Z3_mk_numeral(c, "0", Z3_get_sort(c, a)));
+    Ast neg = own_ast(ctx, Z3_mk_lt(c, a, zero));
+    Ast minus = own_ast(ctx, Z3_mk_unary_minus(c, a));
+    return wrap_expr(own_ast(ctx, Z3_mk_ite(c, neg, minus, a)));
   }
   if (op == "to_real") {
     nargs(1);
@@ -702,13 +724,13 @@ SEXP cpp_op(std::string op, SEXP args, Rcpp::IntegerVector params) {
     bool all_bv = true, all_str = true;
     for (const Ast& e : v) {
       all_bv = all_bv && is_bv(e);
-      all_str = all_str && is_string(e);
+      all_str = all_str && is_seq(e) && Z3_is_eq_sort(c, Z3_get_sort(c, e), Z3_get_sort(c, v[0]));
     }
     if (all_str) {
       if (v.size() == 1) return wrap_expr(v[0]);
       return wrap_expr(nary(ctx, Z3_mk_seq_concat, v));
     }
-    if (!all_bv) fail("z3_concat() needs all bit-vector or all String arguments");
+    if (!all_bv) fail("z3_concat() needs all bit-vector arguments or sequences of one sort");
     Ast acc = v[0];
     for (size_t i = 1; i < v.size(); ++i) acc = own_ast(ctx, Z3_mk_concat(c, acc, v[i]));
     return wrap_expr(acc);
@@ -791,7 +813,7 @@ SEXP cpp_op(std::string op, SEXP args, Rcpp::IntegerVector params) {
   if (op == "length") {
     nargs(1);
     Ast a = lift(ctx, VECTOR_ELT(args, 0), nullptr);
-    need_string(a, op);
+    need_seq(a, op);
     return wrap_expr(own_ast(ctx, Z3_mk_seq_length(c, a)));
   }
   if (op == "contains" || op == "prefixof" || op == "suffixof" || op == "str_lt" ||
@@ -799,14 +821,23 @@ SEXP cpp_op(std::string op, SEXP args, Rcpp::IntegerVector params) {
     nargs(2);
     if (op == "str_at") {
       Ast s = lift(ctx, VECTOR_ELT(args, 0), nullptr);
-      need_string(s, op);
+      need_seq(s, op);
       Ast i = lift(ctx, VECTOR_ELT(args, 1), Z3_mk_int_sort(c));
       if (!is_int(i)) fail("string positions must be Int");
       return wrap_expr(own_ast(ctx, Z3_mk_seq_at(c, s, i)));
     }
     AstVec v = lift_all(ctx, args);
-    need_string(v[0], op);
-    need_string(v[1], op);
+    bool lex = op == "str_lt" || op == "str_le";
+    if (lex) {
+      need_string(v[0], op);
+      need_string(v[1], op);
+    } else {
+      need_seq(v[0], op);
+      need_seq(v[1], op);
+      if (!Z3_is_eq_sort(c, Z3_get_sort(c, v[0]), Z3_get_sort(c, v[1]))) {
+        fail(op_label(op) + " needs sequences of the same sort");
+      }
+    }
     BinFn f = op == "contains" ? Z3_mk_seq_contains : op == "prefixof" ? Z3_mk_seq_prefix
               : op == "suffixof" ? Z3_mk_seq_suffix : op == "str_lt" ? Z3_mk_str_lt
                                                                      : Z3_mk_str_le;
@@ -815,12 +846,12 @@ SEXP cpp_op(std::string op, SEXP args, Rcpp::IntegerVector params) {
   if (op == "substr" || op == "indexof" || op == "replace") {
     nargs(3);
     Ast s = lift(ctx, VECTOR_ELT(args, 0), nullptr);
-    need_string(s, op);
+    need_seq(s, op);
     if (op == "replace") {
       Ast a = lift(ctx, VECTOR_ELT(args, 1), Z3_get_sort(c, s));
       Ast b = lift(ctx, VECTOR_ELT(args, 2), Z3_get_sort(c, s));
-      need_string(a, op);
-      need_string(b, op);
+      need_seq(a, op);
+      need_seq(b, op);
       return wrap_expr(own_ast(ctx, Z3_mk_seq_replace(c, s, a, b)));
     }
     Z3_sort I = Z3_mk_int_sort(c);
@@ -831,7 +862,7 @@ SEXP cpp_op(std::string op, SEXP args, Rcpp::IntegerVector params) {
       return wrap_expr(own_ast(ctx, Z3_mk_seq_extract(c, s, off, len)));
     }
     Ast sub = lift(ctx, VECTOR_ELT(args, 1), Z3_get_sort(c, s));
-    need_string(sub, op);
+    need_seq(sub, op);
     Ast off = lift(ctx, VECTOR_ELT(args, 2), I);
     if (!is_int(off)) fail("z3_indexof() needs an Int offset");
     return wrap_expr(own_ast(ctx, Z3_mk_seq_index(c, s, sub, off)));
@@ -937,12 +968,29 @@ SEXP cpp_value_info(SEXP x, int digits) {
     }
     bool exact_double = fits && n64 <= (1LL << 53) && n64 >= -(1LL << 53);
     double value = exact_double ? static_cast<double>(n64) / static_cast<double>(d64) : NA_REAL;
-    double approx = exact_double ? value : Z3_get_numeral_double(c, a);
+    // Z3_get_numeral_double only accepts Int and Real numerals.
+    double approx = exact_double ? value
+                    : k == Z3_BV_SORT ? std::strtod(exact.c_str(), nullptr)
+                                      : Z3_get_numeral_double(c, a);
     check(ctx);
     std::string kind = k == Z3_INT_SORT ? "int" : k == Z3_REAL_SORT ? "real" : "bv";
     return Rcpp::List::create(Named("kind") = kind, Named("exact") = exact,
                               Named("exact_double") = exact_double, Named("value") = value,
                               Named("approx") = approx);
+  }
+  if (k == Z3_FLOATING_POINT_SORT) {
+    if (!Z3_is_numeral_ast(c, a)) return Rcpp::List::create(Named("kind") = "symbolic");
+    double v = 0;
+    bool exact = fp_to_double(a, &v);
+    return Rcpp::List::create(Named("kind") = "fp", Named("value") = v, Named("exact_double") = exact,
+                              Named("text") = to_string(a));
+  }
+  if (k == Z3_ROUNDING_MODE_SORT) {
+    if (!Z3_is_app(c, a) || Z3_get_app_num_args(c, Z3_to_app(c, a)) != 0 ||
+        Z3_get_decl_kind(c, Z3_get_app_decl(c, Z3_to_app(c, a))) == Z3_OP_UNINTERPRETED) {
+      return Rcpp::List::create(Named("kind") = "symbolic");
+    }
+    return Rcpp::List::create(Named("kind") = "rm", Named("value") = to_string(a));
   }
   if (k == Z3_SEQ_SORT && is_string(a)) {
     if (!Z3_is_string(c, a)) return Rcpp::List::create(Named("kind") = "symbolic");

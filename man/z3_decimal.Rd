@@ -2,9 +2,12 @@
 % Please edit documentation in R/expressions.R
 \name{z3_decimal}
 \alias{z3_decimal}
+\alias{z3_binary_string}
 \title{Decimal digits of a number}
 \usage{
 z3_decimal(x, digits = 10)
+
+z3_binary_string(x)
 }
 \arguments{
 \item{x}{A numeric \code{z3_expr} value.}
@@ -18,6 +21,10 @@ A character string.
 Returns a decimal string for an exact number or an algebraic number,
 rounded to \code{digits} digits after the decimal point. Z3 marks inexact
 results with a trailing \verb{?}.
+}
+\details{
+\code{z3_binary_string()} returns the binary digits of an integer
+numeral.
 }
 \examples{
 ctx <- z3_context()

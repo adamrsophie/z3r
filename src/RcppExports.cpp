@@ -45,15 +45,19 @@ BEGIN_RCPP
 END_RCPP
 }
 // cpp_quantifier
-SEXP cpp_quantifier(bool forall, Rcpp::List vars, SEXP body_, Rcpp::List patterns);
-RcppExport SEXP _z3r_cpp_quantifier(SEXP forallSEXP, SEXP varsSEXP, SEXP body_SEXP, SEXP patternsSEXP) {
+SEXP cpp_quantifier(bool forall, Rcpp::List vars, SEXP body_, Rcpp::List patterns, Rcpp::List no_patterns, int weight, std::string qid, std::string skid);
+RcppExport SEXP _z3r_cpp_quantifier(SEXP forallSEXP, SEXP varsSEXP, SEXP body_SEXP, SEXP patternsSEXP, SEXP no_patternsSEXP, SEXP weightSEXP, SEXP qidSEXP, SEXP skidSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::traits::input_parameter< bool >::type forall(forallSEXP);
     Rcpp::traits::input_parameter< Rcpp::List >::type vars(varsSEXP);
     Rcpp::traits::input_parameter< SEXP >::type body_(body_SEXP);
     Rcpp::traits::input_parameter< Rcpp::List >::type patterns(patternsSEXP);
-    rcpp_result_gen = Rcpp::wrap(cpp_quantifier(forall, vars, body_, patterns));
+    Rcpp::traits::input_parameter< Rcpp::List >::type no_patterns(no_patternsSEXP);
+    Rcpp::traits::input_parameter< int >::type weight(weightSEXP);
+    Rcpp::traits::input_parameter< std::string >::type qid(qidSEXP);
+    Rcpp::traits::input_parameter< std::string >::type skid(skidSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_quantifier(forall, vars, body_, patterns, no_patterns, weight, qid, skid));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -201,6 +205,565 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cpp_array_sort_n
+SEXP cpp_array_sort_n(Rcpp::List domain, SEXP range_);
+RcppExport SEXP _z3r_cpp_array_sort_n(SEXP domainSEXP, SEXP range_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type domain(domainSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type range_(range_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_array_sort_n(domain, range_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_array_sort_info
+SEXP cpp_array_sort_info(SEXP x);
+RcppExport SEXP _z3r_cpp_array_sort_info(SEXP xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type x(xSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_array_sort_info(x));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_array_access
+SEXP cpp_array_access(SEXP a_, Rcpp::List idx, SEXP value, bool store);
+RcppExport SEXP _z3r_cpp_array_access(SEXP a_SEXP, SEXP idxSEXP, SEXP valueSEXP, SEXP storeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type a_(a_SEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type idx(idxSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type value(valueSEXP);
+    Rcpp::traits::input_parameter< bool >::type store(storeSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_array_access(a_, idx, value, store));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_array_map
+SEXP cpp_array_map(SEXP decl_, Rcpp::List arrays);
+RcppExport SEXP _z3r_cpp_array_map(SEXP decl_SEXP, SEXP arraysSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type decl_(decl_SEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type arrays(arraysSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_array_map(decl_, arrays));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_array_unary
+SEXP cpp_array_unary(std::string op, SEXP a_, SEXP b_);
+RcppExport SEXP _z3r_cpp_array_unary(SEXP opSEXP, SEXP a_SEXP, SEXP b_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< std::string >::type op(opSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type a_(a_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type b_(b_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_array_unary(op, a_, b_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_as_array
+SEXP cpp_as_array(SEXP decl_);
+RcppExport SEXP _z3r_cpp_as_array(SEXP decl_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type decl_(decl_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_as_array(decl_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_lambda
+SEXP cpp_lambda(Rcpp::List vars, SEXP body_);
+RcppExport SEXP _z3r_cpp_lambda(SEXP varsSEXP, SEXP body_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type vars(varsSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type body_(body_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_lambda(vars, body_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_set_sort
+SEXP cpp_set_sort(SEXP elem_);
+RcppExport SEXP _z3r_cpp_set_sort(SEXP elem_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type elem_(elem_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_set_sort(elem_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_set_constant
+SEXP cpp_set_constant(bool full, SEXP elem_);
+RcppExport SEXP _z3r_cpp_set_constant(SEXP fullSEXP, SEXP elem_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< bool >::type full(fullSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type elem_(elem_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_set_constant(full, elem_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_set_op
+SEXP cpp_set_op(std::string op, SEXP args);
+RcppExport SEXP _z3r_cpp_set_op(SEXP opSEXP, SEXP argsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< std::string >::type op(opSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type args(argsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_set_op(op, args));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_pb
+SEXP cpp_pb(std::string op, Rcpp::List lits, Rcpp::IntegerVector coeffs, int k);
+RcppExport SEXP _z3r_cpp_pb(SEXP opSEXP, SEXP litsSEXP, SEXP coeffsSEXP, SEXP kSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< std::string >::type op(opSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type lits(litsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type coeffs(coeffsSEXP);
+    Rcpp::traits::input_parameter< int >::type k(kSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_pb(op, lits, coeffs, k));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_mk_rec_func_decl
+SEXP cpp_mk_rec_func_decl(SEXP ctx_, SEXP name_, Rcpp::List domain, SEXP range_);
+RcppExport SEXP _z3r_cpp_mk_rec_func_decl(SEXP ctx_SEXP, SEXP name_SEXP, SEXP domainSEXP, SEXP range_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type name_(name_SEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type domain(domainSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type range_(range_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_mk_rec_func_decl(ctx_, name_, domain, range_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_add_rec_def
+void cpp_add_rec_def(SEXP decl_, Rcpp::List args, SEXP body_);
+RcppExport SEXP _z3r_cpp_add_rec_def(SEXP decl_SEXP, SEXP argsSEXP, SEXP body_SEXP) {
+BEGIN_RCPP
+    Rcpp::traits::input_parameter< SEXP >::type decl_(decl_SEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type args(argsSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type body_(body_SEXP);
+    cpp_add_rec_def(decl_, args, body_);
+    return R_NilValue;
+END_RCPP
+}
+// cpp_mk_fresh_func_decl
+SEXP cpp_mk_fresh_func_decl(SEXP ctx_, SEXP prefix_, Rcpp::List domain, SEXP range_);
+RcppExport SEXP _z3r_cpp_mk_fresh_func_decl(SEXP ctx_SEXP, SEXP prefix_SEXP, SEXP domainSEXP, SEXP range_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type prefix_(prefix_SEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type domain(domainSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type range_(range_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_mk_fresh_func_decl(ctx_, prefix_, domain, range_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_special_relation
+SEXP cpp_special_relation(std::string kind, SEXP sort_, int id);
+RcppExport SEXP _z3r_cpp_special_relation(SEXP kindSEXP, SEXP sort_SEXP, SEXP idSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< std::string >::type kind(kindSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type sort_(sort_SEXP);
+    Rcpp::traits::input_parameter< int >::type id(idSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_special_relation(kind, sort_, id));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_transitive_closure
+SEXP cpp_transitive_closure(SEXP decl_);
+RcppExport SEXP _z3r_cpp_transitive_closure(SEXP decl_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type decl_(decl_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_transitive_closure(decl_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_misc_op
+SEXP cpp_misc_op(std::string op, SEXP args, Rcpp::IntegerVector params);
+RcppExport SEXP _z3r_cpp_misc_op(SEXP opSEXP, SEXP argsSEXP, SEXP paramsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< std::string >::type op(opSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type args(argsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type params(paramsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_misc_op(op, args, params));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_finite_domain_sort
+SEXP cpp_finite_domain_sort(SEXP ctx_, SEXP name_, double size);
+RcppExport SEXP _z3r_cpp_finite_domain_sort(SEXP ctx_SEXP, SEXP name_SEXP, SEXP sizeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type name_(name_SEXP);
+    Rcpp::traits::input_parameter< double >::type size(sizeSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_finite_domain_sort(ctx_, name_, size));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_finite_domain_size
+double cpp_finite_domain_size(SEXP sort_);
+RcppExport SEXP _z3r_cpp_finite_domain_size(SEXP sort_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type sort_(sort_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_finite_domain_size(sort_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_ast_kind
+std::string cpp_ast_kind(SEXP x);
+RcppExport SEXP _z3r_cpp_ast_kind(SEXP xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type x(xSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_ast_kind(x));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_app_parts
+SEXP cpp_app_parts(SEXP x);
+RcppExport SEXP _z3r_cpp_app_parts(SEXP xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type x(xSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_app_parts(x));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_decl_details
+SEXP cpp_decl_details(SEXP d_);
+RcppExport SEXP _z3r_cpp_decl_details(SEXP d_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type d_(d_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_decl_details(d_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_var_index
+int cpp_var_index(SEXP x);
+RcppExport SEXP _z3r_cpp_var_index(SEXP xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type x(xSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_var_index(x));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_quantifier_parts
+SEXP cpp_quantifier_parts(SEXP x);
+RcppExport SEXP _z3r_cpp_quantifier_parts(SEXP xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type x(xSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_quantifier_parts(x));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_mk_bound
+SEXP cpp_mk_bound(int index, SEXP sort_);
+RcppExport SEXP _z3r_cpp_mk_bound(SEXP indexSEXP, SEXP sort_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< int >::type index(indexSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type sort_(sort_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_mk_bound(index, sort_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_substitute
+SEXP cpp_substitute(SEXP x, Rcpp::List from, Rcpp::List to);
+RcppExport SEXP _z3r_cpp_substitute(SEXP xSEXP, SEXP fromSEXP, SEXP toSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type x(xSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type from(fromSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type to(toSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_substitute(x, from, to));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_substitute_vars
+SEXP cpp_substitute_vars(SEXP x, Rcpp::List to);
+RcppExport SEXP _z3r_cpp_substitute_vars(SEXP xSEXP, SEXP toSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type x(xSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type to(toSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_substitute_vars(x, to));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_substitute_funs
+SEXP cpp_substitute_funs(SEXP x, Rcpp::List from, Rcpp::List to);
+RcppExport SEXP _z3r_cpp_substitute_funs(SEXP xSEXP, SEXP fromSEXP, SEXP toSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type x(xSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type from(fromSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type to(toSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_substitute_funs(x, from, to));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_translate
+SEXP cpp_translate(SEXP x, SEXP target_);
+RcppExport SEXP _z3r_cpp_translate(SEXP xSEXP, SEXP target_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type x(xSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type target_(target_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_translate(x, target_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_simplify_ex
+SEXP cpp_simplify_ex(SEXP x, SEXP params);
+RcppExport SEXP _z3r_cpp_simplify_ex(SEXP xSEXP, SEXP paramsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type x(xSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type params(paramsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_simplify_ex(x, params));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_simplify_help
+SEXP cpp_simplify_help(SEXP ctx_);
+RcppExport SEXP _z3r_cpp_simplify_help(SEXP ctx_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_simplify_help(ctx_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_ast_id
+SEXP cpp_ast_id(SEXP x);
+RcppExport SEXP _z3r_cpp_ast_id(SEXP xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type x(xSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_ast_id(x));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_is_well_sorted
+bool cpp_is_well_sorted(SEXP x);
+RcppExport SEXP _z3r_cpp_is_well_sorted(SEXP xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type x(xSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_is_well_sorted(x));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_is_ground
+bool cpp_is_ground(SEXP x);
+RcppExport SEXP _z3r_cpp_is_ground(SEXP xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type x(xSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_is_ground(x));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_depth
+int cpp_depth(SEXP x);
+RcppExport SEXP _z3r_cpp_depth(SEXP xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type x(xSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_depth(x));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_set_print_mode
+void cpp_set_print_mode(SEXP ctx_, std::string mode);
+RcppExport SEXP _z3r_cpp_set_print_mode(SEXP ctx_SEXP, SEXP modeSEXP) {
+BEGIN_RCPP
+    Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
+    Rcpp::traits::input_parameter< std::string >::type mode(modeSEXP);
+    cpp_set_print_mode(ctx_, mode);
+    return R_NilValue;
+END_RCPP
+}
+// cpp_global_param_set
+void cpp_global_param_set(std::string name, std::string value);
+RcppExport SEXP _z3r_cpp_global_param_set(SEXP nameSEXP, SEXP valueSEXP) {
+BEGIN_RCPP
+    Rcpp::traits::input_parameter< std::string >::type name(nameSEXP);
+    Rcpp::traits::input_parameter< std::string >::type value(valueSEXP);
+    cpp_global_param_set(name, value);
+    return R_NilValue;
+END_RCPP
+}
+// cpp_global_param_get
+SEXP cpp_global_param_get(std::string name);
+RcppExport SEXP _z3r_cpp_global_param_get(SEXP nameSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< std::string >::type name(nameSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_global_param_get(name));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_global_param_reset
+void cpp_global_param_reset();
+RcppExport SEXP _z3r_cpp_global_param_reset() {
+BEGIN_RCPP
+    cpp_global_param_reset();
+    return R_NilValue;
+END_RCPP
+}
+// cpp_global_param_help
+SEXP cpp_global_param_help(SEXP ctx_);
+RcppExport SEXP _z3r_cpp_global_param_help(SEXP ctx_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_global_param_help(ctx_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_open_log
+bool cpp_open_log(std::string file);
+RcppExport SEXP _z3r_cpp_open_log(SEXP fileSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< std::string >::type file(fileSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_open_log(file));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_close_log
+void cpp_close_log();
+RcppExport SEXP _z3r_cpp_close_log() {
+BEGIN_RCPP
+    cpp_close_log();
+    return R_NilValue;
+END_RCPP
+}
+// cpp_toggle_warnings
+void cpp_toggle_warnings(bool enabled);
+RcppExport SEXP _z3r_cpp_toggle_warnings(SEXP enabledSEXP) {
+BEGIN_RCPP
+    Rcpp::traits::input_parameter< bool >::type enabled(enabledSEXP);
+    cpp_toggle_warnings(enabled);
+    return R_NilValue;
+END_RCPP
+}
+// cpp_propagate_init
+void cpp_propagate_init(SEXP s_, SEXP fns);
+RcppExport SEXP _z3r_cpp_propagate_init(SEXP s_SEXP, SEXP fnsSEXP) {
+BEGIN_RCPP
+    Rcpp::traits::input_parameter< SEXP >::type s_(s_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type fns(fnsSEXP);
+    cpp_propagate_init(s_, fns);
+    return R_NilValue;
+END_RCPP
+}
+// cpp_propagate_register
+void cpp_propagate_register(SEXP s_, SEXP e_);
+RcppExport SEXP _z3r_cpp_propagate_register(SEXP s_SEXP, SEXP e_SEXP) {
+BEGIN_RCPP
+    Rcpp::traits::input_parameter< SEXP >::type s_(s_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type e_(e_SEXP);
+    cpp_propagate_register(s_, e_);
+    return R_NilValue;
+END_RCPP
+}
+// cpp_propagate_declare
+SEXP cpp_propagate_declare(SEXP ctx_, SEXP name_, Rcpp::List domain, SEXP range_);
+RcppExport SEXP _z3r_cpp_propagate_declare(SEXP ctx_SEXP, SEXP name_SEXP, SEXP domainSEXP, SEXP range_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type name_(name_SEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type domain(domainSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type range_(range_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_propagate_declare(ctx_, name_, domain, range_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_cb_consequence
+bool cpp_cb_consequence(SEXP cb_, Rcpp::List fixed, Rcpp::List lhs, Rcpp::List rhs, SEXP conseq);
+RcppExport SEXP _z3r_cpp_cb_consequence(SEXP cb_SEXP, SEXP fixedSEXP, SEXP lhsSEXP, SEXP rhsSEXP, SEXP conseqSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type cb_(cb_SEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type fixed(fixedSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type lhs(lhsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type rhs(rhsSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type conseq(conseqSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_cb_consequence(cb_, fixed, lhs, rhs, conseq));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_cb_register
+void cpp_cb_register(SEXP cb_, SEXP e_);
+RcppExport SEXP _z3r_cpp_cb_register(SEXP cb_SEXP, SEXP e_SEXP) {
+BEGIN_RCPP
+    Rcpp::traits::input_parameter< SEXP >::type cb_(cb_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type e_(e_SEXP);
+    cpp_cb_register(cb_, e_);
+    return R_NilValue;
+END_RCPP
+}
+// cpp_cb_next_split
+bool cpp_cb_next_split(SEXP cb_, SEXP t_, int idx, int phase);
+RcppExport SEXP _z3r_cpp_cb_next_split(SEXP cb_SEXP, SEXP t_SEXP, SEXP idxSEXP, SEXP phaseSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type cb_(cb_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type t_(t_SEXP);
+    Rcpp::traits::input_parameter< int >::type idx(idxSEXP);
+    Rcpp::traits::input_parameter< int >::type phase(phaseSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_cb_next_split(cb_, t_, idx, phase));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_on_clause
+void cpp_on_clause(SEXP s_, SEXP fns);
+RcppExport SEXP _z3r_cpp_on_clause(SEXP s_SEXP, SEXP fnsSEXP) {
+BEGIN_RCPP
+    Rcpp::traits::input_parameter< SEXP >::type s_(s_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type fns(fnsSEXP);
+    cpp_on_clause(s_, fns);
+    return R_NilValue;
+END_RCPP
+}
+// cpp_on_model
+void cpp_on_model(SEXP o_, SEXP fns);
+RcppExport SEXP _z3r_cpp_on_model(SEXP o_SEXP, SEXP fnsSEXP) {
+BEGIN_RCPP
+    Rcpp::traits::input_parameter< SEXP >::type o_(o_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type fns(fnsSEXP);
+    cpp_on_model(o_, fns);
+    return R_NilValue;
+END_RCPP
+}
+// cpp_set_proof_check
+void cpp_set_proof_check(SEXP ctx_, SEXP fns);
+RcppExport SEXP _z3r_cpp_set_proof_check(SEXP ctx_SEXP, SEXP fnsSEXP) {
+BEGIN_RCPP
+    Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type fns(fnsSEXP);
+    cpp_set_proof_check(ctx_, fns);
+    return R_NilValue;
+END_RCPP
+}
 // cpp_version
 SEXP cpp_version();
 RcppExport SEXP _z3r_cpp_version() {
@@ -211,11 +774,13 @@ BEGIN_RCPP
 END_RCPP
 }
 // cpp_mk_context
-SEXP cpp_mk_context();
-RcppExport SEXP _z3r_cpp_mk_context() {
+SEXP cpp_mk_context(Rcpp::CharacterVector names, Rcpp::CharacterVector values);
+RcppExport SEXP _z3r_cpp_mk_context(SEXP namesSEXP, SEXP valuesSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
-    rcpp_result_gen = Rcpp::wrap(cpp_mk_context());
+    Rcpp::traits::input_parameter< Rcpp::CharacterVector >::type names(namesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::CharacterVector >::type values(valuesSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_mk_context(names, values));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -247,6 +812,86 @@ BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::traits::input_parameter< SEXP >::type x(xSEXP);
     rcpp_result_gen = Rcpp::wrap(cpp_is_valid(x));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_datatype_parts
+SEXP cpp_datatype_parts(SEXP sort_);
+RcppExport SEXP _z3r_cpp_datatype_parts(SEXP sort_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type sort_(sort_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_datatype_parts(sort_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_mk_datatypes
+SEXP cpp_mk_datatypes(SEXP ctx_, Rcpp::CharacterVector names, Rcpp::List specs);
+RcppExport SEXP _z3r_cpp_mk_datatypes(SEXP ctx_SEXP, SEXP namesSEXP, SEXP specsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
+    Rcpp::traits::input_parameter< Rcpp::CharacterVector >::type names(namesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type specs(specsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_mk_datatypes(ctx_, names, specs));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_mk_type_variable
+SEXP cpp_mk_type_variable(SEXP ctx_, SEXP name_);
+RcppExport SEXP _z3r_cpp_mk_type_variable(SEXP ctx_SEXP, SEXP name_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type name_(name_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_mk_type_variable(ctx_, name_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_mk_polymorphic_datatype
+SEXP cpp_mk_polymorphic_datatype(SEXP ctx_, SEXP name_, Rcpp::List params, Rcpp::List spec);
+RcppExport SEXP _z3r_cpp_mk_polymorphic_datatype(SEXP ctx_SEXP, SEXP name_SEXP, SEXP paramsSEXP, SEXP specSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type name_(name_SEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type params(paramsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type spec(specSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_mk_polymorphic_datatype(ctx_, name_, params, spec));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_datatype_instance
+SEXP cpp_datatype_instance(SEXP ctx_, SEXP name_, Rcpp::List params);
+RcppExport SEXP _z3r_cpp_datatype_instance(SEXP ctx_SEXP, SEXP name_SEXP, SEXP paramsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type name_(name_SEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type params(paramsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_datatype_instance(ctx_, name_, params));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_datatype_update
+SEXP cpp_datatype_update(SEXP accessor_, SEXP t_, SEXP value_);
+RcppExport SEXP _z3r_cpp_datatype_update(SEXP accessor_SEXP, SEXP t_SEXP, SEXP value_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type accessor_(accessor_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type t_(t_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type value_(value_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_datatype_update(accessor_, t_, value_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_is_recursive_datatype
+bool cpp_is_recursive_datatype(SEXP sort_);
+RcppExport SEXP _z3r_cpp_is_recursive_datatype(SEXP sort_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type sort_(sort_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_is_recursive_datatype(sort_));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -419,6 +1064,486 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cpp_implied_equalities
+SEXP cpp_implied_equalities(SEXP s_, Rcpp::List terms);
+RcppExport SEXP _z3r_cpp_implied_equalities(SEXP s_SEXP, SEXP termsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type s_(s_SEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type terms(termsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_implied_equalities(s_, terms));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_update_term
+SEXP cpp_update_term(SEXP x, Rcpp::List args);
+RcppExport SEXP _z3r_cpp_update_term(SEXP xSEXP, SEXP argsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type x(xSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type args(argsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_update_term(x, args));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_solver_from_file
+void cpp_solver_from_file(SEXP s_, SEXP file_);
+RcppExport SEXP _z3r_cpp_solver_from_file(SEXP s_SEXP, SEXP file_SEXP) {
+BEGIN_RCPP
+    Rcpp::traits::input_parameter< SEXP >::type s_(s_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type file_(file_SEXP);
+    cpp_solver_from_file(s_, file_);
+    return R_NilValue;
+END_RCPP
+}
+// cpp_solver_import_model_converter
+void cpp_solver_import_model_converter(SEXP src_, SEXP dst_);
+RcppExport SEXP _z3r_cpp_solver_import_model_converter(SEXP src_SEXP, SEXP dst_SEXP) {
+BEGIN_RCPP
+    Rcpp::traits::input_parameter< SEXP >::type src_(src_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type dst_(dst_SEXP);
+    cpp_solver_import_model_converter(src_, dst_);
+    return R_NilValue;
+END_RCPP
+}
+// cpp_update_param
+void cpp_update_param(SEXP ctx_, std::string name, std::string value);
+RcppExport SEXP _z3r_cpp_update_param(SEXP ctx_SEXP, SEXP nameSEXP, SEXP valueSEXP) {
+BEGIN_RCPP
+    Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
+    Rcpp::traits::input_parameter< std::string >::type name(nameSEXP);
+    Rcpp::traits::input_parameter< std::string >::type value(valueSEXP);
+    cpp_update_param(ctx_, name, value);
+    return R_NilValue;
+END_RCPP
+}
+// cpp_algebraic_bounds
+SEXP cpp_algebraic_bounds(SEXP x, int precision);
+RcppExport SEXP _z3r_cpp_algebraic_bounds(SEXP xSEXP, SEXP precisionSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type x(xSEXP);
+    Rcpp::traits::input_parameter< int >::type precision(precisionSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_algebraic_bounds(x, precision));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_binary_string
+std::string cpp_binary_string(SEXP x);
+RcppExport SEXP _z3r_cpp_binary_string(SEXP xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type x(xSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_binary_string(x));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_bv_from_bits
+SEXP cpp_bv_from_bits(SEXP ctx_, Rcpp::LogicalVector bits);
+RcppExport SEXP _z3r_cpp_bv_from_bits(SEXP ctx_SEXP, SEXP bitsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
+    Rcpp::traits::input_parameter< Rcpp::LogicalVector >::type bits(bitsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_bv_from_bits(ctx_, bits));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_fp_from_parts
+SEXP cpp_fp_from_parts(SEXP sort_, bool negative, std::string exponent, std::string significand);
+RcppExport SEXP _z3r_cpp_fp_from_parts(SEXP sort_SEXP, SEXP negativeSEXP, SEXP exponentSEXP, SEXP significandSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type sort_(sort_SEXP);
+    Rcpp::traits::input_parameter< bool >::type negative(negativeSEXP);
+    Rcpp::traits::input_parameter< std::string >::type exponent(exponentSEXP);
+    Rcpp::traits::input_parameter< std::string >::type significand(significandSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_fp_from_parts(sort_, negative, exponent, significand));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_memory_usage
+double cpp_memory_usage();
+RcppExport SEXP _z3r_cpp_memory_usage() {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    rcpp_result_gen = Rcpp::wrap(cpp_memory_usage());
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_append_log
+void cpp_append_log(std::string text);
+RcppExport SEXP _z3r_cpp_append_log(SEXP textSEXP) {
+BEGIN_RCPP
+    Rcpp::traits::input_parameter< std::string >::type text(textSEXP);
+    cpp_append_log(text);
+    return R_NilValue;
+END_RCPP
+}
+// cpp_decl_identity
+SEXP cpp_decl_identity(SEXP x, SEXP y);
+RcppExport SEXP _z3r_cpp_decl_identity(SEXP xSEXP, SEXP ySEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type x(xSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type y(ySEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_decl_identity(x, y));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_mk_parser
+SEXP cpp_mk_parser(SEXP ctx_);
+RcppExport SEXP _z3r_cpp_mk_parser(SEXP ctx_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_mk_parser(ctx_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_parser_add
+void cpp_parser_add(SEXP p_, SEXP item);
+RcppExport SEXP _z3r_cpp_parser_add(SEXP p_SEXP, SEXP itemSEXP) {
+BEGIN_RCPP
+    Rcpp::traits::input_parameter< SEXP >::type p_(p_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type item(itemSEXP);
+    cpp_parser_add(p_, item);
+    return R_NilValue;
+END_RCPP
+}
+// cpp_parser_parse
+SEXP cpp_parser_parse(SEXP p_, SEXP text_);
+RcppExport SEXP _z3r_cpp_parser_parse(SEXP p_SEXP, SEXP text_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type p_(p_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type text_(text_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_parser_parse(p_, text_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_mk_fixedpoint
+SEXP cpp_mk_fixedpoint(SEXP ctx_);
+RcppExport SEXP _z3r_cpp_mk_fixedpoint(SEXP ctx_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_mk_fixedpoint(ctx_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_fixedpoint_register
+void cpp_fixedpoint_register(SEXP f_, SEXP decl_);
+RcppExport SEXP _z3r_cpp_fixedpoint_register(SEXP f_SEXP, SEXP decl_SEXP) {
+BEGIN_RCPP
+    Rcpp::traits::input_parameter< SEXP >::type f_(f_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type decl_(decl_SEXP);
+    cpp_fixedpoint_register(f_, decl_);
+    return R_NilValue;
+END_RCPP
+}
+// cpp_fixedpoint_add_rule
+void cpp_fixedpoint_add_rule(SEXP f_, SEXP rule_, std::string name, bool update);
+RcppExport SEXP _z3r_cpp_fixedpoint_add_rule(SEXP f_SEXP, SEXP rule_SEXP, SEXP nameSEXP, SEXP updateSEXP) {
+BEGIN_RCPP
+    Rcpp::traits::input_parameter< SEXP >::type f_(f_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type rule_(rule_SEXP);
+    Rcpp::traits::input_parameter< std::string >::type name(nameSEXP);
+    Rcpp::traits::input_parameter< bool >::type update(updateSEXP);
+    cpp_fixedpoint_add_rule(f_, rule_, name, update);
+    return R_NilValue;
+END_RCPP
+}
+// cpp_fixedpoint_add_fact
+void cpp_fixedpoint_add_fact(SEXP f_, SEXP decl_, Rcpp::NumericVector args);
+RcppExport SEXP _z3r_cpp_fixedpoint_add_fact(SEXP f_SEXP, SEXP decl_SEXP, SEXP argsSEXP) {
+BEGIN_RCPP
+    Rcpp::traits::input_parameter< SEXP >::type f_(f_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type decl_(decl_SEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type args(argsSEXP);
+    cpp_fixedpoint_add_fact(f_, decl_, args);
+    return R_NilValue;
+END_RCPP
+}
+// cpp_fixedpoint_assert
+void cpp_fixedpoint_assert(SEXP f_, SEXP axiom_);
+RcppExport SEXP _z3r_cpp_fixedpoint_assert(SEXP f_SEXP, SEXP axiom_SEXP) {
+BEGIN_RCPP
+    Rcpp::traits::input_parameter< SEXP >::type f_(f_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type axiom_(axiom_SEXP);
+    cpp_fixedpoint_assert(f_, axiom_);
+    return R_NilValue;
+END_RCPP
+}
+// cpp_fixedpoint_query
+std::string cpp_fixedpoint_query(SEXP f_, SEXP query);
+RcppExport SEXP _z3r_cpp_fixedpoint_query(SEXP f_SEXP, SEXP querySEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type f_(f_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type query(querySEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_fixedpoint_query(f_, query));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_fixedpoint_answer
+SEXP cpp_fixedpoint_answer(SEXP f_, std::string which);
+RcppExport SEXP _z3r_cpp_fixedpoint_answer(SEXP f_SEXP, SEXP whichSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type f_(f_SEXP);
+    Rcpp::traits::input_parameter< std::string >::type which(whichSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_fixedpoint_answer(f_, which));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_fixedpoint_reason_unknown
+std::string cpp_fixedpoint_reason_unknown(SEXP f_);
+RcppExport SEXP _z3r_cpp_fixedpoint_reason_unknown(SEXP f_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type f_(f_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_fixedpoint_reason_unknown(f_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_fixedpoint_cover
+SEXP cpp_fixedpoint_cover(SEXP f_, int level, SEXP decl_, SEXP property, bool add);
+RcppExport SEXP _z3r_cpp_fixedpoint_cover(SEXP f_SEXP, SEXP levelSEXP, SEXP decl_SEXP, SEXP propertySEXP, SEXP addSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type f_(f_SEXP);
+    Rcpp::traits::input_parameter< int >::type level(levelSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type decl_(decl_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type property(propertySEXP);
+    Rcpp::traits::input_parameter< bool >::type add(addSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_fixedpoint_cover(f_, level, decl_, property, add));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_fixedpoint_num_levels
+int cpp_fixedpoint_num_levels(SEXP f_, SEXP decl_);
+RcppExport SEXP _z3r_cpp_fixedpoint_num_levels(SEXP f_SEXP, SEXP decl_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type f_(f_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type decl_(decl_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_fixedpoint_num_levels(f_, decl_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_fixedpoint_spacer
+SEXP cpp_fixedpoint_spacer(SEXP f_, std::string what, SEXP decl_, SEXP property);
+RcppExport SEXP _z3r_cpp_fixedpoint_spacer(SEXP f_SEXP, SEXP whatSEXP, SEXP decl_SEXP, SEXP propertySEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type f_(f_SEXP);
+    Rcpp::traits::input_parameter< std::string >::type what(whatSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type decl_(decl_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type property(propertySEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_fixedpoint_spacer(f_, what, decl_, property));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_fixedpoint_contents
+SEXP cpp_fixedpoint_contents(SEXP f_, std::string which);
+RcppExport SEXP _z3r_cpp_fixedpoint_contents(SEXP f_SEXP, SEXP whichSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type f_(f_SEXP);
+    Rcpp::traits::input_parameter< std::string >::type which(whichSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_fixedpoint_contents(f_, which));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_fixedpoint_representation
+void cpp_fixedpoint_representation(SEXP f_, SEXP decl_, Rcpp::CharacterVector kinds);
+RcppExport SEXP _z3r_cpp_fixedpoint_representation(SEXP f_SEXP, SEXP decl_SEXP, SEXP kindsSEXP) {
+BEGIN_RCPP
+    Rcpp::traits::input_parameter< SEXP >::type f_(f_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type decl_(decl_SEXP);
+    Rcpp::traits::input_parameter< Rcpp::CharacterVector >::type kinds(kindsSEXP);
+    cpp_fixedpoint_representation(f_, decl_, kinds);
+    return R_NilValue;
+END_RCPP
+}
+// cpp_fixedpoint_set_params
+void cpp_fixedpoint_set_params(SEXP f_, SEXP params);
+RcppExport SEXP _z3r_cpp_fixedpoint_set_params(SEXP f_SEXP, SEXP paramsSEXP) {
+BEGIN_RCPP
+    Rcpp::traits::input_parameter< SEXP >::type f_(f_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type params(paramsSEXP);
+    cpp_fixedpoint_set_params(f_, params);
+    return R_NilValue;
+END_RCPP
+}
+// cpp_fixedpoint_param_help
+SEXP cpp_fixedpoint_param_help(SEXP f_);
+RcppExport SEXP _z3r_cpp_fixedpoint_param_help(SEXP f_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type f_(f_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_fixedpoint_param_help(f_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_fixedpoint_help
+std::string cpp_fixedpoint_help(SEXP f_);
+RcppExport SEXP _z3r_cpp_fixedpoint_help(SEXP f_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type f_(f_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_fixedpoint_help(f_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_fixedpoint_statistics
+SEXP cpp_fixedpoint_statistics(SEXP f_);
+RcppExport SEXP _z3r_cpp_fixedpoint_statistics(SEXP f_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type f_(f_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_fixedpoint_statistics(f_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_fixedpoint_to_string
+std::string cpp_fixedpoint_to_string(SEXP f_, Rcpp::List queries);
+RcppExport SEXP _z3r_cpp_fixedpoint_to_string(SEXP f_SEXP, SEXP queriesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type f_(f_SEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type queries(queriesSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_fixedpoint_to_string(f_, queries));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_fixedpoint_from
+SEXP cpp_fixedpoint_from(SEXP f_, SEXP text_, bool is_file);
+RcppExport SEXP _z3r_cpp_fixedpoint_from(SEXP f_SEXP, SEXP text_SEXP, SEXP is_fileSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type f_(f_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type text_(text_SEXP);
+    Rcpp::traits::input_parameter< bool >::type is_file(is_fileSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_fixedpoint_from(f_, text_, is_file));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_fixedpoint_last_status
+SEXP cpp_fixedpoint_last_status(SEXP f_);
+RcppExport SEXP _z3r_cpp_fixedpoint_last_status(SEXP f_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type f_(f_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_fixedpoint_last_status(f_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_fp_sort
+SEXP cpp_fp_sort(SEXP ctx_, int ebits, int sbits);
+RcppExport SEXP _z3r_cpp_fp_sort(SEXP ctx_SEXP, SEXP ebitsSEXP, SEXP sbitsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
+    Rcpp::traits::input_parameter< int >::type ebits(ebitsSEXP);
+    Rcpp::traits::input_parameter< int >::type sbits(sbitsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_fp_sort(ctx_, ebits, sbits));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_rm_sort
+SEXP cpp_rm_sort(SEXP ctx_);
+RcppExport SEXP _z3r_cpp_rm_sort(SEXP ctx_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_rm_sort(ctx_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_fp_sort_info
+SEXP cpp_fp_sort_info(SEXP x);
+RcppExport SEXP _z3r_cpp_fp_sort_info(SEXP xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type x(xSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_fp_sort_info(x));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_rounding_mode
+SEXP cpp_rounding_mode(SEXP ctx_, std::string mode);
+RcppExport SEXP _z3r_cpp_rounding_mode(SEXP ctx_SEXP, SEXP modeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
+    Rcpp::traits::input_parameter< std::string >::type mode(modeSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_rounding_mode(ctx_, mode));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_fp_special
+SEXP cpp_fp_special(std::string what, SEXP sort_, bool negative);
+RcppExport SEXP _z3r_cpp_fp_special(SEXP whatSEXP, SEXP sort_SEXP, SEXP negativeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< std::string >::type what(whatSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type sort_(sort_SEXP);
+    Rcpp::traits::input_parameter< bool >::type negative(negativeSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_fp_special(what, sort_, negative));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_fp_from_double
+SEXP cpp_fp_from_double(SEXP ctx_, double v, SEXP sort_, SEXP rm_);
+RcppExport SEXP _z3r_cpp_fp_from_double(SEXP ctx_SEXP, SEXP vSEXP, SEXP sort_SEXP, SEXP rm_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
+    Rcpp::traits::input_parameter< double >::type v(vSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type sort_(sort_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type rm_(rm_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_fp_from_double(ctx_, v, sort_, rm_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_fp_from_bits
+SEXP cpp_fp_from_bits(SEXP sgn_, SEXP exp_, SEXP sig_);
+RcppExport SEXP _z3r_cpp_fp_from_bits(SEXP sgn_SEXP, SEXP exp_SEXP, SEXP sig_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type sgn_(sgn_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type exp_(exp_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type sig_(sig_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_fp_from_bits(sgn_, exp_, sig_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_fp_op
+SEXP cpp_fp_op(std::string op, SEXP args, SEXP sort_, int size);
+RcppExport SEXP _z3r_cpp_fp_op(SEXP opSEXP, SEXP argsSEXP, SEXP sort_SEXP, SEXP sizeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< std::string >::type op(opSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type args(argsSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type sort_(sort_SEXP);
+    Rcpp::traits::input_parameter< int >::type size(sizeSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_fp_op(op, args, sort_, size));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_fp_numeral_parts
+SEXP cpp_fp_numeral_parts(SEXP x, bool biased);
+RcppExport SEXP _z3r_cpp_fp_numeral_parts(SEXP xSEXP, SEXP biasedSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type x(xSEXP);
+    Rcpp::traits::input_parameter< bool >::type biased(biasedSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_fp_numeral_parts(x, biased));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cpp_model_eval
 SEXP cpp_model_eval(SEXP m_, SEXP x, bool completion);
 RcppExport SEXP _z3r_cpp_model_eval(SEXP m_SEXP, SEXP xSEXP, SEXP completionSEXP) {
@@ -458,6 +1583,81 @@ BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::traits::input_parameter< SEXP >::type m_(m_SEXP);
     rcpp_result_gen = Rcpp::wrap(cpp_model_funcs(m_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_mk_model
+SEXP cpp_mk_model(SEXP ctx_);
+RcppExport SEXP _z3r_cpp_mk_model(SEXP ctx_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_mk_model(ctx_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_model_set_const
+void cpp_model_set_const(SEXP m_, SEXP constant, SEXP value);
+RcppExport SEXP _z3r_cpp_model_set_const(SEXP m_SEXP, SEXP constantSEXP, SEXP valueSEXP) {
+BEGIN_RCPP
+    Rcpp::traits::input_parameter< SEXP >::type m_(m_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type constant(constantSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type value(valueSEXP);
+    cpp_model_set_const(m_, constant, value);
+    return R_NilValue;
+END_RCPP
+}
+// cpp_model_set_func
+void cpp_model_set_func(SEXP m_, SEXP decl_, Rcpp::List entries, SEXP otherwise);
+RcppExport SEXP _z3r_cpp_model_set_func(SEXP m_SEXP, SEXP decl_SEXP, SEXP entriesSEXP, SEXP otherwiseSEXP) {
+BEGIN_RCPP
+    Rcpp::traits::input_parameter< SEXP >::type m_(m_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type decl_(decl_SEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type entries(entriesSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type otherwise(otherwiseSEXP);
+    cpp_model_set_func(m_, decl_, entries, otherwise);
+    return R_NilValue;
+END_RCPP
+}
+// cpp_model_has
+bool cpp_model_has(SEXP m_, SEXP x);
+RcppExport SEXP _z3r_cpp_model_has(SEXP m_SEXP, SEXP xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type m_(m_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type x(xSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_model_has(m_, x));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_model_universes
+SEXP cpp_model_universes(SEXP m_);
+RcppExport SEXP _z3r_cpp_model_universes(SEXP m_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type m_(m_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_model_universes(m_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_model_translate
+SEXP cpp_model_translate(SEXP m_, SEXP target_);
+RcppExport SEXP _z3r_cpp_model_translate(SEXP m_SEXP, SEXP target_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type m_(m_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type target_(target_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_model_translate(m_, target_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_as_array_decl
+SEXP cpp_as_array_decl(SEXP x);
+RcppExport SEXP _z3r_cpp_as_array_decl(SEXP xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type x(xSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_as_array_decl(x));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -668,6 +1868,236 @@ BEGIN_RCPP
     return R_NilValue;
 END_RCPP
 }
+// cpp_optimize_help
+std::string cpp_optimize_help(SEXP o_);
+RcppExport SEXP _z3r_cpp_optimize_help(SEXP o_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type o_(o_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_optimize_help(o_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_optimize_from_file
+void cpp_optimize_from_file(SEXP o_, SEXP file_);
+RcppExport SEXP _z3r_cpp_optimize_from_file(SEXP o_SEXP, SEXP file_SEXP) {
+BEGIN_RCPP
+    Rcpp::traits::input_parameter< SEXP >::type o_(o_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type file_(file_SEXP);
+    cpp_optimize_from_file(o_, file_);
+    return R_NilValue;
+END_RCPP
+}
+// cpp_optimize_initial_value
+void cpp_optimize_initial_value(SEXP o_, SEXP var, SEXP value);
+RcppExport SEXP _z3r_cpp_optimize_initial_value(SEXP o_SEXP, SEXP varSEXP, SEXP valueSEXP) {
+BEGIN_RCPP
+    Rcpp::traits::input_parameter< SEXP >::type o_(o_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type var(varSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type value(valueSEXP);
+    cpp_optimize_initial_value(o_, var, value);
+    return R_NilValue;
+END_RCPP
+}
+// cpp_optimize_translate
+SEXP cpp_optimize_translate(SEXP o_, SEXP target_);
+RcppExport SEXP _z3r_cpp_optimize_translate(SEXP o_SEXP, SEXP target_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type o_(o_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type target_(target_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_optimize_translate(o_, target_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_rcf_mk
+SEXP cpp_rcf_mk(SEXP ctx_, std::string what, SEXP value_);
+RcppExport SEXP _z3r_cpp_rcf_mk(SEXP ctx_SEXP, SEXP whatSEXP, SEXP value_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
+    Rcpp::traits::input_parameter< std::string >::type what(whatSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type value_(value_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_rcf_mk(ctx_, what, value_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_rcf_roots
+SEXP cpp_rcf_roots(Rcpp::List coeffs);
+RcppExport SEXP _z3r_cpp_rcf_roots(SEXP coeffsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type coeffs(coeffsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_rcf_roots(coeffs));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_rcf_op
+SEXP cpp_rcf_op(std::string op, SEXP a_, SEXP b_, int k);
+RcppExport SEXP _z3r_cpp_rcf_op(SEXP opSEXP, SEXP a_SEXP, SEXP b_SEXP, SEXP kSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< std::string >::type op(opSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type a_(a_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type b_(b_SEXP);
+    Rcpp::traits::input_parameter< int >::type k(kSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_rcf_op(op, a_, b_, k));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_rcf_string
+std::string cpp_rcf_string(SEXP a_, bool compact, int decimals);
+RcppExport SEXP _z3r_cpp_rcf_string(SEXP a_SEXP, SEXP compactSEXP, SEXP decimalsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type a_(a_SEXP);
+    Rcpp::traits::input_parameter< bool >::type compact(compactSEXP);
+    Rcpp::traits::input_parameter< int >::type decimals(decimalsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_rcf_string(a_, compact, decimals));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_rcf_fraction
+SEXP cpp_rcf_fraction(SEXP a_);
+RcppExport SEXP _z3r_cpp_rcf_fraction(SEXP a_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type a_(a_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_rcf_fraction(a_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_rcf_info
+SEXP cpp_rcf_info(SEXP a_);
+RcppExport SEXP _z3r_cpp_rcf_info(SEXP a_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type a_(a_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_rcf_info(a_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_algebraic_op
+SEXP cpp_algebraic_op(std::string op, SEXP a_, SEXP b_, int k);
+RcppExport SEXP _z3r_cpp_algebraic_op(SEXP opSEXP, SEXP a_SEXP, SEXP b_SEXP, SEXP kSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< std::string >::type op(opSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type a_(a_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type b_(b_SEXP);
+    Rcpp::traits::input_parameter< int >::type k(kSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_algebraic_op(op, a_, b_, k));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_algebraic_roots
+SEXP cpp_algebraic_roots(SEXP p_, Rcpp::List values, bool eval);
+RcppExport SEXP _z3r_cpp_algebraic_roots(SEXP p_SEXP, SEXP valuesSEXP, SEXP evalSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type p_(p_SEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type values(valuesSEXP);
+    Rcpp::traits::input_parameter< bool >::type eval(evalSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_algebraic_roots(p_, values, eval));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_algebraic_poly
+SEXP cpp_algebraic_poly(SEXP a_);
+RcppExport SEXP _z3r_cpp_algebraic_poly(SEXP a_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type a_(a_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_algebraic_poly(a_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_polynomial_subresultants
+SEXP cpp_polynomial_subresultants(SEXP p_, SEXP q_, SEXP x_);
+RcppExport SEXP _z3r_cpp_polynomial_subresultants(SEXP p_SEXP, SEXP q_SEXP, SEXP x_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type p_(p_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type q_(q_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type x_(x_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_polynomial_subresultants(p_, q_, x_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_seq_sort
+SEXP cpp_seq_sort(SEXP elem_);
+RcppExport SEXP _z3r_cpp_seq_sort(SEXP elem_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type elem_(elem_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_seq_sort(elem_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_re_sort
+SEXP cpp_re_sort(SEXP seq_);
+RcppExport SEXP _z3r_cpp_re_sort(SEXP seq_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type seq_(seq_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_re_sort(seq_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_char_sort
+SEXP cpp_char_sort(SEXP ctx_);
+RcppExport SEXP _z3r_cpp_char_sort(SEXP ctx_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_char_sort(ctx_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_sort_basis
+SEXP cpp_sort_basis(SEXP sort_);
+RcppExport SEXP _z3r_cpp_sort_basis(SEXP sort_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type sort_(sort_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_sort_basis(sort_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_seq_constant
+SEXP cpp_seq_constant(std::string what, SEXP sort_);
+RcppExport SEXP _z3r_cpp_seq_constant(SEXP whatSEXP, SEXP sort_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< std::string >::type what(whatSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type sort_(sort_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_seq_constant(what, sort_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_char_val
+SEXP cpp_char_val(SEXP ctx_, double code);
+RcppExport SEXP _z3r_cpp_char_val(SEXP ctx_SEXP, SEXP codeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
+    Rcpp::traits::input_parameter< double >::type code(codeSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_char_val(ctx_, code));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_seq_op
+SEXP cpp_seq_op(std::string op, SEXP args, Rcpp::IntegerVector params);
+RcppExport SEXP _z3r_cpp_seq_op(SEXP opSEXP, SEXP argsSEXP, SEXP paramsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< std::string >::type op(opSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type args(argsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type params(paramsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_seq_op(op, args, params));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cpp_mk_solver
 SEXP cpp_mk_solver(SEXP ctx_, SEXP logic_);
 RcppExport SEXP _z3r_cpp_mk_solver(SEXP ctx_SEXP, SEXP logic_SEXP) {
@@ -870,6 +2300,118 @@ BEGIN_RCPP
     return R_NilValue;
 END_RCPP
 }
+// cpp_solver_proof
+SEXP cpp_solver_proof(SEXP s_);
+RcppExport SEXP _z3r_cpp_solver_proof(SEXP s_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type s_(s_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_solver_proof(s_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_solver_consequences
+SEXP cpp_solver_consequences(SEXP s_, Rcpp::List assumptions, Rcpp::List variables);
+RcppExport SEXP _z3r_cpp_solver_consequences(SEXP s_SEXP, SEXP assumptionsSEXP, SEXP variablesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type s_(s_SEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type assumptions(assumptionsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type variables(variablesSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_solver_consequences(s_, assumptions, variables));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_solver_cube
+SEXP cpp_solver_cube(SEXP s_, Rcpp::List vars, int backtrack_level);
+RcppExport SEXP _z3r_cpp_solver_cube(SEXP s_SEXP, SEXP varsSEXP, SEXP backtrack_levelSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type s_(s_SEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type vars(varsSEXP);
+    Rcpp::traits::input_parameter< int >::type backtrack_level(backtrack_levelSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_solver_cube(s_, vars, backtrack_level));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_solver_literals
+SEXP cpp_solver_literals(SEXP s_, std::string which);
+RcppExport SEXP _z3r_cpp_solver_literals(SEXP s_SEXP, SEXP whichSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type s_(s_SEXP);
+    Rcpp::traits::input_parameter< std::string >::type which(whichSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_solver_literals(s_, which));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_solver_help
+std::string cpp_solver_help(SEXP s_);
+RcppExport SEXP _z3r_cpp_solver_help(SEXP s_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type s_(s_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_solver_help(s_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_solver_to_dimacs
+std::string cpp_solver_to_dimacs(SEXP s_, bool include_names);
+RcppExport SEXP _z3r_cpp_solver_to_dimacs(SEXP s_SEXP, SEXP include_namesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type s_(s_SEXP);
+    Rcpp::traits::input_parameter< bool >::type include_names(include_namesSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_solver_to_dimacs(s_, include_names));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_solver_translate
+SEXP cpp_solver_translate(SEXP s_, SEXP target_ctx);
+RcppExport SEXP _z3r_cpp_solver_translate(SEXP s_SEXP, SEXP target_ctxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type s_(s_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type target_ctx(target_ctxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_solver_translate(s_, target_ctx));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_solver_initial_value
+void cpp_solver_initial_value(SEXP s_, SEXP var, SEXP value);
+RcppExport SEXP _z3r_cpp_solver_initial_value(SEXP s_SEXP, SEXP varSEXP, SEXP valueSEXP) {
+BEGIN_RCPP
+    Rcpp::traits::input_parameter< SEXP >::type s_(s_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type var(varSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type value(valueSEXP);
+    cpp_solver_initial_value(s_, var, value);
+    return R_NilValue;
+END_RCPP
+}
+// cpp_solver_congruence
+SEXP cpp_solver_congruence(SEXP s_, std::string what, SEXP a_, SEXP b_);
+RcppExport SEXP _z3r_cpp_solver_congruence(SEXP s_SEXP, SEXP whatSEXP, SEXP a_SEXP, SEXP b_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type s_(s_SEXP);
+    Rcpp::traits::input_parameter< std::string >::type what(whatSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type a_(a_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type b_(b_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_solver_congruence(s_, what, a_, b_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_solver_solve_for
+SEXP cpp_solver_solve_for(SEXP s_, Rcpp::List variables);
+RcppExport SEXP _z3r_cpp_solver_solve_for(SEXP s_SEXP, SEXP variablesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type s_(s_SEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type variables(variablesSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_solver_solve_for(s_, variables));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cpp_int_sort
 SEXP cpp_int_sort(SEXP ctx_);
 RcppExport SEXP _z3r_cpp_int_sort(SEXP ctx_SEXP) {
@@ -1004,12 +2546,292 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cpp_mk_probe
+SEXP cpp_mk_probe(SEXP ctx_, SEXP name_);
+RcppExport SEXP _z3r_cpp_mk_probe(SEXP ctx_SEXP, SEXP name_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type name_(name_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_mk_probe(ctx_, name_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_probe_const
+SEXP cpp_probe_const(SEXP ctx_, double value);
+RcppExport SEXP _z3r_cpp_probe_const(SEXP ctx_SEXP, SEXP valueSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
+    Rcpp::traits::input_parameter< double >::type value(valueSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_probe_const(ctx_, value));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_probe_combine
+SEXP cpp_probe_combine(std::string op, SEXP p1_, SEXP p2_);
+RcppExport SEXP _z3r_cpp_probe_combine(SEXP opSEXP, SEXP p1_SEXP, SEXP p2_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< std::string >::type op(opSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type p1_(p1_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type p2_(p2_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_probe_combine(op, p1_, p2_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_probe_apply
+double cpp_probe_apply(SEXP p_, SEXP g_);
+RcppExport SEXP _z3r_cpp_probe_apply(SEXP p_SEXP, SEXP g_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type p_(p_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type g_(g_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_probe_apply(p_, g_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_probe_names
+SEXP cpp_probe_names(SEXP ctx_);
+RcppExport SEXP _z3r_cpp_probe_names(SEXP ctx_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_probe_names(ctx_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_tactic_basic
+SEXP cpp_tactic_basic(SEXP ctx_, std::string which);
+RcppExport SEXP _z3r_cpp_tactic_basic(SEXP ctx_SEXP, SEXP whichSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
+    Rcpp::traits::input_parameter< std::string >::type which(whichSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_tactic_basic(ctx_, which));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_tactic_probe
+SEXP cpp_tactic_probe(std::string how, SEXP p_, SEXP t1_, SEXP t2_);
+RcppExport SEXP _z3r_cpp_tactic_probe(SEXP howSEXP, SEXP p_SEXP, SEXP t1_SEXP, SEXP t2_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< std::string >::type how(howSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type p_(p_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type t1_(t1_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type t2_(t2_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_tactic_probe(how, p_, t1_, t2_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_tactic_par
+SEXP cpp_tactic_par(std::string how, Rcpp::List tactics);
+RcppExport SEXP _z3r_cpp_tactic_par(SEXP howSEXP, SEXP tacticsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< std::string >::type how(howSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type tactics(tacticsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_tactic_par(how, tactics));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_tactic_using_params
+SEXP cpp_tactic_using_params(SEXP t_, SEXP params);
+RcppExport SEXP _z3r_cpp_tactic_using_params(SEXP t_SEXP, SEXP paramsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type t_(t_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type params(paramsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_tactic_using_params(t_, params));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_tactic_help
+std::string cpp_tactic_help(SEXP t_);
+RcppExport SEXP _z3r_cpp_tactic_help(SEXP t_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type t_(t_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_tactic_help(t_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_tactic_param_help
+SEXP cpp_tactic_param_help(SEXP t_);
+RcppExport SEXP _z3r_cpp_tactic_param_help(SEXP t_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type t_(t_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_tactic_param_help(t_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_goal_info
+SEXP cpp_goal_info(SEXP g_);
+RcppExport SEXP _z3r_cpp_goal_info(SEXP g_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type g_(g_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_goal_info(g_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_goal_reset
+void cpp_goal_reset(SEXP g_);
+RcppExport SEXP _z3r_cpp_goal_reset(SEXP g_SEXP) {
+BEGIN_RCPP
+    Rcpp::traits::input_parameter< SEXP >::type g_(g_SEXP);
+    cpp_goal_reset(g_);
+    return R_NilValue;
+END_RCPP
+}
+// cpp_goal_translate
+SEXP cpp_goal_translate(SEXP g_, SEXP target_);
+RcppExport SEXP _z3r_cpp_goal_translate(SEXP g_SEXP, SEXP target_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type g_(g_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type target_(target_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_goal_translate(g_, target_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_goal_convert_model
+SEXP cpp_goal_convert_model(SEXP g_, SEXP m_);
+RcppExport SEXP _z3r_cpp_goal_convert_model(SEXP g_SEXP, SEXP m_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type g_(g_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type m_(m_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_goal_convert_model(g_, m_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_goal_to_dimacs
+std::string cpp_goal_to_dimacs(SEXP g_, bool include_names);
+RcppExport SEXP _z3r_cpp_goal_to_dimacs(SEXP g_SEXP, SEXP include_namesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type g_(g_SEXP);
+    Rcpp::traits::input_parameter< bool >::type include_names(include_namesSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_goal_to_dimacs(g_, include_names));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_mk_simplifier
+SEXP cpp_mk_simplifier(SEXP ctx_, SEXP name_);
+RcppExport SEXP _z3r_cpp_mk_simplifier(SEXP ctx_SEXP, SEXP name_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type name_(name_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_mk_simplifier(ctx_, name_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_simplifier_then
+SEXP cpp_simplifier_then(SEXP s1_, SEXP s2_);
+RcppExport SEXP _z3r_cpp_simplifier_then(SEXP s1_SEXP, SEXP s2_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type s1_(s1_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type s2_(s2_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_simplifier_then(s1_, s2_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_simplifier_using_params
+SEXP cpp_simplifier_using_params(SEXP s_, SEXP params);
+RcppExport SEXP _z3r_cpp_simplifier_using_params(SEXP s_SEXP, SEXP paramsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type s_(s_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type params(paramsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_simplifier_using_params(s_, params));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_simplifier_help
+std::string cpp_simplifier_help(SEXP s_);
+RcppExport SEXP _z3r_cpp_simplifier_help(SEXP s_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type s_(s_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_simplifier_help(s_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_simplifier_names
+SEXP cpp_simplifier_names(SEXP ctx_);
+RcppExport SEXP _z3r_cpp_simplifier_names(SEXP ctx_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_simplifier_names(ctx_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_solver_add_simplifier
+SEXP cpp_solver_add_simplifier(SEXP s_, SEXP simp_);
+RcppExport SEXP _z3r_cpp_solver_add_simplifier(SEXP s_SEXP, SEXP simp_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type s_(s_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type simp_(simp_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_solver_add_simplifier(s_, simp_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_v5_sort
+SEXP cpp_v5_sort(SEXP ctx_, std::string what, SEXP arg);
+RcppExport SEXP _z3r_cpp_v5_sort(SEXP ctx_SEXP, SEXP whatSEXP, SEXP argSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
+    Rcpp::traits::input_parameter< std::string >::type what(whatSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type arg(argSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_v5_sort(ctx_, what, arg));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_v5_sort_info
+SEXP cpp_v5_sort_info(SEXP sort_);
+RcppExport SEXP _z3r_cpp_v5_sort_info(SEXP sort_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type sort_(sort_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_v5_sort_info(sort_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_v5_op
+SEXP cpp_v5_op(std::string op, SEXP args);
+RcppExport SEXP _z3r_cpp_v5_op(SEXP opSEXP, SEXP argsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< std::string >::type op(opSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type args(argsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_v5_op(op, args));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_fs_empty
+SEXP cpp_fs_empty(SEXP sort_);
+RcppExport SEXP _z3r_cpp_fs_empty(SEXP sort_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type sort_(sort_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_fs_empty(sort_));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_z3r_cpp_mk_func_decl", (DL_FUNC) &_z3r_cpp_mk_func_decl, 4},
     {"_z3r_cpp_apply_decl", (DL_FUNC) &_z3r_cpp_apply_decl, 2},
     {"_z3r_cpp_decl_info", (DL_FUNC) &_z3r_cpp_decl_info, 1},
-    {"_z3r_cpp_quantifier", (DL_FUNC) &_z3r_cpp_quantifier, 4},
+    {"_z3r_cpp_quantifier", (DL_FUNC) &_z3r_cpp_quantifier, 8},
     {"_z3r_cpp_mk_tactic", (DL_FUNC) &_z3r_cpp_mk_tactic, 2},
     {"_z3r_cpp_tactic_combine", (DL_FUNC) &_z3r_cpp_tactic_combine, 3},
     {"_z3r_cpp_tactic_modify", (DL_FUNC) &_z3r_cpp_tactic_modify, 3},
@@ -1023,11 +2845,70 @@ static const R_CallMethodDef CallEntries[] = {
     {"_z3r_cpp_parse_smtlib2", (DL_FUNC) &_z3r_cpp_parse_smtlib2, 3},
     {"_z3r_cpp_eval_smtlib2", (DL_FUNC) &_z3r_cpp_eval_smtlib2, 2},
     {"_z3r_cpp_benchmark", (DL_FUNC) &_z3r_cpp_benchmark, 2},
+    {"_z3r_cpp_array_sort_n", (DL_FUNC) &_z3r_cpp_array_sort_n, 2},
+    {"_z3r_cpp_array_sort_info", (DL_FUNC) &_z3r_cpp_array_sort_info, 1},
+    {"_z3r_cpp_array_access", (DL_FUNC) &_z3r_cpp_array_access, 4},
+    {"_z3r_cpp_array_map", (DL_FUNC) &_z3r_cpp_array_map, 2},
+    {"_z3r_cpp_array_unary", (DL_FUNC) &_z3r_cpp_array_unary, 3},
+    {"_z3r_cpp_as_array", (DL_FUNC) &_z3r_cpp_as_array, 1},
+    {"_z3r_cpp_lambda", (DL_FUNC) &_z3r_cpp_lambda, 2},
+    {"_z3r_cpp_set_sort", (DL_FUNC) &_z3r_cpp_set_sort, 1},
+    {"_z3r_cpp_set_constant", (DL_FUNC) &_z3r_cpp_set_constant, 2},
+    {"_z3r_cpp_set_op", (DL_FUNC) &_z3r_cpp_set_op, 2},
+    {"_z3r_cpp_pb", (DL_FUNC) &_z3r_cpp_pb, 4},
+    {"_z3r_cpp_mk_rec_func_decl", (DL_FUNC) &_z3r_cpp_mk_rec_func_decl, 4},
+    {"_z3r_cpp_add_rec_def", (DL_FUNC) &_z3r_cpp_add_rec_def, 3},
+    {"_z3r_cpp_mk_fresh_func_decl", (DL_FUNC) &_z3r_cpp_mk_fresh_func_decl, 4},
+    {"_z3r_cpp_special_relation", (DL_FUNC) &_z3r_cpp_special_relation, 3},
+    {"_z3r_cpp_transitive_closure", (DL_FUNC) &_z3r_cpp_transitive_closure, 1},
+    {"_z3r_cpp_misc_op", (DL_FUNC) &_z3r_cpp_misc_op, 3},
+    {"_z3r_cpp_finite_domain_sort", (DL_FUNC) &_z3r_cpp_finite_domain_sort, 3},
+    {"_z3r_cpp_finite_domain_size", (DL_FUNC) &_z3r_cpp_finite_domain_size, 1},
+    {"_z3r_cpp_ast_kind", (DL_FUNC) &_z3r_cpp_ast_kind, 1},
+    {"_z3r_cpp_app_parts", (DL_FUNC) &_z3r_cpp_app_parts, 1},
+    {"_z3r_cpp_decl_details", (DL_FUNC) &_z3r_cpp_decl_details, 1},
+    {"_z3r_cpp_var_index", (DL_FUNC) &_z3r_cpp_var_index, 1},
+    {"_z3r_cpp_quantifier_parts", (DL_FUNC) &_z3r_cpp_quantifier_parts, 1},
+    {"_z3r_cpp_mk_bound", (DL_FUNC) &_z3r_cpp_mk_bound, 2},
+    {"_z3r_cpp_substitute", (DL_FUNC) &_z3r_cpp_substitute, 3},
+    {"_z3r_cpp_substitute_vars", (DL_FUNC) &_z3r_cpp_substitute_vars, 2},
+    {"_z3r_cpp_substitute_funs", (DL_FUNC) &_z3r_cpp_substitute_funs, 3},
+    {"_z3r_cpp_translate", (DL_FUNC) &_z3r_cpp_translate, 2},
+    {"_z3r_cpp_simplify_ex", (DL_FUNC) &_z3r_cpp_simplify_ex, 2},
+    {"_z3r_cpp_simplify_help", (DL_FUNC) &_z3r_cpp_simplify_help, 1},
+    {"_z3r_cpp_ast_id", (DL_FUNC) &_z3r_cpp_ast_id, 1},
+    {"_z3r_cpp_is_well_sorted", (DL_FUNC) &_z3r_cpp_is_well_sorted, 1},
+    {"_z3r_cpp_is_ground", (DL_FUNC) &_z3r_cpp_is_ground, 1},
+    {"_z3r_cpp_depth", (DL_FUNC) &_z3r_cpp_depth, 1},
+    {"_z3r_cpp_set_print_mode", (DL_FUNC) &_z3r_cpp_set_print_mode, 2},
+    {"_z3r_cpp_global_param_set", (DL_FUNC) &_z3r_cpp_global_param_set, 2},
+    {"_z3r_cpp_global_param_get", (DL_FUNC) &_z3r_cpp_global_param_get, 1},
+    {"_z3r_cpp_global_param_reset", (DL_FUNC) &_z3r_cpp_global_param_reset, 0},
+    {"_z3r_cpp_global_param_help", (DL_FUNC) &_z3r_cpp_global_param_help, 1},
+    {"_z3r_cpp_open_log", (DL_FUNC) &_z3r_cpp_open_log, 1},
+    {"_z3r_cpp_close_log", (DL_FUNC) &_z3r_cpp_close_log, 0},
+    {"_z3r_cpp_toggle_warnings", (DL_FUNC) &_z3r_cpp_toggle_warnings, 1},
+    {"_z3r_cpp_propagate_init", (DL_FUNC) &_z3r_cpp_propagate_init, 2},
+    {"_z3r_cpp_propagate_register", (DL_FUNC) &_z3r_cpp_propagate_register, 2},
+    {"_z3r_cpp_propagate_declare", (DL_FUNC) &_z3r_cpp_propagate_declare, 4},
+    {"_z3r_cpp_cb_consequence", (DL_FUNC) &_z3r_cpp_cb_consequence, 5},
+    {"_z3r_cpp_cb_register", (DL_FUNC) &_z3r_cpp_cb_register, 2},
+    {"_z3r_cpp_cb_next_split", (DL_FUNC) &_z3r_cpp_cb_next_split, 4},
+    {"_z3r_cpp_on_clause", (DL_FUNC) &_z3r_cpp_on_clause, 2},
+    {"_z3r_cpp_on_model", (DL_FUNC) &_z3r_cpp_on_model, 2},
+    {"_z3r_cpp_set_proof_check", (DL_FUNC) &_z3r_cpp_set_proof_check, 2},
     {"_z3r_cpp_version", (DL_FUNC) &_z3r_cpp_version, 0},
-    {"_z3r_cpp_mk_context", (DL_FUNC) &_z3r_cpp_mk_context, 0},
+    {"_z3r_cpp_mk_context", (DL_FUNC) &_z3r_cpp_mk_context, 2},
     {"_z3r_cpp_context_of", (DL_FUNC) &_z3r_cpp_context_of, 1},
     {"_z3r_cpp_same_context", (DL_FUNC) &_z3r_cpp_same_context, 2},
     {"_z3r_cpp_is_valid", (DL_FUNC) &_z3r_cpp_is_valid, 1},
+    {"_z3r_cpp_datatype_parts", (DL_FUNC) &_z3r_cpp_datatype_parts, 1},
+    {"_z3r_cpp_mk_datatypes", (DL_FUNC) &_z3r_cpp_mk_datatypes, 3},
+    {"_z3r_cpp_mk_type_variable", (DL_FUNC) &_z3r_cpp_mk_type_variable, 2},
+    {"_z3r_cpp_mk_polymorphic_datatype", (DL_FUNC) &_z3r_cpp_mk_polymorphic_datatype, 4},
+    {"_z3r_cpp_datatype_instance", (DL_FUNC) &_z3r_cpp_datatype_instance, 3},
+    {"_z3r_cpp_datatype_update", (DL_FUNC) &_z3r_cpp_datatype_update, 3},
+    {"_z3r_cpp_is_recursive_datatype", (DL_FUNC) &_z3r_cpp_is_recursive_datatype, 1},
     {"_z3r_cpp_mk_const", (DL_FUNC) &_z3r_cpp_mk_const, 3},
     {"_z3r_cpp_mk_fresh_const", (DL_FUNC) &_z3r_cpp_mk_fresh_const, 3},
     {"_z3r_cpp_mk_numeral", (DL_FUNC) &_z3r_cpp_mk_numeral, 3},
@@ -1043,10 +2924,61 @@ static const R_CallMethodDef CallEntries[] = {
     {"_z3r_cpp_is_const", (DL_FUNC) &_z3r_cpp_is_const, 1},
     {"_z3r_cpp_value_info", (DL_FUNC) &_z3r_cpp_value_info, 2},
     {"_z3r_cpp_decimal_string", (DL_FUNC) &_z3r_cpp_decimal_string, 2},
+    {"_z3r_cpp_implied_equalities", (DL_FUNC) &_z3r_cpp_implied_equalities, 2},
+    {"_z3r_cpp_update_term", (DL_FUNC) &_z3r_cpp_update_term, 2},
+    {"_z3r_cpp_solver_from_file", (DL_FUNC) &_z3r_cpp_solver_from_file, 2},
+    {"_z3r_cpp_solver_import_model_converter", (DL_FUNC) &_z3r_cpp_solver_import_model_converter, 2},
+    {"_z3r_cpp_update_param", (DL_FUNC) &_z3r_cpp_update_param, 3},
+    {"_z3r_cpp_algebraic_bounds", (DL_FUNC) &_z3r_cpp_algebraic_bounds, 2},
+    {"_z3r_cpp_binary_string", (DL_FUNC) &_z3r_cpp_binary_string, 1},
+    {"_z3r_cpp_bv_from_bits", (DL_FUNC) &_z3r_cpp_bv_from_bits, 2},
+    {"_z3r_cpp_fp_from_parts", (DL_FUNC) &_z3r_cpp_fp_from_parts, 4},
+    {"_z3r_cpp_memory_usage", (DL_FUNC) &_z3r_cpp_memory_usage, 0},
+    {"_z3r_cpp_append_log", (DL_FUNC) &_z3r_cpp_append_log, 1},
+    {"_z3r_cpp_decl_identity", (DL_FUNC) &_z3r_cpp_decl_identity, 2},
+    {"_z3r_cpp_mk_parser", (DL_FUNC) &_z3r_cpp_mk_parser, 1},
+    {"_z3r_cpp_parser_add", (DL_FUNC) &_z3r_cpp_parser_add, 2},
+    {"_z3r_cpp_parser_parse", (DL_FUNC) &_z3r_cpp_parser_parse, 2},
+    {"_z3r_cpp_mk_fixedpoint", (DL_FUNC) &_z3r_cpp_mk_fixedpoint, 1},
+    {"_z3r_cpp_fixedpoint_register", (DL_FUNC) &_z3r_cpp_fixedpoint_register, 2},
+    {"_z3r_cpp_fixedpoint_add_rule", (DL_FUNC) &_z3r_cpp_fixedpoint_add_rule, 4},
+    {"_z3r_cpp_fixedpoint_add_fact", (DL_FUNC) &_z3r_cpp_fixedpoint_add_fact, 3},
+    {"_z3r_cpp_fixedpoint_assert", (DL_FUNC) &_z3r_cpp_fixedpoint_assert, 2},
+    {"_z3r_cpp_fixedpoint_query", (DL_FUNC) &_z3r_cpp_fixedpoint_query, 2},
+    {"_z3r_cpp_fixedpoint_answer", (DL_FUNC) &_z3r_cpp_fixedpoint_answer, 2},
+    {"_z3r_cpp_fixedpoint_reason_unknown", (DL_FUNC) &_z3r_cpp_fixedpoint_reason_unknown, 1},
+    {"_z3r_cpp_fixedpoint_cover", (DL_FUNC) &_z3r_cpp_fixedpoint_cover, 5},
+    {"_z3r_cpp_fixedpoint_num_levels", (DL_FUNC) &_z3r_cpp_fixedpoint_num_levels, 2},
+    {"_z3r_cpp_fixedpoint_spacer", (DL_FUNC) &_z3r_cpp_fixedpoint_spacer, 4},
+    {"_z3r_cpp_fixedpoint_contents", (DL_FUNC) &_z3r_cpp_fixedpoint_contents, 2},
+    {"_z3r_cpp_fixedpoint_representation", (DL_FUNC) &_z3r_cpp_fixedpoint_representation, 3},
+    {"_z3r_cpp_fixedpoint_set_params", (DL_FUNC) &_z3r_cpp_fixedpoint_set_params, 2},
+    {"_z3r_cpp_fixedpoint_param_help", (DL_FUNC) &_z3r_cpp_fixedpoint_param_help, 1},
+    {"_z3r_cpp_fixedpoint_help", (DL_FUNC) &_z3r_cpp_fixedpoint_help, 1},
+    {"_z3r_cpp_fixedpoint_statistics", (DL_FUNC) &_z3r_cpp_fixedpoint_statistics, 1},
+    {"_z3r_cpp_fixedpoint_to_string", (DL_FUNC) &_z3r_cpp_fixedpoint_to_string, 2},
+    {"_z3r_cpp_fixedpoint_from", (DL_FUNC) &_z3r_cpp_fixedpoint_from, 3},
+    {"_z3r_cpp_fixedpoint_last_status", (DL_FUNC) &_z3r_cpp_fixedpoint_last_status, 1},
+    {"_z3r_cpp_fp_sort", (DL_FUNC) &_z3r_cpp_fp_sort, 3},
+    {"_z3r_cpp_rm_sort", (DL_FUNC) &_z3r_cpp_rm_sort, 1},
+    {"_z3r_cpp_fp_sort_info", (DL_FUNC) &_z3r_cpp_fp_sort_info, 1},
+    {"_z3r_cpp_rounding_mode", (DL_FUNC) &_z3r_cpp_rounding_mode, 2},
+    {"_z3r_cpp_fp_special", (DL_FUNC) &_z3r_cpp_fp_special, 3},
+    {"_z3r_cpp_fp_from_double", (DL_FUNC) &_z3r_cpp_fp_from_double, 4},
+    {"_z3r_cpp_fp_from_bits", (DL_FUNC) &_z3r_cpp_fp_from_bits, 3},
+    {"_z3r_cpp_fp_op", (DL_FUNC) &_z3r_cpp_fp_op, 4},
+    {"_z3r_cpp_fp_numeral_parts", (DL_FUNC) &_z3r_cpp_fp_numeral_parts, 2},
     {"_z3r_cpp_model_eval", (DL_FUNC) &_z3r_cpp_model_eval, 3},
     {"_z3r_cpp_model_to_string", (DL_FUNC) &_z3r_cpp_model_to_string, 1},
     {"_z3r_cpp_model_consts", (DL_FUNC) &_z3r_cpp_model_consts, 1},
     {"_z3r_cpp_model_funcs", (DL_FUNC) &_z3r_cpp_model_funcs, 1},
+    {"_z3r_cpp_mk_model", (DL_FUNC) &_z3r_cpp_mk_model, 1},
+    {"_z3r_cpp_model_set_const", (DL_FUNC) &_z3r_cpp_model_set_const, 3},
+    {"_z3r_cpp_model_set_func", (DL_FUNC) &_z3r_cpp_model_set_func, 4},
+    {"_z3r_cpp_model_has", (DL_FUNC) &_z3r_cpp_model_has, 2},
+    {"_z3r_cpp_model_universes", (DL_FUNC) &_z3r_cpp_model_universes, 1},
+    {"_z3r_cpp_model_translate", (DL_FUNC) &_z3r_cpp_model_translate, 2},
+    {"_z3r_cpp_as_array_decl", (DL_FUNC) &_z3r_cpp_as_array_decl, 1},
     {"_z3r_cpp_mk_optimize", (DL_FUNC) &_z3r_cpp_mk_optimize, 1},
     {"_z3r_cpp_optimize_assert", (DL_FUNC) &_z3r_cpp_optimize_assert, 2},
     {"_z3r_cpp_optimize_assert_and_track", (DL_FUNC) &_z3r_cpp_optimize_assert_and_track, 3},
@@ -1067,6 +2999,27 @@ static const R_CallMethodDef CallEntries[] = {
     {"_z3r_cpp_optimize_param_help", (DL_FUNC) &_z3r_cpp_optimize_param_help, 1},
     {"_z3r_cpp_optimize_to_string", (DL_FUNC) &_z3r_cpp_optimize_to_string, 1},
     {"_z3r_cpp_optimize_from_string", (DL_FUNC) &_z3r_cpp_optimize_from_string, 2},
+    {"_z3r_cpp_optimize_help", (DL_FUNC) &_z3r_cpp_optimize_help, 1},
+    {"_z3r_cpp_optimize_from_file", (DL_FUNC) &_z3r_cpp_optimize_from_file, 2},
+    {"_z3r_cpp_optimize_initial_value", (DL_FUNC) &_z3r_cpp_optimize_initial_value, 3},
+    {"_z3r_cpp_optimize_translate", (DL_FUNC) &_z3r_cpp_optimize_translate, 2},
+    {"_z3r_cpp_rcf_mk", (DL_FUNC) &_z3r_cpp_rcf_mk, 3},
+    {"_z3r_cpp_rcf_roots", (DL_FUNC) &_z3r_cpp_rcf_roots, 1},
+    {"_z3r_cpp_rcf_op", (DL_FUNC) &_z3r_cpp_rcf_op, 4},
+    {"_z3r_cpp_rcf_string", (DL_FUNC) &_z3r_cpp_rcf_string, 3},
+    {"_z3r_cpp_rcf_fraction", (DL_FUNC) &_z3r_cpp_rcf_fraction, 1},
+    {"_z3r_cpp_rcf_info", (DL_FUNC) &_z3r_cpp_rcf_info, 1},
+    {"_z3r_cpp_algebraic_op", (DL_FUNC) &_z3r_cpp_algebraic_op, 4},
+    {"_z3r_cpp_algebraic_roots", (DL_FUNC) &_z3r_cpp_algebraic_roots, 3},
+    {"_z3r_cpp_algebraic_poly", (DL_FUNC) &_z3r_cpp_algebraic_poly, 1},
+    {"_z3r_cpp_polynomial_subresultants", (DL_FUNC) &_z3r_cpp_polynomial_subresultants, 3},
+    {"_z3r_cpp_seq_sort", (DL_FUNC) &_z3r_cpp_seq_sort, 1},
+    {"_z3r_cpp_re_sort", (DL_FUNC) &_z3r_cpp_re_sort, 1},
+    {"_z3r_cpp_char_sort", (DL_FUNC) &_z3r_cpp_char_sort, 1},
+    {"_z3r_cpp_sort_basis", (DL_FUNC) &_z3r_cpp_sort_basis, 1},
+    {"_z3r_cpp_seq_constant", (DL_FUNC) &_z3r_cpp_seq_constant, 2},
+    {"_z3r_cpp_char_val", (DL_FUNC) &_z3r_cpp_char_val, 2},
+    {"_z3r_cpp_seq_op", (DL_FUNC) &_z3r_cpp_seq_op, 3},
     {"_z3r_cpp_mk_solver", (DL_FUNC) &_z3r_cpp_mk_solver, 2},
     {"_z3r_cpp_mk_simple_solver", (DL_FUNC) &_z3r_cpp_mk_simple_solver, 1},
     {"_z3r_cpp_mk_solver_from_tactic", (DL_FUNC) &_z3r_cpp_mk_solver_from_tactic, 1},
@@ -1087,6 +3040,16 @@ static const R_CallMethodDef CallEntries[] = {
     {"_z3r_cpp_solver_param_help", (DL_FUNC) &_z3r_cpp_solver_param_help, 1},
     {"_z3r_cpp_solver_to_string", (DL_FUNC) &_z3r_cpp_solver_to_string, 1},
     {"_z3r_cpp_solver_from_string", (DL_FUNC) &_z3r_cpp_solver_from_string, 2},
+    {"_z3r_cpp_solver_proof", (DL_FUNC) &_z3r_cpp_solver_proof, 1},
+    {"_z3r_cpp_solver_consequences", (DL_FUNC) &_z3r_cpp_solver_consequences, 3},
+    {"_z3r_cpp_solver_cube", (DL_FUNC) &_z3r_cpp_solver_cube, 3},
+    {"_z3r_cpp_solver_literals", (DL_FUNC) &_z3r_cpp_solver_literals, 2},
+    {"_z3r_cpp_solver_help", (DL_FUNC) &_z3r_cpp_solver_help, 1},
+    {"_z3r_cpp_solver_to_dimacs", (DL_FUNC) &_z3r_cpp_solver_to_dimacs, 2},
+    {"_z3r_cpp_solver_translate", (DL_FUNC) &_z3r_cpp_solver_translate, 2},
+    {"_z3r_cpp_solver_initial_value", (DL_FUNC) &_z3r_cpp_solver_initial_value, 3},
+    {"_z3r_cpp_solver_congruence", (DL_FUNC) &_z3r_cpp_solver_congruence, 4},
+    {"_z3r_cpp_solver_solve_for", (DL_FUNC) &_z3r_cpp_solver_solve_for, 2},
     {"_z3r_cpp_int_sort", (DL_FUNC) &_z3r_cpp_int_sort, 1},
     {"_z3r_cpp_real_sort", (DL_FUNC) &_z3r_cpp_real_sort, 1},
     {"_z3r_cpp_bool_sort", (DL_FUNC) &_z3r_cpp_bool_sort, 1},
@@ -1100,6 +3063,32 @@ static const R_CallMethodDef CallEntries[] = {
     {"_z3r_cpp_bv_width", (DL_FUNC) &_z3r_cpp_bv_width, 1},
     {"_z3r_cpp_array_sort_parts", (DL_FUNC) &_z3r_cpp_array_sort_parts, 1},
     {"_z3r_cpp_sort_equal", (DL_FUNC) &_z3r_cpp_sort_equal, 2},
+    {"_z3r_cpp_mk_probe", (DL_FUNC) &_z3r_cpp_mk_probe, 2},
+    {"_z3r_cpp_probe_const", (DL_FUNC) &_z3r_cpp_probe_const, 2},
+    {"_z3r_cpp_probe_combine", (DL_FUNC) &_z3r_cpp_probe_combine, 3},
+    {"_z3r_cpp_probe_apply", (DL_FUNC) &_z3r_cpp_probe_apply, 2},
+    {"_z3r_cpp_probe_names", (DL_FUNC) &_z3r_cpp_probe_names, 1},
+    {"_z3r_cpp_tactic_basic", (DL_FUNC) &_z3r_cpp_tactic_basic, 2},
+    {"_z3r_cpp_tactic_probe", (DL_FUNC) &_z3r_cpp_tactic_probe, 4},
+    {"_z3r_cpp_tactic_par", (DL_FUNC) &_z3r_cpp_tactic_par, 2},
+    {"_z3r_cpp_tactic_using_params", (DL_FUNC) &_z3r_cpp_tactic_using_params, 2},
+    {"_z3r_cpp_tactic_help", (DL_FUNC) &_z3r_cpp_tactic_help, 1},
+    {"_z3r_cpp_tactic_param_help", (DL_FUNC) &_z3r_cpp_tactic_param_help, 1},
+    {"_z3r_cpp_goal_info", (DL_FUNC) &_z3r_cpp_goal_info, 1},
+    {"_z3r_cpp_goal_reset", (DL_FUNC) &_z3r_cpp_goal_reset, 1},
+    {"_z3r_cpp_goal_translate", (DL_FUNC) &_z3r_cpp_goal_translate, 2},
+    {"_z3r_cpp_goal_convert_model", (DL_FUNC) &_z3r_cpp_goal_convert_model, 2},
+    {"_z3r_cpp_goal_to_dimacs", (DL_FUNC) &_z3r_cpp_goal_to_dimacs, 2},
+    {"_z3r_cpp_mk_simplifier", (DL_FUNC) &_z3r_cpp_mk_simplifier, 2},
+    {"_z3r_cpp_simplifier_then", (DL_FUNC) &_z3r_cpp_simplifier_then, 2},
+    {"_z3r_cpp_simplifier_using_params", (DL_FUNC) &_z3r_cpp_simplifier_using_params, 2},
+    {"_z3r_cpp_simplifier_help", (DL_FUNC) &_z3r_cpp_simplifier_help, 1},
+    {"_z3r_cpp_simplifier_names", (DL_FUNC) &_z3r_cpp_simplifier_names, 1},
+    {"_z3r_cpp_solver_add_simplifier", (DL_FUNC) &_z3r_cpp_solver_add_simplifier, 2},
+    {"_z3r_cpp_v5_sort", (DL_FUNC) &_z3r_cpp_v5_sort, 3},
+    {"_z3r_cpp_v5_sort_info", (DL_FUNC) &_z3r_cpp_v5_sort_info, 1},
+    {"_z3r_cpp_v5_op", (DL_FUNC) &_z3r_cpp_v5_op, 2},
+    {"_z3r_cpp_fs_empty", (DL_FUNC) &_z3r_cpp_fs_empty, 1},
     {NULL, NULL, 0}
 };
 

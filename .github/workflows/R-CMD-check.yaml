@@ -19,27 +19,28 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Principal matrix: Z3 4.16.0
+          # Principal matrix: the latest Z3 release
+          - {os: ubuntu-24.04, r: release, z3: "5.4.1", asset: z3-5.4.1-x64-glibc-2.39.zip,
+             sha: b548bac48ef2452b4e09ea2945cf4b011d5f43fcf39e4799df268ee7e0769d85}
+          - {os: macos-15, r: release, z3: "5.4.1", asset: z3-5.4.1-arm64-osx-13.3.zip,
+             sha: a4a878121e81dfc297d027dd0b51dc4f08feb4296d6ecace42bfbc87a29d6d58}
+          - {os: windows-latest, r: release, z3: "5.4.1", asset: z3-5.4.1-x64-win.zip,
+             sha: f16e991e1c883b0cee30c78eb445343e1a3f49c142aa7dead7d6c35f9cc44934}
+          # Previous major series
           - {os: ubuntu-24.04, r: release, z3: "4.16.0", asset: z3-4.16.0-x64-glibc-2.39.zip,
              sha: 7288c49a5bd6dbafd7b0b0d1f65956b91672da24b08f09242919af159be3418e}
-          - {os: macos-15, r: release, z3: "4.16.0", asset: z3-4.16.0-arm64-osx-15.7.3.zip,
-             sha: 41828fa07d5cb77bfaee326e8e6dac074f26329c09c633f9e66012bb917cf8ae}
           - {os: windows-latest, r: release, z3: "4.16.0", asset: z3-4.16.0-x64-win.zip,
              sha: de4d813e47202394a093547dbdb5699ee076529aa853463e007539775cd7e836}
-          # Distribution package (libz3-dev from Ubuntu)
+          # Oldest supported release
+          - {os: ubuntu-22.04, r: release, z3: "4.8.13", asset: z3-4.8.13-x64-glibc-2.31.zip,
+             sha: 32d4b88604c04cd44f44335e9ce9fa309d29b5c766e98e7b32d630c7ed2f6021}
+          # Distribution package (libz3-dev from Ubuntu) and older R
           - {os: ubuntu-24.04, r: release, z3: system}
-          # Older R
           - {os: ubuntu-24.04, r: oldrel-1, z3: system}
-          # Development matrix: newer Z3 major release
-          - {os: ubuntu-24.04, r: release, z3: "5.3.3", asset: z3-5.3.3-x64-glibc-2.39.zip,
-             sha: d56f60b06f432f33de5810f7f1a384a339131f361e2d54d08ea83eea14326880}
-          - {os: windows-latest, r: release, z3: "5.3.3", asset: z3-5.3.3-x64-win.zip,
-             sha: 4e48624a6895b49606b3cf91ca4fbcc069fb2973b9706532170a144baa3fd798}
     env:
-      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Install Z3 from Ubuntu
         if: matrix.z3 == 'system'
@@ -60,19 +61,21 @@ jobs:
           echo "Z3_LIB_DIR=$Z3_DIR/bin" >> "$GITHUB_ENV"
           echo "$Z3_DIR/bin" >> "$GITHUB_PATH"
 
-      - uses: r-lib/actions/setup-pandoc@v2
+      - uses: r-lib/actions/setup-pandoc@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2
 
-      - uses: r-lib/actions/setup-r@v2
+      - uses: r-lib/actions/setup-r@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2
         with:
           r-version: ${{ matrix.r }}
           use-public-rspm: true
 
-      - uses: r-lib/actions/setup-r-dependencies@v2
+      - uses: r-lib/actions/setup-r-dependencies@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2
+        env:
+          GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
         with:
           extra-packages: any::rcmdcheck
           needs: check
 
-      - uses: r-lib/actions/check-r-package@v2
+      - uses: r-lib/actions/check-r-package@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2
         with:
           upload-snapshots: true
           build_args: 'c("--no-manual", "--compact-vignettes=gs+qpdf")'

@@ -5,9 +5,25 @@
 \alias{z3_exists}
 \title{Quantifiers}
 \usage{
-z3_forall(vars, body, patterns = list())
+z3_forall(
+  vars,
+  body,
+  patterns = list(),
+  no_patterns = list(),
+  weight = 0,
+  qid = "",
+  skid = ""
+)
 
-z3_exists(vars, body, patterns = list())
+z3_exists(
+  vars,
+  body,
+  patterns = list(),
+  no_patterns = list(),
+  weight = 0,
+  qid = "",
+  skid = ""
+)
 }
 \arguments{
 \item{vars}{A constant or a list of constants to bind.}
@@ -16,6 +32,15 @@ z3_exists(vars, body, patterns = list())
 
 \item{patterns}{Optional list of patterns; each pattern is a list of
 terms.}
+
+\item{no_patterns}{Optional list of terms that must not be used as
+patterns.}
+
+\item{weight}{Instantiation weight; higher weights make the quantifier
+less eagerly instantiated.}
+
+\item{qid, skid}{Optional quantifier identifier (shown in statistics and
+traces) and prefix for Skolem constants.}
 }
 \value{
 A Boolean \code{z3_expr}.

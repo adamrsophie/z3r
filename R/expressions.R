@@ -212,6 +212,8 @@ as.character.z3_expr <- function(x, ...) format(x)
 #' | Int, Real, bit-vector | a double when exactly representable; otherwise a `gmp::bigz` or `gmp::bigq` if gmp is installed, or else a character string holding the exact value (`"1/3"`) |
 #' | algebraic number | error when `exact = TRUE`; a nearby double when `exact = FALSE` |
 #' | String | a UTF-8 character string |
+#' | floating point | a double (`NaN`, `Inf`, `-0` included); formats wider than double precision only when the value fits exactly, or rounded when `exact = FALSE` |
+#' | rounding mode | its name, such as `"roundNearestTiesToEven"` |
 #'
 #' A double is "exactly representable" when its numerator has absolute
 #' value at most 2^53 and its denominator is a power of two; for example
@@ -243,6 +245,11 @@ z3_value <- function(x, exact = TRUE, signed = FALSE) {
     bool = info$value,
     string = info$value,
     int = , real = , bv = number_value(info, exact),
+    fp = if (info$exact_double || !exact) info$value else stop(sprintf(
+      "the floating point value %s is not exactly representable as a double; use exact = FALSE to round it",
+      info$text
+    ), call. = FALSE),
+    rm = info$value,
     algebraic = if (exact) {
       stop(sprintf(
         "%s is an irrational algebraic number with no exact R representation; use exact = FALSE for a double or z3_decimal() for digits",
@@ -317,15 +324,23 @@ as.logical.z3_expr <- function(x, ...) {
 #' Applies Z3's algebraic simplifier. The result is equivalent to the input
 #' but not necessarily simpler in every case.
 #'
+#' Named parameters select options of Z3's simplifier, listed by
+#' [z3_simplify_help()].
+#'
 #' @param x A `z3_expr`.
+#' @param ... Simplifier parameters.
 #' @return A `z3_expr`.
 #' @examples
 #' ctx <- z3_context()
 #' x <- z3_int(ctx, "x")
 #' z3_simplify(x + 2 * x - 3 + 3)
 #' z3_simplify(z3_int_val(ctx, 7) %/% -2)
+#' z3_simplify((x + 1) * (x + 1), som = TRUE)
 #' @export
-z3_simplify <- function(x) cpp_simplify(x)
+z3_simplify <- function(x, ...) {
+  if (...length() == 0L) return(cpp_simplify(x))
+  cpp_simplify_ex(x, params_list(...))
+}
 
 #' Structural equality of expressions
 #'
@@ -333,13 +348,24 @@ z3_simplify <- function(x) cpp_simplify(x)
 #' hash-consing). This is not logical equivalence: `x + 1` and `1 + x` are
 #' different terms. Use `==` to build a symbolic equation instead.
 #'
-#' @param x,y `z3_expr` objects.
+#' Sorts and function declarations are compared the same way.
+#'
+#' @param x,y `z3_expr`, `z3_sort` or `z3_func_decl` objects.
 #' @return `TRUE` or `FALSE`.
 #' @examples
 #' ctx <- z3_context()
 #' z3_identical(z3_int(ctx, "x"), z3_int(ctx, "x"))
+#' z3_identical(z3_int_sort(ctx), z3_sort(z3_int(ctx, "x")))
 #' @export
-z3_identical <- function(x, y) cpp_expr_equal(x, y)
+z3_identical <- function(x, y) {
+  if (inherits(x, "z3_function")) x <- z3_decl(x)
+  if (inherits(y, "z3_function")) y <- z3_decl(y)
+  if (inherits(x, c("z3_sort", "z3_func_decl"))) {
+    if (!identical(class(x), class(y))) return(FALSE)
+    return(cpp_decl_identity(x, y))
+  }
+  cpp_expr_equal(x, y)
+}
 
 #' Test for z3r objects
 #'
@@ -350,3 +376,9 @@ z3_identical <- function(x, y) cpp_expr_equal(x, y)
 #' is_z3_expr_value <- z3_is_expr(z3_int(ctx, "x"))
 #' @export
 z3_is_expr <- function(x) is_z3_expr(x)
+
+#' @rdname z3_decimal
+#' @details `z3_binary_string()` returns the binary digits of an integer
+#'   numeral.
+#' @export
+z3_binary_string <- function(x) cpp_binary_string(x)

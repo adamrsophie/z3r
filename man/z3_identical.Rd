@@ -7,7 +7,7 @@
 z3_identical(x, y)
 }
 \arguments{
-\item{x, y}{\code{z3_expr} objects.}
+\item{x, y}{\code{z3_expr}, \code{z3_sort} or \code{z3_func_decl} objects.}
 }
 \value{
 \code{TRUE} or \code{FALSE}.
@@ -17,7 +17,11 @@ Tests whether two expressions are the same term (after Z3's internal
 hash-consing). This is not logical equivalence: \code{x + 1} and \code{1 + x} are
 different terms. Use \code{==} to build a symbolic equation instead.
 }
+\details{
+Sorts and function declarations are compared the same way.
+}
 \examples{
 ctx <- z3_context()
 z3_identical(z3_int(ctx, "x"), z3_int(ctx, "x"))
+z3_identical(z3_int_sort(ctx), z3_sort(z3_int(ctx, "x")))
 }

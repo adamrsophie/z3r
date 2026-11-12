@@ -50,7 +50,10 @@ z3_string_sort <- function(ctx) cpp_string_sort(ctx)
 
 #' @rdname z3_sorts
 #' @export
-z3_array_sort <- function(domain, range) cpp_array_sort(domain, range)
+z3_array_sort <- function(domain, range) {
+  if (inherits(domain, "z3_sort")) return(cpp_array_sort(domain, range))
+  cpp_array_sort_n(as_list(domain), range)
+}
 
 #' @rdname z3_sorts
 #' @export

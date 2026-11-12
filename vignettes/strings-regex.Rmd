@@ -1,0 +1,151 @@
+---
+title: "Strings, sequences and regular expressions"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Strings, sequences and regular expressions}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+```{r}
+library(z3r)
+ctx <- z3_context()
+```
+
+Z3 strings are Unicode sequences. R character values convert to them
+exactly, escapes and all, and results come back as UTF-8.
+
+## String constraints
+
+```{r}
+s <- z3_string(ctx, "s")
+t <- z3_string(ctx, "t")
+sol <- z3_solver(ctx)
+z3_add(sol,
+  z3_concat(s, "-", t) == "alpha-beta",
+  z3_length(s) > z3_length(t) - 2,
+  z3_prefixof("al", s))
+z3_check(sol)
+m <- z3_model(sol)
+c(s = z3_value(z3_eval(m, s)), t = z3_value(z3_eval(m, t)))
+```
+
+Positions are 0-based, as in SMT-LIB:
+
+```{r}
+hello <- z3_string_val(ctx, "hello")
+val <- function(e) z3_value(z3_simplify(e))
+c(substr = val(z3_substr(hello, 1, 3)), at = val(z3_str_at(hello, 4)),
+  index = val(z3_indexof(hello, "l")), last = val(z3_last_indexof(hello, "l")),
+  replace = val(z3_replace(hello, "l", "L")))
+val(z3_str_to_int(z3_string_val(ctx, "1234")))
+val(z3_int_to_str(z3_int_val(ctx, 99)))
+```
+
+## Regular expressions
+
+Regular expressions are built from strings and combinators; a plain string
+is accepted wherever a regular expression is expected:
+
+```{r}
+digit <- z3_re_range("0", "9", ctx)
+lower <- z3_re_range("a", "z", ctx)
+id <- z3_re_concat(z3_re_plus(lower), "_", z3_re_loop(digit, 2, 4))
+sol <- z3_solver(ctx)
+z3_add(sol, z3_in_re(s, id), z3_length(s) == 8, z3_contains(s, "zz"))
+z3_check(sol)
+z3_value(z3_eval(z3_model(sol), s))
+```
+
+Regular expressions also prove properties. A character that is not a digit
+is "any character" intersected with the complement of the digits; no
+non-empty number is made only of such characters:
+
+```{r}
+any_char <- z3_re_allchar(z3_re_sort(z3_string_sort(ctx)))
+non_digit <- z3_re_intersect(any_char, z3_re_complement(digit))
+sol <- z3_solver(ctx)
+z3_add(sol, z3_in_re(s, z3_re_plus(digit)), z3_in_re(s, z3_re_star(non_digit)))
+z3_check(sol)
+```
+
+Note that `z3_re_complement(digit)` alone is every string except the
+one-character digit strings, including `"12"`; the intersection with
+`any_char` restricts it to single characters.
+
+## A password policy
+
+A policy written as a regular expression: an uppercase letter, four to six
+lowercase letters, two or three digits, and `!` or `?`.
+
+```{r}
+pw <- z3_string(ctx, "pw")
+upper <- z3_re_range("A", "Z", ctx)
+policy <- z3_re_concat(upper, z3_re_loop(lower, 4, 6), z3_re_loop(digit, 2, 3),
+                       z3_re_union(z3_string_val(ctx, "!"), "?"))
+sol <- z3_solver(ctx)
+z3_add(sol, z3_in_re(pw, policy), z3_length(pw) == 9,
+       z3_prefixof("R", pw), z3_suffixof("!", pw))
+z3_check(sol)
+z3_value(z3_eval(z3_model(sol), pw))
+```
+
+The policy cannot produce a 14-character password:
+
+```{r}
+sol <- z3_solver(ctx)
+z3_add(sol, z3_in_re(pw, policy), z3_length(pw) == 14)
+z3_check(sol)
+```
+
+## Characters
+
+```{r, eval = z3_version_at_least("4.8.15")}
+lambda <- z3_char_val(ctx, 955)
+lambda
+z3_value(z3_simplify(z3_char_to_int(lambda)))
+z3_value(z3_simplify(z3_str_from_code(z3_int_val(ctx, 955))))
+z3_value(z3_simplify(z3_char_is_digit(z3_char_val(ctx, 55))))
+```
+
+## Sequences of any sort
+
+The same operations work on sequences of integers, Booleans, or any other
+sort:
+
+```{r}
+I <- z3_int_sort(ctx)
+q <- z3_const(ctx, "q", z3_seq_sort(I))
+u <- function(v) z3_seq_unit(z3_int_val(ctx, v))
+sol <- z3_solver(ctx)
+z3_add(sol, z3_length(q) == 4, z3_seq_nth(q, 0) == 9,
+       z3_contains(q, z3_concat(u(1), u(2))), z3_suffixof(u(5), q))
+z3_check(sol)
+z3_eval(z3_model(sol), q)
+```
+
+Newer Z3 releases add higher-order sequence functions, whose function
+argument is a lambda:
+
+```{r, eval = z3_version_at_least("4.13.2")}
+x <- z3_int(ctx, "x")
+z3_simplify(z3_seq_map(z3_lambda(x, x * 10), z3_concat(u(1), u(2), u(3))))
+acc <- z3_int(ctx, "acc")
+r <- z3_int(ctx, "r")
+sol <- z3_solver(ctx)
+z3_add(sol, r == z3_seq_foldl(z3_lambda(list(acc, x), acc + x), 0, z3_concat(u(4), u(5), u(6))))
+z3_check(sol)
+z3_eval(z3_model(sol), r)
+```
+
+```{r, eval = z3_version_at_least("4.15.5")}
+z3_value(z3_simplify(z3_replace_all(z3_string_val(ctx, "a-b-c"), "-", "+")))
+```
+
+String solving is decidable only for fragments; with lengths, conversions
+to integers and regular expressions together, `"unknown"` answers are
+possible.

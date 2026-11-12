@@ -7,14 +7,18 @@ Authors@R:
 Description: An interface to the 'Z3' satisfiability modulo theories (SMT)
     solver <https://github.com/Z3Prover/z3> built directly on its native C
     API. Provides typed symbolic expressions over integers, exact rationals,
-    Booleans, bit-vectors, arrays, strings and uninterpreted functions,
-    natural R operator syntax, incremental solving, assumptions and
-    unsatisfiable cores, optimization, quantifiers, tactics, and 'SMT-LIB2'
-    import and export. Exact values are never silently rounded to double
-    precision. This is an independent third-party package; it is not an
-    official 'Z3' or Microsoft product.
+    Booleans, bit-vectors, IEEE floating point, arrays, sets, strings,
+    sequences, regular expressions, algebraic datatypes and uninterpreted
+    functions, with natural R operator syntax; solvers with incremental
+    solving, assumptions, unsatisfiable cores and proofs; optimization with
+    objectives and weighted soft constraints; quantifiers, recursive
+    functions, tactics, probes and simplifiers; constrained Horn clauses;
+    real closed fields and algebraic numbers; user propagators; and
+    'SMT-LIB2' import and export. Exact values are never silently rounded to
+    double precision. This is an independent third-party package; it is not
+    an official 'Z3' or Microsoft product.
 License: GPL-3
-URL: https://github.com/adamrsophie/z3r
+URL: https://adamrsophie.github.io/z3r/, https://github.com/adamrsophie/z3r
 BugReports: https://github.com/adamrsophie/z3r/issues
 Encoding: UTF-8
 Language: en-US
@@ -26,11 +30,14 @@ LinkingTo:
     Rcpp
 Suggests:
     gmp,
+    symcompR,
     knitr,
     rmarkdown,
     testthat (>= 3.0.0)
 VignetteBuilder: knitr
-SystemRequirements: Z3 (>= 4.8.12) C library and headers: libz3-dev
+Remotes:
+    adamrsophie/symcompR
+SystemRequirements: Z3 (>= 4.8.13) C library and headers: libz3-dev
     (Debian, Ubuntu), z3-devel (Fedora), z3 (Homebrew), or an official Z3
     release archive
 Config/testthat/edition: 3

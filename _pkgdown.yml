@@ -1,29 +1,83 @@
 url: https://adamrsophie.github.io/z3r/
+
 template:
   bootstrap: 5
+  bslib:
+    primary: "#12233F"
+    navbar-bg: "#12233F"
+    link-color: "#1F8A7E"
+    base_font: {google: "Inter"}
+    heading_font: {google: "Space Grotesk"}
+    code_font: {google: "JetBrains Mono"}
+
+home:
+  title: "z3r: Native R Interface to the Z3 Theorem Prover"
+  description: >
+    SMT solving, optimization and every Z3 theory from R, through Z3's C API.
+
+navbar:
+  structure:
+    left: [intro, reference, articles, news]
+    right: [search, github]
+
+articles:
+- title: Getting started
+  navbar: ~
+  contents:
+  - z3r
+  - numbers
+  - solving
+  - optimization
+- title: Theories
+  navbar: Theories
+  contents:
+  - logic
+  - bitvectors
+  - floating-point
+  - arrays-sets
+  - strings-regex
+  - datatypes
+  - functions-quantifiers
+  - z3-5-theories
+- title: Advanced
+  navbar: Advanced
+  contents:
+  - tactics
+  - horn
+  - algebraic
+  - smtlib-inspection
+  - propagators
+  - symcompr
 
 reference:
-- title: Contexts and sorts
+- title: Contexts and versions
   contents:
   - z3_context
   - z3_version
   - z3_context_of
+  - z3_translate
+  - z3_global_param_set
+  - z3_set_print_mode
+  - z3_memory_usage
+- title: Sorts
+  contents:
   - z3_sorts
   - z3_sort
-- title: Expressions and values
+  - z3_finite_domain_sort
+- title: Constants and values
   contents:
   - z3_const
   - z3_int_val
   - z3_value
   - z3_decimal
-  - z3_simplify
-  - z3_identical
   - z3_is_expr
 - title: Operators and functions
   contents:
   - z3_operators
   - z3_and
   - z3_sum
+  - z3_divides
+  - z3_atmost
 - title: Solving
   contents:
   - z3_solver
@@ -32,6 +86,7 @@ reference:
   - z3_model
   - z3_eval
   - as.list.z3_model
+  - z3_model_set
   - z3_push
   - z3_assertions
   - z3_assert_and_track
@@ -39,20 +94,63 @@ reference:
   - z3_reason_unknown
   - z3_set_params
   - z3_statistics
+  - z3_help
+  - z3_proof
+  - z3_congruence_root
+  - z3_solve_for
+  - z3_set_initial_value
+  - z3_implied_equalities
 - title: Optimization
   contents:
   - z3_optimize
   - z3_minimize
   - z3_add_soft
   - z3_optimum
-- title: Theories
+- title: Bit-vectors and floating point
   contents:
   - z3_bitvectors
+  - z3_fp
+- title: Arrays, sets and sequences
+  contents:
   - z3_array
+  - z3_set_sort
   - z3_strings
+  - z3_sequences
+- title: Datatypes, functions and quantifiers
+  contents:
+  - z3_datatype
   - z3_function
+  - z3_rec_function
   - z3_forall
-- title: Tactics and SMT-LIB2
+  - z3_linear_order
+- title: Theories of Z3 5
+  contents:
+  - z3_v5_theories
+- title: Tactics and simplifiers
   contents:
   - z3_tactic
+  - z3_probe
+  - z3_goal_info
+  - z3_simplifier
+- title: Horn clauses
+  contents:
+  - z3_fixedpoint
+- title: Algebraic numbers
+  contents:
+  - z3_algebraic
+  - z3_rcf
+- title: Expressions as data
+  contents:
+  - z3_inspect
+  - z3_substitute
+  - z3_update_args
+  - z3_simplify
+  - z3_simplify_help
+  - z3_identical
+  - z3_ast_id
   - z3_to_smtlib
+  - z3_parser
+  - z3_from_symbolic
+- title: Callbacks
+  contents:
+  - z3_propagator

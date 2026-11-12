@@ -287,10 +287,28 @@ z3_optimum({
 
 ## Where to go next
 
-* `vignette("theories", package = "z3r")` covers bit-vectors, arrays,
-  strings, uninterpreted functions, quantifiers, tactics and SMT-LIB2.
-* `?z3_operators` lists exactly which operators apply to which sorts.
-* `?z3_int_val` documents numeric conversion.
-* The [Z3 guide](https://microsoft.github.io/z3guide/) explains the
-  underlying theories in depth; every example there can be run through
-  `z3_eval_smtlib()`.
+Each part of z3r has its own article:
+
+| Article | Covers |
+|---|---|
+| `vignette("numbers")` | Sorts, exact numerals, conversion rules, operator semantics |
+| `vignette("solving")` | Models, incremental solving, cores, proofs, consequences, validity |
+| `vignette("optimization")` | Objectives, unbounded and unattained optima, MaxSAT, scheduling |
+| `vignette("logic")` | Propositional logic, puzzles (Sudoku, queens), pseudo-Boolean constraints |
+| `vignette("bitvectors")` | Machine integers, overflow, proving bit tricks correct |
+| `vignette("floating-point")` | IEEE 754 arithmetic, rounding, finding numerical surprises |
+| `vignette("arrays-sets")` | Arrays, lambdas, sets |
+| `vignette("strings-regex")` | Strings, sequences, regular expressions, characters |
+| `vignette("datatypes")` | Enumerations, records, lists, trees, polymorphic datatypes |
+| `vignette("functions-quantifiers")` | Uninterpreted and recursive functions, quantifiers, relations |
+| `vignette("tactics")` | Goals, tactics, probes, simplifiers |
+| `vignette("horn")` | Constrained Horn clauses, program verification, Datalog |
+| `vignette("algebraic")` | Algebraic numbers, real closed fields, pi and infinitesimals |
+| `vignette("smtlib-inspection")` | SMT-LIB2, walking expressions, substitution, translation |
+| `vignette("propagators")` | User propagators and solver callbacks |
+| `vignette("z3-5-theories")` | Complex numbers, finite fields and finite sets of Z3 5 |
+| `vignette("symcompr")` | Exchanging expressions with the symcompR computer algebra system |
+
+The [Z3 guide](https://microsoft.github.io/z3guide/) explains the underlying
+theories in depth; every SMT-LIB2 example there runs from R through
+`z3_eval_smtlib()`.

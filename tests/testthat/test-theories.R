@@ -9,8 +9,8 @@ test_that("arrays: select, store and extensionality", {
   expect_identical(z3_value(z3_simplify(z3_select(z3_const_array(I, 7), 99))), 7)
   r <- z3_array(ctx, "r", I, z3_real_sort(ctx))
   expect_identical(z3_sort_kind(z3_store(r, 1, 2)), "array")
-  expect_error(z3_select(a, z3_bool(ctx, "p")), "domain")
-  expect_error(z3_store(a, 1, TRUE), "range")
+  expect_error(z3_select(a, z3_bool(ctx, "p")), "index has sort Bool")
+  expect_error(z3_store(a, 1, TRUE), "stored value has sort Bool")
   expect_error(z3_select(i, 1), "needs an array")
 })
 

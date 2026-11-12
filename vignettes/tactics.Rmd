@@ -1,0 +1,119 @@
+---
+title: "Tactics, goals, probes and simplifiers"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Tactics, goals, probes and simplifiers}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+```{r}
+library(z3r)
+ctx <- z3_context()
+x <- z3_int(ctx, "x")
+y <- z3_int(ctx, "y")
+```
+
+A *goal* is a set of formulas. A *tactic* turns a goal into subgoals that
+together are equivalent to it: simplifying, eliminating variables, splitting
+cases or solving. Tactics are how Z3 builds its solvers; z3r exposes them to
+inspect preprocessing, build custom strategies, or use Z3 as a formula
+transformer.
+
+## Applying tactics
+
+```{r}
+g <- z3_goal(ctx)
+z3_add(g, x == y + 1, y > 2, x < 10)
+g
+t <- z3_tactic_then(z3_tactic(ctx, "simplify"), z3_tactic(ctx, "solve-eqs"))
+sub <- z3_apply_tactic(t, g)
+sub[[1]]
+```
+
+`solve-eqs` eliminated `x`. `z3_goal_convert_model()` maps a model of the
+subgoal back to the original variables:
+
+```{r}
+s <- z3_solver(ctx)
+z3_add(s, z3_goal_formulas(sub[[1]]))
+z3_check(s)
+m <- z3_goal_convert_model(sub[[1]], z3_model(s))
+z3_eval(m, x)
+```
+
+The available tactics:
+
+```{r}
+tl <- z3_tactics(ctx)
+nrow(tl)
+head(tl[tl$name %in% c("simplify", "solve-eqs", "ctx-simplify", "nla2bv", "bit-blast", "smt"), ])
+```
+
+## Combinators
+
+```{r}
+fast <- z3_tactic_try_for(z3_tactic(ctx, "smt"), 1000)
+robust <- z3_tactic_or_else(fast, z3_tactic(ctx, "skip"))
+repeated <- z3_tactic_repeat(z3_tactic(ctx, "simplify"), 3)
+parallel <- z3_tactic_par_or(z3_tactic(ctx, "smt"), z3_tactic(ctx, "qfnra-nlsat"))
+tuned <- z3_tactic_with(z3_tactic(ctx, "simplify"), som = TRUE)
+g2 <- z3_goal(ctx)
+z3_add(g2, (x + 1) * (x + 1) > 0)
+z3_goal_formulas(z3_apply_tactic(tuned, g2)[[1]])
+```
+
+## Probes
+
+A probe measures a goal. Probes compare and combine with R operators and
+drive conditional tactics:
+
+```{r}
+z3_probe_apply(z3_probe(ctx, "num-consts"), g)
+z3_probe_apply(z3_probe(ctx, "is-qflia"), g)
+small <- z3_probe(ctx, "size") < 10
+strategy <- z3_tactic_cond(small, z3_tactic(ctx, "smt"), z3_tactic(ctx, "simplify"))
+z3_goal_status(z3_apply_tactic(strategy, g)[[1]])
+head(z3_probes(ctx))
+```
+
+## Solvers from tactics
+
+```{r}
+s <- z3_solver_from_tactic(z3_tactic_then(z3_tactic(ctx, "simplify"), z3_tactic(ctx, "smt")))
+z3_add(s, x * 2 + y == 7, x > y)
+z3_check(s)
+z3_model(s)
+```
+
+## Simplifiers
+
+Tactics are not incremental. Simplifiers (Z3 4.12.2 and later) are
+preprocessing steps that are, so they can be attached to a solver used with
+push and pop:
+
+```{r, eval = z3_version_at_least("4.12.2")}
+simp <- z3_simplifier_then(z3_simplifier(ctx, "solve-eqs"), z3_simplifier(ctx, "elim-unconstrained"))
+s <- z3_solver_add_simplifier(z3_solver(ctx), simp)
+z3_add(s, x == y + 2, y > 3)
+z3_check(s)
+z3_push(s)
+z3_add(s, x < 6)
+z3_check(s)
+z3_pop(s)
+head(z3_simplifiers(ctx))
+```
+
+## Goal facts and DIMACS
+
+```{r}
+z3_goal_info(g)
+p <- z3_bools(ctx, c("a", "b", "c"))
+gb <- z3_goal(ctx)
+z3_add(gb, p$a | p$b, !p$a | p$c, !p$c)
+cat(z3_to_dimacs(gb))
+```

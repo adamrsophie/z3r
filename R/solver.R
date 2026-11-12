@@ -9,6 +9,9 @@
 #'   free linear integer arithmetic). A logic lets Z3 pick a specialized
 #'   strategy; constraints outside the logic may then fail or return
 #'   `"unknown"`.
+#' @param simple If `TRUE`, create Z3's simple solver: an incremental SMT
+#'   solver without the tactic-based preprocessing of the default solver.
+#'   Some features, such as [z3_trail()], need it.
 #' @param ... Solver parameters, passed to [z3_set_params()].
 #' @return An object of class `z3_solver`.
 #' @examples
@@ -20,8 +23,11 @@
 #' z3_check(s)
 #' z3_model(s)
 #' @export
-z3_solver <- function(ctx, logic = NULL, ...) {
-  s <- cpp_mk_solver(ctx, logic)
+z3_solver <- function(ctx, logic = NULL, simple = FALSE, ...) {
+  if (isTRUE(simple) && !is.null(logic)) {
+    stop("a simple solver cannot also be specialized to a logic", call. = FALSE)
+  }
+  s <- if (isTRUE(simple)) cpp_mk_simple_solver(ctx) else cpp_mk_solver(ctx, logic)
   if (...length() > 0L) z3_set_params(s, ...)
   s
 }
@@ -333,4 +339,189 @@ params_list <- function(...) {
     stop("all parameters must be named", call. = FALSE)
   }
   p
+}
+
+#' Proofs, consequences and cubes
+#'
+#' * `z3_proof()` returns Z3's proof of unsatisfiability after a check
+#'   returned `"unsat"`. The context must have been created with
+#'   `z3_context(proof = TRUE)`.
+#' * `z3_consequences()` computes, for each variable, a literal that is
+#'   implied by the assertions together with a subset of the assumptions,
+#'   as `implies(and(assumptions), literal)` formulas. It is a check: it
+#'   returns the status and updates the solver's last result.
+#' * `z3_cube()` returns the next cube (a conjunction of literals as a list)
+#'   for cube-and-conquer search over `vars`; an empty list means the search
+#'   space is exhausted, and a list holding only `FALSE` means unsat.
+#' * `z3_units()`, `z3_non_units()` and `z3_trail()` expose literals the
+#'   solver has derived; `z3_trail()` also returns decision levels.
+#'
+#' @param x A `z3_solver`.
+#' @param assumptions,variables,vars Lists of expressions.
+#' @param backtrack_level Backtracking level for cube generation.
+#' @return See Details.
+#' @examples
+#' ctx <- z3_context(proof = TRUE)
+#' p <- z3_bool(ctx, "p")
+#' q <- z3_bool(ctx, "q")
+#' s <- z3_solver(ctx)
+#' z3_add(s, z3_implies(p, q), p, !q)
+#' z3_check(s)
+#' z3_proof(s)
+#' s2 <- z3_solver(ctx)
+#' z3_add(s2, z3_implies(p, q))
+#' z3_consequences(s2, list(p), list(q))
+#' @export
+z3_proof <- function(x) cpp_solver_proof(x)
+
+#' @rdname z3_proof
+#' @export
+z3_consequences <- function(x, assumptions, variables) {
+  cpp_solver_consequences(x, as_list(assumptions), as_list(variables))
+}
+
+#' @rdname z3_proof
+#' @export
+z3_cube <- function(x, vars = list(), backtrack_level = 4294967295) {
+  if (!is.numeric(backtrack_level) || length(backtrack_level) != 1L ||
+      backtrack_level < 0 || backtrack_level > 4294967295) {
+    stop("backtrack_level must be a non-negative whole number", call. = FALSE)
+  }
+  # Z3 uses UINT_MAX to mean "no backtracking limit"; pass it as a double
+  # through an int-sized value.
+  lvl <- if (backtrack_level > .Machine$integer.max) -1L else as.integer(backtrack_level)
+  cpp_solver_cube(x, as_list(vars), lvl)
+}
+
+#' @rdname z3_proof
+#' @export
+z3_units <- function(x) cpp_solver_literals(x, "units")
+
+#' @rdname z3_proof
+#' @export
+z3_non_units <- function(x) cpp_solver_literals(x, "non_units")
+
+#' @rdname z3_proof
+#' @export
+z3_trail <- function(x) cpp_solver_literals(x, "trail")
+
+#' Congruence classes
+#'
+#' After a satisfiable check, terms that the solver found equal belong to
+#' one congruence class. `z3_congruence_root()` returns a class
+#' representative and `z3_congruence_next()` the next member of the class,
+#' cycling back to the start. `z3_congruence_explain()` returns the
+#' explanation of why two terms are equal. Root and next need Z3 4.12.0;
+#' explain needs 4.14.0. Only some solver configurations track classes.
+#'
+#' @param x A `z3_solver`.
+#' @param a,b Expressions.
+#' @return A `z3_expr`.
+#' @examples
+#' ctx <- z3_context()
+#' a <- z3_int(ctx, "a")
+#' b <- z3_int(ctx, "b")
+#' s <- z3_solver(ctx)
+#' z3_add(s, a == b)
+#' z3_check(s)
+#' z3_congruence_root(s, a)
+#' @export
+z3_congruence_root <- function(x, a) cpp_solver_congruence(x, "root", a, NULL)
+
+#' @rdname z3_congruence_root
+#' @export
+z3_congruence_next <- function(x, a) cpp_solver_congruence(x, "next", a, NULL)
+
+#' @rdname z3_congruence_root
+#' @export
+z3_congruence_explain <- function(x, a, b) cpp_solver_congruence(x, "explain", a, b)
+
+#' Solve for variables
+#'
+#' Asks the solver to express each variable as a term over the others,
+#' valid under the returned guards. Needs Z3 4.14.0 or later.
+#'
+#' @param x A `z3_solver`.
+#' @param vars A list of constants.
+#' @return A list with elements `terms` and `guards`, lists of `z3_expr`.
+#' @examples
+#' ctx <- z3_context()
+#' x <- z3_int(ctx, "x")
+#' y <- z3_int(ctx, "y")
+#' s <- z3_solver(ctx)
+#' z3_add(s, x + 2 * y == 10)
+#' z3_solve_for(s, list(x))
+#' @export
+z3_solve_for <- function(x, vars) cpp_solver_solve_for(x, as_list(vars))
+
+#' Initial values (phase hints)
+#'
+#' Suggests a value for a variable that the solver tries first. It does not
+#' constrain the result. Needs Z3 4.13.2 or later. Z3 supports it on the
+#' plain SMT solver (`z3_solver(ctx, simple = TRUE)`) and on optimizers,
+#' not on the default tactic-based solver.
+#'
+#' @param x A `z3_solver` or `z3_optimize`.
+#' @param var A constant.
+#' @param value Its suggested value.
+#' @return `x`, invisibly.
+#' @examples
+#' ctx <- z3_context()
+#' x <- z3_int(ctx, "x")
+#' s <- z3_solver(ctx, simple = TRUE)
+#' z3_add(s, x > 0)
+#' z3_set_initial_value(s, x, 42)
+#' z3_check(s)
+#' @export
+z3_set_initial_value <- function(x, var, value) {
+  if (inherits(x, "z3_solver")) cpp_solver_initial_value(x, var, value)
+  else if (inherits(x, "z3_optimize")) cpp_optimize_initial_value(x, var, value)
+  else stop("x must be a z3_solver or z3_optimize", call. = FALSE)
+  invisible(x)
+}
+
+#' Help text and DIMACS export
+#'
+#' `z3_help()` returns Z3's description of the parameters of a solver,
+#' optimizer, tactic or simplifier. `z3_to_dimacs()` writes the assertions
+#' of a propositional solver or goal in DIMACS CNF.
+#'
+#' @param x A `z3_solver`, `z3_optimize`, `z3_tactic`, `z3_simplifier` or
+#'   (for DIMACS) `z3_goal`.
+#' @param include_names Whether to include variable names as comments.
+#' @return A string.
+#' @examples
+#' ctx <- z3_context()
+#' s <- z3_solver(ctx)
+#' substr(z3_help(s), 1, 60)
+#' p <- z3_bools(ctx, c("a", "b"))
+#' z3_add(s, p$a | p$b, !p$a)
+#' cat(z3_to_dimacs(s))
+#' @export
+z3_help <- function(x) {
+  if (inherits(x, "z3_solver")) return(cpp_solver_help(x))
+  if (inherits(x, "z3_optimize")) return(cpp_optimize_help(x))
+  if (inherits(x, "z3_tactic")) return(cpp_tactic_help(x))
+  if (inherits(x, "z3_simplifier")) return(cpp_simplifier_help(x))
+  stop("x must be a solver, optimizer, tactic or simplifier", call. = FALSE)
+}
+
+#' @rdname z3_help
+#' @export
+z3_to_dimacs <- function(x, include_names = TRUE) {
+  if (inherits(x, "z3_solver")) return(cpp_solver_to_dimacs(x, isTRUE(include_names)))
+  if (inherits(x, "z3_goal")) return(cpp_goal_to_dimacs(x, isTRUE(include_names)))
+  stop("x must be a z3_solver or z3_goal", call. = FALSE)
+}
+
+#' @rdname z3_help
+#' @param src,dst `z3_solver` objects.
+#' @details `z3_import_model_converter(src, dst)` gives `dst` the model
+#'   converter of `src`, so that models of `dst` are translated the way
+#'   `src` would translate them (useful when `dst` solves a preprocessed
+#'   copy of `src`'s problem).
+#' @export
+z3_import_model_converter <- function(src, dst) {
+  cpp_solver_import_model_converter(src, dst)
+  invisible(dst)
 }
