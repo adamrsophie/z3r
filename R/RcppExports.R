@@ -277,6 +277,14 @@ cpp_set_proof_check <- function(ctx_, fns) {
     invisible(.Call(`_z3r_cpp_set_proof_check`, ctx_, fns))
 }
 
+cpp_fixedpoint_on_lemma <- function(f_, fns) {
+    invisible(.Call(`_z3r_cpp_fixedpoint_on_lemma`, f_, fns))
+}
+
+cpp_fixedpoint_external <- function(f_, fns) {
+    invisible(.Call(`_z3r_cpp_fixedpoint_external`, f_, fns))
+}
+
 cpp_version <- function() {
     .Call(`_z3r_cpp_version`)
 }

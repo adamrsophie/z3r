@@ -11,6 +11,7 @@
 // marked busy, so callbacks cannot reenter or change it.
 #include "z3r.h"
 
+#include <climits>
 #include <functional>
 
 using namespace z3r;
@@ -127,7 +128,7 @@ CallbackState* state(void* p) { return static_cast<CallbackState*>(p); }
 
 // ---- user propagator trampolines ----------------------------------------
 
-#if Z3R_AT_LEAST(4, 13, 0)
+#if Z3R_AT_LEAST(4, 12, 3)
 void Z3_API push_eh(void* p, Z3_solver_callback cb) {
   CallbackState* st = state(p);
   guarded(st, [&] {
@@ -332,7 +333,7 @@ void raise_callback_errors(std::vector<CallbackPtr>& cbs) {
 
 // [[Rcpp::export(rng = false)]]
 void cpp_propagate_init(SEXP s_, SEXP fns) {
-#if Z3R_AT_LEAST(4, 13, 0)
+#if Z3R_AT_LEAST(4, 12, 3)
   SolverHolder* h = solver_of(s_);
   const CtxPtr& ctx = h->s.ctx();
   Z3_context c = ctx->c;
@@ -360,30 +361,35 @@ void cpp_propagate_init(SEXP s_, SEXP fns) {
   check(ctx);
 #else
   (void)s_; (void)fns;
-  needs_version("user propagators", "4.13.0");
+  needs_version("user propagators", "4.12.3");
 #endif
 }
 
 // [[Rcpp::export(rng = false)]]
 void cpp_propagate_register(SEXP s_, SEXP e_) {
-#if Z3R_AT_LEAST(4, 13, 0)
+#if Z3R_AT_LEAST(4, 12, 3)
   SolverHolder* h = solver_of(s_);
   bool has_propagator = false;
   for (const CallbackPtr& cb : h->callbacks) has_propagator = has_propagator || has(cb->fns, "push");
   if (!has_propagator) fail("install a user propagator with z3_propagator() before registering terms");
   Ast e = lift(h->s.ctx(), e_, nullptr);
   ensure_solver_ready(h->s.c(), h->s);
-  Z3_solver_propagate_register(h->s.c(), h->s, e);
+  {
+    // Registration replays pending scopes, which runs push callbacks.
+    BusyGuard<SolverHolder> busy(h);
+    Z3_solver_propagate_register(h->s.c(), h->s, e);
+  }
+  raise_callback_errors(h->callbacks);
   check(h->s.ctx());
 #else
   (void)s_; (void)e_;
-  needs_version("user propagators", "4.13.0");
+  needs_version("user propagators", "4.12.3");
 #endif
 }
 
 // [[Rcpp::export(rng = false)]]
 SEXP cpp_propagate_declare(SEXP ctx_, SEXP name_, Rcpp::List domain, SEXP range_) {
-#if Z3R_AT_LEAST(4, 13, 0)
+#if Z3R_AT_LEAST(4, 12, 3)
   CtxPtr ctx = get_ctx(ctx_);
   std::string name = as_string(name_, "name");
   std::vector<Z3_sort> d;
@@ -402,7 +408,7 @@ SEXP cpp_propagate_declare(SEXP ctx_, SEXP name_, Rcpp::List domain, SEXP range_
   return wrap_decl(own_ast(ctx, decl_ast(f)));
 #else
   (void)ctx_; (void)name_; (void)domain; (void)range_;
-  needs_version("user propagators", "4.13.0");
+  needs_version("user propagators", "4.12.3");
 #endif
 }
 
@@ -410,7 +416,7 @@ SEXP cpp_propagate_declare(SEXP ctx_, SEXP name_, Rcpp::List domain, SEXP range_
 // FALSE) justified by fixed terms and equalities.
 // [[Rcpp::export(rng = false)]]
 bool cpp_cb_consequence(SEXP cb_, Rcpp::List fixed, Rcpp::List lhs, Rcpp::List rhs, SEXP conseq) {
-#if Z3R_AT_LEAST(4, 13, 0)
+#if Z3R_AT_LEAST(4, 12, 3)
   CbHolder* h = cb_handle(cb_);
   const CtxPtr& ctx = h->ctx;
   AstVec f = expr_list(ctx, fixed, "fixed terms");
@@ -427,26 +433,26 @@ bool cpp_cb_consequence(SEXP cb_, Rcpp::List fixed, Rcpp::List lhs, Rcpp::List r
   return ok;
 #else
   (void)cb_; (void)fixed; (void)lhs; (void)rhs; (void)conseq;
-  needs_version("user propagators", "4.13.0");
+  needs_version("user propagators", "4.12.3");
 #endif
 }
 
 // [[Rcpp::export(rng = false)]]
 void cpp_cb_register(SEXP cb_, SEXP e_) {
-#if Z3R_AT_LEAST(4, 13, 0)
+#if Z3R_AT_LEAST(4, 12, 3)
   CbHolder* h = cb_handle(cb_);
   Ast e = lift(h->ctx, e_, nullptr);
   Z3_solver_propagate_register_cb(h->ctx->c, h->cb, e);
   check(h->ctx);
 #else
   (void)cb_; (void)e_;
-  needs_version("user propagators", "4.13.0");
+  needs_version("user propagators", "4.12.3");
 #endif
 }
 
 // [[Rcpp::export(rng = false)]]
 bool cpp_cb_next_split(SEXP cb_, SEXP t_, int idx, int phase) {
-#if Z3R_AT_LEAST(4, 13, 0)
+#if Z3R_AT_LEAST(4, 12, 3)
   CbHolder* h = cb_handle(cb_);
   Ast t = lift(h->ctx, t_, nullptr);
   if (idx < 0) fail("idx must be non-negative");
@@ -456,13 +462,13 @@ bool cpp_cb_next_split(SEXP cb_, SEXP t_, int idx, int phase) {
   return ok;
 #else
   (void)cb_; (void)t_; (void)idx; (void)phase;
-  needs_version("user propagators", "4.13.0");
+  needs_version("user propagators", "4.12.3");
 #endif
 }
 
 // [[Rcpp::export(rng = false)]]
 void cpp_on_clause(SEXP s_, SEXP fns) {
-#if Z3R_AT_LEAST(4, 13, 0)
+#if Z3R_AT_LEAST(4, 12, 3)
   SolverHolder* h = solver_of(s_);
   CallbackPtr st = new_state(h->s.ctx(), fns, s_, h);
   h->callbacks.push_back(st);
@@ -470,7 +476,7 @@ void cpp_on_clause(SEXP s_, SEXP fns) {
   check(h->s.ctx());
 #else
   (void)s_; (void)fns;
-  needs_version("z3_on_clause()", "4.13.0");
+  needs_version("z3_on_clause()", "4.12.3");
 #endif
 }
 
@@ -528,3 +534,108 @@ void raise_proof_check_error(const CtxPtr& ctx) {
   raise_callback_errors(v);
 }
 }  // namespace z3r
+
+// ---------------------------------------------------------------------------
+// Fixedpoint callbacks: Spacer lemma export and external Datalog relations.
+
+namespace {
+
+void fp_lemma_eh(void* p, Z3_ast lemma, unsigned level) {
+  CallbackState* st = state(p);
+  guarded(st, [&] {
+    if (!st) return;
+    SEXP l = PROTECT(expr_arg(st->ctx, lemma));
+    // Infinite level (an inductive invariant) is reported as Inf.
+    SEXP lv = PROTECT(Rf_ScalarReal(level == UINT_MAX ? R_PosInf : static_cast<double>(level)));
+    invoke(st, "lemma", {l, lv});
+    UNPROTECT(2);
+  });
+}
+
+void fp_predecessor_eh(void* p) {
+  CallbackState* st = state(p);
+  guarded(st, [&] {
+    if (st) invoke(st, "predecessor", {});
+  });
+}
+
+void fp_unfold_eh(void* p) {
+  CallbackState* st = state(p);
+  guarded(st, [&] {
+    if (st) invoke(st, "unfold", {});
+  });
+}
+
+SEXP ast_args(const CtxPtr& ctx, unsigned n, Z3_ast const args[]) {
+  SEXP out = PROTECT(Rf_allocVector(VECSXP, n));
+  for (unsigned i = 0; i < n; ++i) SET_VECTOR_ELT(out, i, expr_arg(ctx, args[i]));
+  UNPROTECT(1);
+  return out;
+}
+
+// Reduces an application of a relational operator on external relations.
+// The R function returns a term of the operator's range sort, or NULL to
+// keep the application as it is.
+void fp_reduce_app_eh(void* p, Z3_func_decl f, unsigned n, Z3_ast const args[], Z3_ast* result) {
+  CallbackState* st = state(p);
+  *result = nullptr;
+  guarded(st, [&] {
+    if (!st) return;
+    SEXP d = PROTECT(wrap_decl(Ast(st->ctx, decl_ast(f))));
+    SEXP a = PROTECT(ast_args(st->ctx, n, args));
+    SEXP r = PROTECT(invoke(st, "app", {d, a}));
+    if (r != R_NilValue) {
+      if (!is_kind(r, Kind::Expr)) fail("the 'app' callback must return a Z3 expression or NULL");
+      const Ast& e = get_expr(r);
+      same_ctx(st->ctx, e.ctx());
+      if (!Z3_is_eq_sort(st->ctx->c, Z3_get_sort(st->ctx->c, e), Z3_get_range(st->ctx->c, f))) {
+        fail("the 'app' callback returned a term of the wrong sort");
+      }
+      st->results.push_back(e);  // keep it alive until Z3 has its own reference
+      *result = e;
+    }
+    UNPROTECT(3);
+  });
+}
+
+void fp_reduce_assign_eh(void* p, Z3_func_decl f, unsigned n, Z3_ast const args[], unsigned nout,
+                         Z3_ast const outs[]) {
+  CallbackState* st = state(p);
+  guarded(st, [&] {
+    if (!st) return;
+    SEXP d = PROTECT(wrap_decl(Ast(st->ctx, decl_ast(f))));
+    SEXP a = PROTECT(ast_args(st->ctx, n, args));
+    SEXP o = PROTECT(ast_args(st->ctx, nout, outs));
+    invoke(st, "assign", {d, a, o});
+    UNPROTECT(3);
+  });
+}
+
+}  // namespace
+
+// [[Rcpp::export(rng = false)]]
+void cpp_fixedpoint_on_lemma(SEXP f_, SEXP fns) {
+  FixedpointHolder* h = fixedpoint_of(f_);
+  const CtxPtr& ctx = h->f.ctx();
+  CallbackPtr st = new_state(ctx, fns, f_, h);
+  h->callbacks.push_back(st);
+  Z3_fixedpoint_add_callback(ctx->c, h->f, st.get(), has(fns, "lemma") ? fp_lemma_eh : nullptr,
+                             has(fns, "predecessor") ? fp_predecessor_eh : nullptr,
+                             has(fns, "unfold") ? fp_unfold_eh : nullptr);
+  check(ctx);
+}
+
+// [[Rcpp::export(rng = false)]]
+void cpp_fixedpoint_external(SEXP f_, SEXP fns) {
+  FixedpointHolder* h = fixedpoint_of(f_);
+  if (h->external) fail("external relation callbacks can be set only once per fixedpoint engine");
+  const CtxPtr& ctx = h->f.ctx();
+  CallbackPtr st = new_state(ctx, fns, f_, h);
+  h->callbacks.push_back(st);
+  h->external = true;
+  Z3_fixedpoint_init(ctx->c, h->f, st.get());
+  check(ctx);
+  if (has(fns, "app")) Z3_fixedpoint_set_reduce_app_callback(ctx->c, h->f, fp_reduce_app_eh);
+  if (has(fns, "assign")) Z3_fixedpoint_set_reduce_assign_callback(ctx->c, h->f, fp_reduce_assign_eh);
+  check(ctx);
+}

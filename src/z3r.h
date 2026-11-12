@@ -182,6 +182,7 @@ struct CallbackState : std::enable_shared_from_this<CallbackState> {
   int running = 0;           // R callbacks of this state now running
   const void* owner = nullptr;  // holder of the owning R object
   Ref<Z3_model> model;       // model updated by Z3_optimize_register_model_eh
+  AstVec results;            // terms returned to Z3 by the current query
 };
 typedef std::shared_ptr<CallbackState> CallbackPtr;
 
@@ -229,6 +230,17 @@ struct OptimizeHolder {
     while (objectives.size() <= idx) objectives.push_back(++next_objective);
     return objectives[idx];
   }
+};
+
+struct FixedpointHolder {
+  Ref<Z3_fixedpoint> f;
+  std::vector<CallbackPtr> callbacks;
+  bool busy = false;
+  bool external = false;        // Z3_fixedpoint_init was called
+  uint64_t generation = 0;
+  uint64_t checked_at = 0;
+  bool checked = false;
+  Z3_lbool status = Z3_L_UNDEF;
 };
 
 enum class Kind { Context, Sort, Expr, FuncDecl, Solver, Model, Optimize, Goal, Tactic, Probe,
@@ -286,6 +298,9 @@ template <typename H> H* holder_of(SEXP x, Kind k, const char* what) {
 }
 inline SolverHolder* solver_of(SEXP x) { return holder_of<SolverHolder>(x, Kind::Solver, "solver"); }
 inline OptimizeHolder* optimizer_of(SEXP x) { return holder_of<OptimizeHolder>(x, Kind::Optimize, "optimizer"); }
+inline FixedpointHolder* fixedpoint_of(SEXP x) {
+  return holder_of<FixedpointHolder>(x, Kind::Fixedpoint, "fixedpoint engine");
+}
 
 // Marks a holder busy for the duration of a Z3 call that may run callbacks,
 // and clears errors left from earlier calls.

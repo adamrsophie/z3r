@@ -92,7 +92,7 @@ A user propagator lets R code take part in Z3's search: Z3 tells it when
 registered terms get fixed values or become equal, and it can respond by
 propagating consequences or reporting conflicts. This implements custom
 theories and constraints that are awkward to state as formulas. Needs Z3
-4.13.0 or later.
+4.12.3 or later.
 }
 \details{
 \code{z3_propagator(solver, ...)} installs the callbacks, given as named
@@ -132,7 +132,7 @@ install them again afterwards.
 
 \code{z3_on_clause(solver, fn)} registers \code{fn(proof_hint, deps, literals)},
 called for every clause the solver asserts, infers or deletes (Z3
-4.13.0). \code{z3_on_model(optimizer, fn)} registers \code{fn(model)}, called with
+4.12.3). \code{z3_on_model(optimizer, fn)} registers \code{fn(model)}, called with
 each improved model during optimization. \code{z3_set_proof_checker(ctx, fn)}
 (Z3 5.3.2) registers \code{fn(proof, assertions)}, called by the SMT-LIB2
 interpreter (\code{\link[=z3_eval_smtlib]{z3_eval_smtlib()}}) after unsatisfiable checks when proofs
@@ -148,7 +148,7 @@ keep it alive.
 }
 \examples{
 ctx <- z3_context()
-if (z3_version_at_least("4.13.0")) {
+if (z3_version_at_least("4.12.3")) {
   # A propagator that forbids more than two of four Booleans being true.
   p <- z3_bools(ctx, paste0("p", 1:4))
   s <- z3_solver(ctx)

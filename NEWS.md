@@ -19,8 +19,7 @@ which version they need.
   by full path, and refuses mismatched headers and libraries.
   `configure.win` supports official Windows release archives through
   `Z3_DIR` and installs their DLLs and license beside z3r. z3r refuses to
-  load with a Z3 library older than its headers and warns about a newer
-  one.
+  load with a Z3 library other than the release it was compiled against.
 * Ctrl-C interrupts a running check.
 
 ## Expressions
@@ -64,8 +63,9 @@ which version they need.
   weights, special relations, pseudo-Boolean constraints.
 * Tactics, probes, goals and simplifiers.
 * The fixedpoint engine for constrained Horn clauses (Spacer) and Datalog,
-  and Spacer's model-based projection (`z3_model_project()`), model
-  extrapolation and `z3_qe_lite()`.
+  Spacer lemma callbacks (`z3_on_lemma()`), external Datalog relations
+  (`z3_fixedpoint_external()`), and Spacer's model-based projection
+  (`z3_model_project()`), model extrapolation and `z3_qe_lite()`.
 * Real closed fields, algebraic number arithmetic and polynomial
   subresultants.
 * SMT-LIB2 export, parsing and the SMT-LIB2 command interpreter.

@@ -186,10 +186,16 @@ void cpp_solver_assert(SEXP s_, Rcpp::List constraints) {
   // Validate everything before asserting anything. The solver counts as
   // changed even if Z3 fails partway.
   h->touch();
-  for (const Ast& a : v) {
-    Z3_solver_assert(ctx->c, h->s, a);
-    check(ctx);
+  {
+    // Asserting after a check backtracks Z3's search, which runs pop
+    // callbacks.
+    BusyGuard<SolverHolder> busy(h);
+    for (const Ast& a : v) {
+      Z3_solver_assert(ctx->c, h->s, a);
+      check(ctx);
+    }
   }
+  raise_callback_errors(h->callbacks);
 }
 
 // [[Rcpp::export(rng = false)]]
@@ -207,9 +213,13 @@ SEXP cpp_solver_assert_and_track(SEXP s_, SEXP constraint, SEXP label_) {
     label = own_ast(ctx, Z3_mk_const(ctx->c, mk_symbol(ctx, name), Z3_mk_bool_sort(ctx->c)));
   }
   if (!is_bool(label)) fail("the tracking label must be a Boolean constant");
-  Z3_solver_assert_and_track(ctx->c, h->s, a, label);
-  check(ctx);
   h->touch();
+  {
+    BusyGuard<SolverHolder> busy(h);
+    Z3_solver_assert_and_track(ctx->c, h->s, a, label);
+  }
+  raise_callback_errors(h->callbacks);
+  check(ctx);
   return wrap_expr(label);
 }
 
@@ -286,7 +296,14 @@ SEXP cpp_solver_unsat_core(SEXP s_) {
   SolverHolder* h = solver(s_);
   require_status(h, Z3_L_FALSE, "an unsatisfiable core");
   const CtxPtr& ctx = h->s.ctx();
-  return wrap_ast_vector(ctx, Z3_solver_get_unsat_core(ctx->c, h->s));
+  // Core minimization may search again, running callbacks.
+  Z3_ast_vector core;
+  {
+    BusyGuard<SolverHolder> busy(h);
+    core = Z3_solver_get_unsat_core(ctx->c, h->s);
+  }
+  raise_callback_errors(h->callbacks);
+  return wrap_ast_vector(ctx, core);
 }
 
 // [[Rcpp::export(rng = false)]]
@@ -390,9 +407,13 @@ Rcpp::String cpp_solver_to_string(SEXP s_) {
 void cpp_solver_from_string(SEXP s_, SEXP text_) {
   SolverHolder* h = solver(s_);
   std::string text = as_string(text_, "text");
-  Z3_solver_from_string(h->s.c(), h->s, text.c_str());
-  check(h->s.ctx());
   h->touch();
+  {
+    BusyGuard<SolverHolder> busy(h);
+    Z3_solver_from_string(h->s.c(), h->s, text.c_str());
+  }
+  raise_callback_errors(h->callbacks);
+  check(h->s.ctx());
 }
 
 // ---------------------------------------------------------------------------
@@ -556,7 +577,11 @@ SEXP cpp_solver_solve_for(SEXP s_, Rcpp::List variables) {
   Ref<Z3_ast_vector> vv = make_ast_vector(ctx, vs);
   Ref<Z3_ast_vector> terms = own(ctx, Z3_mk_ast_vector(ctx->c));
   Ref<Z3_ast_vector> guards = own(ctx, Z3_mk_ast_vector(ctx->c));
-  Z3_solver_solve_for(ctx->c, h->s, vv, terms, guards);
+  {
+    BusyGuard<SolverHolder> busy(h);
+    Z3_solver_solve_for(ctx->c, h->s, vv, terms, guards);
+  }
+  raise_callback_errors(h->callbacks);
   check(ctx);
   auto to_list = [&](const Ref<Z3_ast_vector>& v) {
     unsigned n = Z3_ast_vector_size(ctx->c, v);

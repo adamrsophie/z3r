@@ -92,7 +92,7 @@ print.z3_context <- function(x, ...) {
 #' @return A list with elements `runtime` (the version of the loaded Z3
 #'   library, major.minor.build.revision), `headers` (the version of the Z3
 #'   headers z3r was compiled with) and `full` (Z3's full version string).
-#'   z3r warns when it is loaded if the two versions differ.
+#'   z3r refuses to load if the two versions differ.
 #' @examples
 #' z3_version()
 #' z3_version_at_least("4.12.2")
@@ -139,21 +139,15 @@ z3_same_context <- function(x, y) {
 .onLoad <- function(libname, pkgname) {
   v <- cpp_version()
   if (v$headers == "unknown") return(invisible())
-  three <- function(x) package_version(paste(strsplit(x, ".", fixed = TRUE)[[1]][1:3], collapse = "."))
-  h <- three(v$headers)
-  r <- three(v$runtime)
-  # A library older than the headers may lack functions z3r was compiled to
-  # call, which would crash R at the first call; refuse to load.
-  if (r < h) {
+  three <- function(x) paste(strsplit(x, ".", fixed = TRUE)[[1]][1:3], collapse = ".")
+  # z3r is compiled for one Z3 release: an older library may lack functions
+  # it calls (crashing R at the first call), and a newer one may number
+  # operators and sorts differently, which silently changes inspection
+  # results. Refuse to load with any other release.
+  if (three(v$headers) != three(v$runtime)) {
     stop(sprintf(paste(
-      "z3r was compiled against Z3 %s but the Z3 library loaded is the older %s;",
+      "z3r was compiled against Z3 %s but the Z3 library loaded is %s;",
       "reinstall z3r against the library you use"
-    ), v$headers, v$runtime), call. = FALSE)
-  }
-  if (r != h) {
-    warning(sprintf(paste(
-      "z3r was compiled against Z3 %s but is running with Z3 %s;",
-      "reinstall z3r so that headers and library match"
-    ), v$headers, v$runtime), call. = FALSE)
+    ), three(v$headers), three(v$runtime)), call. = FALSE)
   }
 }

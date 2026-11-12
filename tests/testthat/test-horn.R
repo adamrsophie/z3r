@@ -130,3 +130,57 @@ test_that("finite domain elements and large sizes", {
   expect_error(z3_finite_domain_sort(ctx, "C", 2^60), "2\\^53")
   expect_error(z3_finite_domain_sort(ctx, "D", "18446744073709551616"), "below 2\\^64")
 })
+
+test_that("Spacer lemma callbacks and external relations", {
+  ctx <- z3_context()
+  I <- z3_int_sort(ctx)
+  inv <- z3_function(ctx, "inv", I, z3_bool_sort(ctx))
+  x <- z3_int(ctx, "x")
+  make <- function() {
+    fp <- z3_fixedpoint(ctx)
+    z3_register_relation(fp, inv)
+    z3_add_rule(fp, inv(0))
+    z3_add_rule(fp, z3_forall(x, z3_implies(inv(x), inv(x + 2))))
+    fp
+  }
+  fp <- make()
+  lemmas <- list()
+  unfolds <- 0
+  z3_on_lemma(fp, lemma = function(lemma, level) {
+    stopifnot(is.numeric(level))
+    lemmas[[length(lemmas) + 1]] <<- lemma
+  }, unfold = function() unfolds <<- unfolds + 1)
+  expect_identical(z3_query(fp, z3_exists(x, inv(x) & x == 7)), "unsat")
+  expect_gt(length(lemmas), 0)
+  expect_s3_class(lemmas[[1]], "z3_expr")
+  expect_gt(unfolds, 0)
+  fp2 <- make()
+  z3_on_lemma(fp2, lemma = function(lemma, level) stop("bad lemma"))
+  expect_error(z3_query(fp2, z3_exists(x, inv(x) & x == 7)), "bad lemma")
+  fp3 <- make()
+  z3_on_lemma(fp3, lemma = function(lemma, level) z3_add_rule(fp3, inv(1)))
+  expect_error(z3_query(fp3, z3_exists(x, inv(x) & x == 7)), "running a check")
+  expect_error(z3_on_lemma(make()), "at least one callback")
+
+  N <- z3_finite_domain_sort(ctx, "N", 8)
+  B <- z3_bool_sort(ctx)
+  edge <- z3_function(ctx, "edge", list(N, N), B)
+  path <- z3_function(ctx, "path", list(N, N), B)
+  a <- z3_const(ctx, "a", N)
+  b <- z3_const(ctx, "b", N)
+  dl <- z3_fixedpoint(ctx)
+  z3_set_params(dl, engine = "datalog")
+  calls <- 0
+  z3_fixedpoint_external(dl, app = function(decl, args) {
+    calls <<- calls + 1
+    NULL
+  })
+  expect_error(z3_fixedpoint_external(dl, app = function(decl, args) NULL), "only once")
+  z3_register_relation(dl, edge)
+  z3_register_relation(dl, path)
+  z3_set_representation(dl, edge, "external_relation")
+  z3_add_fact(dl, edge, c(1, 2))
+  z3_add_rule(dl, z3_forall(list(a, b), z3_implies(edge(a, b), path(a, b))))
+  expect_identical(z3_query(dl, path), "sat")
+  expect_gt(calls, 0)
+})

@@ -75,11 +75,16 @@ EOF
   return 0
 }
 
+# Quotes a value for the shell (and for make recipes), keeping any
+# character literal.
+sq () { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
+
 rpath_for () {
   # Embed a run-time search path for libraries outside the default locations.
+  # -Xlinker passes the directory as one argument, even with commas in it.
   case "$1" in
     ""|/usr/lib|/usr/lib64|/lib|/lib64|/usr/lib/*-linux-gnu) echo "" ;;
-    *) echo "-Wl,-rpath,\"$1\"" ;;
+    *) echo "-Xlinker -rpath -Xlinker `sq "$1"`" ;;
   esac
 }
 
@@ -89,15 +94,18 @@ rpath_for () {
 z3_lib_flags () {
   for f in "$1/libz3.dylib" "$1/libz3.so"; do
     if test -f "$f"; then
-      echo "\"$f\" `rpath_for "$1"`"
+      echo "`sq "$f"` `rpath_for "$1"`"
       return 0
     fi
   done
-  echo "-L\"$1\" `rpath_for "$1"` -lz3"
+  echo "-L`sq "$1"` `rpath_for "$1"` -lz3"
 }
 
-# Escapes text for the replacement part of a sed s||| command.
-sed_escape () { printf '%s\n' "$1" | sed -e 's/[\\&|]/\\&/g'; }
+# Escapes text for a Makefile variable ($ and #), then for the replacement
+# part of a sed s||| command.
+sed_escape () {
+  printf '%s\n' "$1" | sed -e 's/\$/$$/g' -e 's/#/\\#/g' | sed -e 's/[\\&|]/\\&/g'
+}
 
 : > config.log
 Z3_CPPFLAGS=""
@@ -110,7 +118,7 @@ if test -n "${PKG_LIBS}"; then
   Z3_SOURCE="PKG_CPPFLAGS/PKG_LIBS"
   try_z3 "${Z3_CPPFLAGS}" "${Z3_LIBS}" || Z3_SOURCE=""
 elif test -n "${Z3_INCLUDE_DIR}" || test -n "${Z3_LIB_DIR}"; then
-  if test -n "${Z3_INCLUDE_DIR}"; then Z3_CPPFLAGS="-I\"${Z3_INCLUDE_DIR}\""; fi
+  if test -n "${Z3_INCLUDE_DIR}"; then Z3_CPPFLAGS="-I`sq "${Z3_INCLUDE_DIR}"`"; fi
   if test -n "${Z3_LIB_DIR}"; then
     Z3_LIBS=`z3_lib_flags "${Z3_LIB_DIR}"`
   else
@@ -131,7 +139,7 @@ else
     for prefix in ${CONDA_PREFIX:+"${CONDA_PREFIX}"} /opt/homebrew /usr/local /usr /opt/local; do
       for inc in "${prefix}/include" "${prefix}/include/z3"; do
         test -f "${inc}/z3.h" || continue
-        Z3_CPPFLAGS="-I\"${inc}\""
+        Z3_CPPFLAGS="-I`sq "${inc}"`"
         for libdir in "${prefix}/lib" "${prefix}/lib64"; do
           Z3_LIBS=`z3_lib_flags "${libdir}"`
           if try_z3 "${Z3_CPPFLAGS}" "${Z3_LIBS}"; then

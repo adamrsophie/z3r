@@ -50,7 +50,12 @@ int main(void) {
 EOF
   rm -f conftest.exe
   eval "${CXX} $1 ${CXXFLAGS} conftest.cpp -o conftest.exe $2" >> config.log 2>&1 || return 1
-  if test -n "$3"; then cp "$3" . 2>> config.log; fi
+  # The test program needs the DLL and the runtime DLLs shipped beside it.
+  if test -n "$3"; then
+    for f in ${Z3_RUNTIME_DLLS}; do
+      if test -f "$3/$f"; then cp "$3/$f" . 2>> config.log; fi
+    done
+  fi
   Z3_FOUND_VERSION=`./conftest.exe 2> conftest.err`
   status=$?
   cat conftest.err >> config.log
@@ -65,8 +70,18 @@ EOF
   return 0
 }
 
-# Escapes text for the replacement part of a sed s||| command.
-sed_escape () { printf '%s\n' "$1" | sed -e 's/[\\&|]/\\&/g'; }
+# Quotes a value for the shell (and for make recipes), keeping any
+# character literal.
+sq () { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
+
+# Escapes text for a Makefile variable ($ and #), then for the replacement
+# part of a sed s||| command.
+sed_escape () {
+  printf '%s\n' "$1" | sed -e 's/\$/$$/g' -e 's/#/\\#/g' | sed -e 's/[\\&|]/\\&/g'
+}
+
+# libz3.dll and the Microsoft runtime DLLs official releases ship beside it.
+Z3_RUNTIME_DLLS="libz3.dll msvcp140.dll msvcp140_1.dll msvcp140_2.dll vcruntime140.dll vcruntime140_1.dll vcomp140.dll"
 
 : > config.log
 Z3_CPPFLAGS=""
@@ -93,20 +108,20 @@ if test -n "${PKG_LIBS}"; then
   Z3_SOURCE="PKG_CPPFLAGS/PKG_LIBS"
   try_z3 "${Z3_CPPFLAGS}" "${Z3_LIBS}" "" || Z3_SOURCE=""
 elif test -n "${Z3_INCLUDE_DIR}" || test -n "${Z3_LIB_DIR}"; then
-  Z3_CPPFLAGS="-I\"${Z3_INCLUDE_DIR}\""
+  Z3_CPPFLAGS="-I`sq "${Z3_INCLUDE_DIR}"`"
   if test -f "${Z3_LIB_DIR}/libz3.dll"; then
     Z3_DLL="${Z3_LIB_DIR}/libz3.dll"
     Z3_DLLDIR="${Z3_LIB_DIR}"
-    Z3_LIBS="\"${Z3_DLL}\""
+    Z3_LIBS=`sq "${Z3_DLL}"`
     # Z3's MIT license must accompany copies of the DLL.
     for f in "${Z3_LIB_DIR}/../LICENSE.txt" "${Z3_DIR}/LICENSE.txt"; do
       if test -f "$f"; then Z3_LICENSE="$f"; break; fi
     done
   else
-    Z3_LIBS="-L\"${Z3_LIB_DIR}\" -lz3"
+    Z3_LIBS="-L`sq "${Z3_LIB_DIR}"` -lz3"
   fi
   Z3_SOURCE="Z3_INCLUDE_DIR/Z3_LIB_DIR"
-  try_z3 "${Z3_CPPFLAGS}" "${Z3_LIBS}" "${Z3_DLL}" || Z3_SOURCE=""
+  try_z3 "${Z3_CPPFLAGS}" "${Z3_LIBS}" "${Z3_DLLDIR}" || Z3_SOURCE=""
 elif pkg-config --exists z3 2>/dev/null; then
   Z3_CPPFLAGS=`pkg-config --cflags z3`
   Z3_LIBS=`pkg-config --libs --static z3`
@@ -114,7 +129,8 @@ elif pkg-config --exists z3 2>/dev/null; then
   try_z3 "${Z3_CPPFLAGS}" "${Z3_LIBS}" "" || Z3_SOURCE=""
 fi
 
-rm -f conftest.cpp conftest.exe conftest.err libz3.dll
+rm -f conftest.cpp conftest.exe conftest.err
+for f in ${Z3_RUNTIME_DLLS}; do rm -f "$f"; done
 
 if test -z "${Z3_SOURCE}"; then
   cat >&2 <<EOF
@@ -139,7 +155,8 @@ fi
 
 echo "configure.win: using Z3 ${Z3_FOUND_VERSION} (found via ${Z3_SOURCE})"
 sed -e "s|@Z3_CPPFLAGS@|`sed_escape "${Z3_CPPFLAGS}"`|" -e "s|@Z3_LIBS@|`sed_escape "${Z3_LIBS}"`|" \
-    -e "s|@Z3_DLLDIR@|`sed_escape "${Z3_DLLDIR}"`|" -e "s|@Z3_LICENSE@|`sed_escape "${Z3_LICENSE}"`|" \
+    -e "s|@Z3_DLLDIR@|`sed_escape "${Z3_DLLDIR:+$(sq "${Z3_DLLDIR}")}"`|" \
+    -e "s|@Z3_LICENSE@|`sed_escape "${Z3_LICENSE:+$(sq "${Z3_LICENSE}")}"`|" \
     src/Makevars.win.in > src/Makevars.win.new
 if cmp -s src/Makevars.win.new src/Makevars.win; then
   rm -f src/Makevars.win.new

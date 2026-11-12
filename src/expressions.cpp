@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 
 namespace z3r {
 
@@ -89,7 +90,11 @@ void collect_free_vars(Z3_context c, Z3_ast a, unsigned depth, std::vector<Z3_so
       if (i >= depth) {
         unsigned k = i - depth;
         if (out.size() <= k) out.resize(k + 1, nullptr);
-        out[k] = Z3_get_sort(c, a);
+        Z3_sort srt = Z3_get_sort(c, a);
+        if (out[k] && !Z3_is_eq_sort(c, out[k], srt)) {
+          fail("bound variable " + std::to_string(k) + " occurs with two different sorts");
+        }
+        out[k] = srt;
       }
       break;
     }
@@ -233,6 +238,9 @@ static Ast mk_string_literal(const CtxPtr& ctx, SEXP chr) {
       if ((*p & 0xC0) != 0x80) fail("invalid UTF-8 in string literal");
       cp = (cp << 6) | (*p & 0x3F);
     }
+    // Reject overlong encodings and surrogates, which would change the text.
+    static const unsigned min_cp[] = {0, 0x80, 0x800, 0x10000};
+    if (cp < min_cp[extra] || (cp >= 0xD800 && cp <= 0xDFFF)) fail("invalid UTF-8 in string literal");
     // Z3's characters are the code points 0 to 0x2FFFF.
     if (cp > 0x2FFFF) {
       char buf[16];
@@ -270,6 +278,14 @@ Ast lift(const CtxPtr& ctx, SEXP x, Z3_sort hint) {
       return int_literal(ctx, s, hint);
     }
     return mk_numeral(ctx, s, Z3_mk_real_sort(ctx->c));
+  }
+  if (Rf_inherits(x, "integer64")) {
+    // bit64 stores 64-bit integers in the bits of a double.
+    if (Rf_xlength(x) != 1 || TYPEOF(x) != REALSXP) fail("integer64 values must have length 1");
+    int64_t v;
+    std::memcpy(&v, &REAL(x)[0], sizeof v);
+    if (v == INT64_MIN) fail("NA cannot be used in a Z3 expression");
+    return int_literal(ctx, std::to_string(static_cast<long long>(v)), hint);
   }
   if (Rf_isFactor(x)) fail("factors cannot be used in Z3 expressions");
   if (Rf_xlength(x) != 1) {
@@ -1066,6 +1082,28 @@ bool cpp_is_const(SEXP x) {
 
 // Description of a value expression for conversion to R. Returns a list
 // with `kind` and exact representations; R code decides the R type.
+// A double near a rational or algebraic numeral, rounded from enough of its
+// decimal digits (25 significant ones). Z3_get_numeral_double divides two
+// separately rounded doubles, which loses accuracy and overflows to NaN for
+// large numerators and denominators.
+static double approx_double(const CtxPtr& ctx, Z3_ast a) {
+  Z3_context c = ctx->c;
+  for (unsigned prec = 40;; prec *= 2) {
+    std::string d = str(Z3_get_numeral_decimal_string(c, a, prec));
+    check(ctx);
+    bool inexact = !d.empty() && d.back() == '?';
+    if (inexact) d.pop_back();
+    size_t first = d.find_first_of("123456789");
+    size_t sig = 0;
+    if (first != std::string::npos) {
+      sig = d.size() - first;
+      size_t point = d.find('.');
+      if (point != std::string::npos && point > first) --sig;
+    }
+    if (!inexact || sig >= 25 || prec >= 1280) return std::strtod(d.c_str(), nullptr);
+  }
+}
+
 // Code points as an R string (UTF-8). R strings cannot hold U+0000, so a
 // value containing it gets its own kind and stays a Z3 expression.
 static SEXP code_points_value(const std::vector<unsigned>& cps, const char* kind) {
@@ -1101,10 +1139,7 @@ SEXP cpp_value_info(SEXP x, int digits) {
     if (Z3_is_algebraic_number(c, a)) {
       std::string dec = str(Z3_get_numeral_decimal_string(c, a, static_cast<unsigned>(digits)));
       check(ctx);
-      // A rational within 10^-30 of the algebraic number gives a double.
-      Ast lower = own_ast(ctx, Z3_get_algebraic_number_lower(c, a, 30));
-      double approx = Z3_get_numeral_double(c, lower);
-      check(ctx);
+      double approx = approx_double(ctx, a);
       return Rcpp::List::create(Named("kind") = "algebraic", Named("decimal") = dec,
                                 Named("approx") = approx, Named("text") = to_string(a));
     }
@@ -1140,11 +1175,7 @@ SEXP cpp_value_info(SEXP x, int digits) {
     }
     bool exact_double = fits && n64 <= (1LL << 53) && n64 >= -(1LL << 53);
     double value = exact_double ? std::ldexp(static_cast<double>(n64), -dexp) : NA_REAL;
-    // Z3_get_numeral_double only accepts Int and Real numerals.
-    double approx = exact_double ? value
-                    : k == Z3_BV_SORT ? std::strtod(exact.c_str(), nullptr)
-                                      : Z3_get_numeral_double(c, a);
-    check(ctx);
+    double approx = exact_double ? value : k == Z3_BV_SORT ? std::strtod(exact.c_str(), nullptr) : approx_double(ctx, a);
     std::string kind = k == Z3_INT_SORT ? "int" : k == Z3_REAL_SORT ? "real" : "bv";
     return Rcpp::List::create(Named("kind") = kind, Named("exact") = exact,
                               Named("exact_double") = exact_double, Named("value") = value,

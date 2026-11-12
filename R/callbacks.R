@@ -12,7 +12,7 @@ callback_invoke <- function(fn, ...) {
 #' registered terms get fixed values or become equal, and it can respond by
 #' propagating consequences or reporting conflicts. This implements custom
 #' theories and constraints that are awkward to state as formulas. Needs Z3
-#' 4.13.0 or later.
+#' 4.12.3 or later.
 #'
 #' `z3_propagator(solver, ...)` installs the callbacks, given as named
 #' functions. `push(cb)` and `pop(cb, n)` are required: Z3 opens and closes
@@ -51,7 +51,7 @@ callback_invoke <- function(fn, ...) {
 #'
 #' `z3_on_clause(solver, fn)` registers `fn(proof_hint, deps, literals)`,
 #' called for every clause the solver asserts, infers or deletes (Z3
-#' 4.13.0). `z3_on_model(optimizer, fn)` registers `fn(model)`, called with
+#' 4.12.3). `z3_on_model(optimizer, fn)` registers `fn(model)`, called with
 #' each improved model during optimization. `z3_set_proof_checker(ctx, fn)`
 #' (Z3 5.3.2) registers `fn(proof, assertions)`, called by the SMT-LIB2
 #' interpreter ([z3_eval_smtlib()]) after unsatisfiable checks when proofs
@@ -88,7 +88,7 @@ callback_invoke <- function(fn, ...) {
 #'   functions return `TRUE` when Z3 accepted the request.
 #' @examples
 #' ctx <- z3_context()
-#' if (z3_version_at_least("4.13.0")) {
+#' if (z3_version_at_least("4.12.3")) {
 #'   # A propagator that forbids more than two of four Booleans being true.
 #'   p <- z3_bools(ctx, paste0("p", 1:4))
 #'   s <- z3_solver(ctx)

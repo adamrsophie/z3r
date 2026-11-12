@@ -16,7 +16,7 @@ z3_version_at_least(version)
 A list with elements \code{runtime} (the version of the loaded Z3
 library, major.minor.build.revision), \code{headers} (the version of the Z3
 headers z3r was compiled with) and \code{full} (Z3's full version string).
-z3r warns when it is loaded if the two versions differ.
+z3r refuses to load if the two versions differ.
 
 For \code{z3_version_at_least()}, \code{TRUE} when the Z3 headers z3r was
 compiled with are at least \code{version}, so that features needing that

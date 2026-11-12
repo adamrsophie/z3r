@@ -7,13 +7,14 @@ all: $(SHLIB) z3dll
 
 # Install libz3.dll, the Microsoft runtime DLLs shipped beside it, and Z3's
 # license next to z3r.dll, so that Windows finds them at load time.
+# Z3_DLLDIR and Z3_LICENSE are already quoted for the shell by configure.win.
 z3dll: $(SHLIB)
-	@if test -n "$(Z3_DLLDIR)" && test -n "$(R_PACKAGE_DIR)"; then \
+	@if test -n "$(R_PACKAGE_DIR)" && test -n "$(strip $(Z3_DLLDIR))"; then \
 	  mkdir -p "$(R_PACKAGE_DIR)/libs$(R_ARCH)" && \
 	  for f in libz3.dll msvcp140.dll msvcp140_1.dll msvcp140_2.dll vcruntime140.dll vcruntime140_1.dll vcomp140.dll; do \
-	    if test -f "$(Z3_DLLDIR)/$$f"; then cp "$(Z3_DLLDIR)/$$f" "$(R_PACKAGE_DIR)/libs$(R_ARCH)/"; fi; \
+	    if test -f $(Z3_DLLDIR)/$$f; then cp $(Z3_DLLDIR)/$$f "$(R_PACKAGE_DIR)/libs$(R_ARCH)/"; fi; \
 	  done; \
-	  if test -n "$(Z3_LICENSE)"; then cp "$(Z3_LICENSE)" "$(R_PACKAGE_DIR)/LICENSE.z3.txt"; fi; \
+	  if test -n "$(strip $(Z3_LICENSE))"; then cp $(Z3_LICENSE) "$(R_PACKAGE_DIR)/LICENSE.z3.txt"; fi; \
 	fi
 
 .PHONY: all z3dll

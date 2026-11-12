@@ -89,3 +89,13 @@ test_that("finite field moduli beyond 2^53 must be strings", {
   expect_error(z3_ff_sort(ctx, 2^61 - 1), "2\\^53")
   expect_s3_class(z3_ff_sort(ctx, "2305843009213693951"), "z3_sort")
 })
+
+test_that("complex values that are not exact doubles are refused", {
+  skip_if_not(z3_version_at_least("5.3.2"))
+  ctx <- z3_context()
+  z <- z3_simplify(z3_complex(z3_real_val(ctx, "1/3"), 0))
+  expect_error(z3_value(z), "not exactly representable")
+  v <- z3_value(z, exact = FALSE)
+  expect_length(v, 1L)
+  expect_equal(Re(v), 1 / 3)
+})

@@ -180,3 +180,19 @@ test_that("names and text from Z3 are marked UTF-8", {
   z3_check(s)
   expect_identical(names(z3_model_values(z3_model(s))), "\u00e9t\u00e9")
 })
+
+test_that("integer64, malformed UTF-8 and algebraic approximations", {
+  ctx <- z3_context()
+  if (requireNamespace("bit64", quietly = TRUE)) {
+    x <- z3_int(ctx, "x")
+    s <- z3_solver(ctx)
+    z3_add(s, x == bit64::as.integer64("9007199254740993"))
+    expect_identical(z3_check(s), "sat")
+    expect_identical(as.character(z3_value(z3_eval(z3_model(s), x))), "9007199254740993")
+  }
+  bad <- rawToChar(as.raw(c(0xc0, 0xaf)))
+  Encoding(bad) <- "UTF-8"
+  expect_error(z3_string_val(ctx, bad), "invalid UTF-8")
+  r <- z3_simplify(z3_real_val(ctx, 2)^z3_real_val(ctx, "1/2") / z3_real_val(ctx, paste0("1", strrep("0", 100))))
+  expect_equal(z3_value(r, exact = FALSE), sqrt(2) * 1e-100, tolerance = 1e-15)
+})

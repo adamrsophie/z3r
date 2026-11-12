@@ -766,6 +766,26 @@ BEGIN_RCPP
     return R_NilValue;
 END_RCPP
 }
+// cpp_fixedpoint_on_lemma
+void cpp_fixedpoint_on_lemma(SEXP f_, SEXP fns);
+RcppExport SEXP _z3r_cpp_fixedpoint_on_lemma(SEXP f_SEXP, SEXP fnsSEXP) {
+BEGIN_RCPP
+    Rcpp::traits::input_parameter< SEXP >::type f_(f_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type fns(fnsSEXP);
+    cpp_fixedpoint_on_lemma(f_, fns);
+    return R_NilValue;
+END_RCPP
+}
+// cpp_fixedpoint_external
+void cpp_fixedpoint_external(SEXP f_, SEXP fns);
+RcppExport SEXP _z3r_cpp_fixedpoint_external(SEXP f_SEXP, SEXP fnsSEXP) {
+BEGIN_RCPP
+    Rcpp::traits::input_parameter< SEXP >::type f_(f_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type fns(fnsSEXP);
+    cpp_fixedpoint_external(f_, fns);
+    return R_NilValue;
+END_RCPP
+}
 // cpp_version
 SEXP cpp_version();
 RcppExport SEXP _z3r_cpp_version() {
@@ -2936,6 +2956,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_z3r_cpp_on_clause", (DL_FUNC) &_z3r_cpp_on_clause, 2},
     {"_z3r_cpp_on_model", (DL_FUNC) &_z3r_cpp_on_model, 2},
     {"_z3r_cpp_set_proof_check", (DL_FUNC) &_z3r_cpp_set_proof_check, 2},
+    {"_z3r_cpp_fixedpoint_on_lemma", (DL_FUNC) &_z3r_cpp_fixedpoint_on_lemma, 2},
+    {"_z3r_cpp_fixedpoint_external", (DL_FUNC) &_z3r_cpp_fixedpoint_external, 2},
     {"_z3r_cpp_version", (DL_FUNC) &_z3r_cpp_version, 0},
     {"_z3r_cpp_mk_context", (DL_FUNC) &_z3r_cpp_mk_context, 2},
     {"_z3r_cpp_context_of", (DL_FUNC) &_z3r_cpp_context_of, 1},

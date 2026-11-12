@@ -84,7 +84,7 @@ test_that("every argument is checked for its context", {
   expect_error(z3_sum(1, xa, z3_int(b, "y")), "different contexts")
   m <- z3_model(a)
   expect_error(z3_model_has(m, z3_int(b, "y")), "different contexts")
-  if (z3_version_at_least("4.13.0")) {
+  if (z3_version_at_least("4.12.3")) {
     expect_error(z3_propagator_function(a, "f", list(), z3_int_sort(b)), "different contexts")
   }
 })

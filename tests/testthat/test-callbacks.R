@@ -1,5 +1,5 @@
 test_that("a user propagator enforces a custom constraint", {
-  skip_if_not(z3_version_at_least("4.13.0"))
+  skip_if_not(z3_version_at_least("4.12.3"))
   ctx <- z3_context()
   p <- z3_bools(ctx, paste0("p", 1:4))
   s <- z3_solver(ctx)
@@ -31,7 +31,7 @@ test_that("a user propagator enforces a custom constraint", {
 })
 
 test_that("final callbacks and consequences", {
-  skip_if_not(z3_version_at_least("4.13.0"))
+  skip_if_not(z3_version_at_least("4.12.3"))
   ctx <- z3_context()
   a <- z3_bool(ctx, "a")
   b <- z3_bool(ctx, "b")
@@ -54,7 +54,7 @@ test_that("final callbacks and consequences", {
 })
 
 test_that("errors in callbacks are raised after the check", {
-  skip_if_not(z3_version_at_least("4.13.0"))
+  skip_if_not(z3_version_at_least("4.12.3"))
   ctx <- z3_context()
   p <- z3_bool(ctx, "p")
   s <- z3_solver(ctx)
@@ -79,7 +79,7 @@ test_that("errors in callbacks are raised after the check", {
 })
 
 test_that("callbacks cannot reenter or change their own solver", {
-  skip_if_not(z3_version_at_least("4.13.0"))
+  skip_if_not(z3_version_at_least("4.12.3"))
   ctx <- z3_context()
   p <- z3_bool(ctx, "p")
   for (action in list(function(s) z3_push(s), function(s) z3_add(s, p), function(s) z3_check(s),
@@ -96,7 +96,7 @@ test_that("callbacks cannot reenter or change their own solver", {
 })
 
 test_that("resetting a solver removes its callbacks", {
-  skip_if_not(z3_version_at_least("4.13.0"))
+  skip_if_not(z3_version_at_least("4.12.3"))
   ctx <- z3_context()
   p <- z3_bools(ctx, c("a", "b"))
   install <- function(s) {
@@ -117,7 +117,7 @@ test_that("resetting a solver removes its callbacks", {
 })
 
 test_that("solvers with callbacks are not copied without them", {
-  skip_if_not(z3_version_at_least("4.13.0"))
+  skip_if_not(z3_version_at_least("4.12.3"))
   ctx <- z3_context()
   p <- z3_bool(ctx, "p")
   s <- z3_solver(ctx)
@@ -129,7 +129,7 @@ test_that("solvers with callbacks are not copied without them", {
 })
 
 test_that("errors in pop callbacks are raised by z3_pop()", {
-  skip_if_not(z3_version_at_least("4.13.0"))
+  skip_if_not(z3_version_at_least("4.12.3"))
   ctx <- z3_context()
   p <- z3_bool(ctx, "p")
   s <- z3_solver(ctx)
@@ -145,7 +145,7 @@ test_that("errors in pop callbacks are raised by z3_pop()", {
 })
 
 test_that("callback closures do not keep their solver alive", {
-  skip_if_not(z3_version_at_least("4.13.0"))
+  skip_if_not(z3_version_at_least("4.12.3"))
   ctx <- z3_context()
   collected <- 0
   make <- function() {
@@ -176,7 +176,7 @@ test_that("clause and model callbacks", {
   z3_maximize(o, x)
   expect_identical(z3_check(o), "sat")
   expect_gt(models, 0)
-  skip_if_not(z3_version_at_least("4.13.0"))
+  skip_if_not(z3_version_at_least("4.12.3"))
   p <- z3_bools(ctx, paste0("w", 1:6))
   s <- z3_solver(ctx)
   clauses <- 0
@@ -228,4 +228,24 @@ test_that("a proof checker does not keep its context alive", {
   gc()
   gc()
   expect_identical(collected, 10)
+})
+
+test_that("callbacks run by assertions and registration are guarded too", {
+  skip_if_not(z3_version_at_least("4.12.3"))
+  ctx <- z3_context()
+  p <- z3_bool(ctx, "p")
+  s <- z3_solver(ctx, simple = TRUE)
+  pops <- 0
+  z3_propagator(s, push = function(cb) NULL,
+                pop = function(cb, n) {
+                  pops <<- pops + 1
+                  z3_reset(s)
+                },
+                fixed = function(cb, term, value) NULL)
+  z3_propagate_register(s, p)
+  z3_check(s)
+  # Asserting after the check backtracks the search, which runs pop.
+  expect_error(z3_add(s, p), "running a check")
+  expect_gt(pops, 0)
+  expect_identical(z3_check(s), "sat")
 })

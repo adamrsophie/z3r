@@ -161,3 +161,21 @@ test_that("function interpretations are sort checked before the model changes", 
   expect_error(z3_model_set_function(m, k, list(), 1), "no arguments")
   expect_identical(z3_value(z3_eval(m, g(1) / 4)), 0.5)
 })
+
+test_that("function defaults may use argument variables of the right sort only", {
+  ctx <- z3_context()
+  I <- z3_int_sort(ctx)
+  B <- z3_bool_sort(ctx)
+  f <- z3_function(ctx, "f", B, I)
+  g <- z3_function(ctx, "g", I, I)
+  m <- z3_model(ctx)
+  v_int <- z3_bound_var(ctx, 0, I)
+  expect_error(z3_model_set_function(m, f, list(), v_int + 1), "bound variable 0")
+  expect_error(z3_model_set_function(m, g, list(), z3_bound_var(ctx, 1, I)), "bound variable 1")
+  z3_model_set_function(m, g, list(), v_int * 2)
+  expect_identical(z3_value(z3_eval(m, g(21))), 42)
+  expect_error(z3_model_set_function(m, g, list(list(args = list(v_int), value = 1)), 0), "bound variables")
+  # One index with two sorts is refused.
+  b0 <- z3_bound_var(ctx, 0, B)
+  expect_error(z3_substitute_vars(z3_and(v_int > 0, b0), list(z3_bool_val(ctx, TRUE))), "two different sorts")
+})

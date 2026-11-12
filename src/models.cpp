@@ -131,6 +131,23 @@ void cpp_model_set_func(SEXP m_, SEXP decl_, Rcpp::List entries, SEXP otherwise)
   if (arity == 0) fail("this declaration has no arguments; use z3_model_set() for constants");
   Z3_sort range = Z3_get_range(c, f);
   Ast els = model_value(ctx, otherwise, range, "the default value");
+  // The default may use bound variable i for argument i + 1; check their
+  // indices and sorts (Z3 would coerce them).
+  std::vector<Z3_sort> fv = free_var_sorts(c, els);
+  for (unsigned j = 0; j < fv.size(); ++j) {
+    if (!fv[j]) continue;
+    if (j >= arity || !Z3_is_eq_sort(c, fv[j], Z3_get_domain(c, f, j))) {
+      fail("the default value uses bound variable " + std::to_string(j) +
+           ", which is not an argument of this function with that sort");
+    }
+  }
+  auto ground = [&](const Ast& e, const char* what) {
+    std::vector<Z3_sort> v = free_var_sorts(c, e);
+    for (Z3_sort srt : v) {
+      if (srt) fail(std::string(what) + " must not contain bound variables");
+    }
+    return e;
+  };
   // Convert and check every entry before the model changes.
   std::vector<Ref<Z3_ast_vector>> keys;
   AstVec vals;
@@ -140,10 +157,10 @@ void cpp_model_set_func(SEXP m_, SEXP decl_, Rcpp::List entries, SEXP otherwise)
     if (static_cast<unsigned>(args.size()) != arity) fail("entry has the wrong number of arguments");
     AstVec av;
     for (unsigned j = 0; j < arity; ++j) {
-      av.push_back(model_value(ctx, args[j], Z3_get_domain(c, f, j), "an entry argument"));
+      av.push_back(ground(model_value(ctx, args[j], Z3_get_domain(c, f, j), "an entry argument"), "an entry argument"));
     }
     keys.push_back(make_ast_vector(ctx, av));
-    vals.push_back(model_value(ctx, e["value"], range, "an entry value"));
+    vals.push_back(ground(model_value(ctx, e["value"], range, "an entry value"), "an entry value"));
   }
   Ref<Z3_func_interp> fi = own(ctx, Z3_add_func_interp(c, m, f, els));
   for (size_t i = 0; i < keys.size(); ++i) {

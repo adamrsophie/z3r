@@ -5,15 +5,7 @@ using namespace z3r;
 
 namespace {
 
-struct FixedpointHolder {
-  Ref<Z3_fixedpoint> f;
-  uint64_t generation = 0;
-  uint64_t checked_at = 0;
-  bool checked = false;
-  Z3_lbool status = Z3_L_UNDEF;
-};
-
-FixedpointHolder* fixedpoint(SEXP x) { return get_xptr<FixedpointHolder>(x, Kind::Fixedpoint); }
+FixedpointHolder* fixedpoint(SEXP x) { return fixedpoint_of(x); }
 
 void require_status(FixedpointHolder* h, const char* what) {
   if (!h->checked) fail(std::string("call z3_query() before requesting ") + what);
@@ -25,7 +17,7 @@ void require_status(FixedpointHolder* h, const char* what) {
 }  // namespace
 
 namespace z3r {
-CtxPtr fixedpoint_ctx(SEXP x) { return fixedpoint(x)->f.ctx(); }
+CtxPtr fixedpoint_ctx(SEXP x) { return get_xptr<FixedpointHolder>(x, Kind::Fixedpoint)->f.ctx(); }
 }  // namespace z3r
 
 // [[Rcpp::export(rng = false)]]
@@ -112,16 +104,22 @@ std::string cpp_fixedpoint_query(SEXP f_, SEXP query, int level) {
       keep.push_back(d);
       rels.push_back(as_decl(d));
     }
+    BusyGuard<FixedpointHolder> busy(h);
+    for (CallbackPtr& cb : h->callbacks) cb->results.clear();
     st = Z3_fixedpoint_query_relations(c, h->f, static_cast<unsigned>(rels.size()), rels.data());
   } else {
     Ast q = lift(ctx, query, Z3_mk_bool_sort(c));
     if (!is_bool(q)) fail("the query must be Boolean");
+    // Lemma and external relation callbacks run during the query.
+    BusyGuard<FixedpointHolder> busy(h);
+    for (CallbackPtr& cb : h->callbacks) cb->results.clear();
     st = level < 0 ? Z3_fixedpoint_query(c, h->f, q)
                    : Z3_fixedpoint_query_from_lvl(c, h->f, q, static_cast<unsigned>(level));
   }
   h->checked = true;
   h->checked_at = h->generation;
   h->status = Z3_L_UNDEF;
+  raise_callback_errors(h->callbacks);
   check(ctx);
   h->status = st;
   if (st == Z3_L_UNDEF) forward_interrupt(st, str(Z3_fixedpoint_get_reason_unknown(c, h->f)));

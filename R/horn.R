@@ -213,3 +213,67 @@ z3_finite_domain_sort <- function(ctx, name, size) cpp_finite_domain_sort(ctx, n
 #' @rdname z3_finite_domain_sort
 #' @export
 z3_finite_domain_size <- function(sort) cpp_finite_domain_size(sort)
+
+#' Fixedpoint callbacks
+#'
+#' `z3_on_lemma(fp, lemma, predecessor, unfold)` registers R functions
+#' called by the Spacer engine during [z3_query()]: `lemma(lemma, level)`
+#' for every lemma Spacer learns (an implication from a predicate
+#' application to a property; `level` is `Inf` for inductive invariants),
+#' and `predecessor()` and `unfold()` when Spacer computes a predecessor or
+#' unfolds the search to a new level. Giving `lemma` also turns on Spacer's
+#' `spacer.p3.share_lemmas` and `spacer.p3.share_invariants`, without which
+#' Spacer reports no lemmas.
+#'
+#' `z3_fixedpoint_external(fp, app, assign)` supplies user-defined
+#' relations for the Datalog engine (Z3's external relations): `app(decl,
+#' args)` is called to reduce applications of relational operators and
+#' returns a term of the operator's range sort, or `NULL` to keep the
+#' application; `assign(decl, args, outs)` is called for destructive
+#' updates. It can be set once per engine.
+#'
+#' The callbacks follow the rules of [z3_propagator()] callbacks: errors
+#' stop the query and are raised afterwards, and the engine cannot be used
+#' from its own callbacks.
+#'
+#' @param fp A `z3_fixedpoint`.
+#' @param lemma,predecessor,unfold,app,assign Callback functions, or `NULL`.
+#' @return `fp`, invisibly.
+#' @examples
+#' ctx <- z3_context()
+#' I <- z3_int_sort(ctx)
+#' inv <- z3_function(ctx, "inv", I, z3_bool_sort(ctx))
+#' x <- z3_int(ctx, "x")
+#' fp <- z3_fixedpoint(ctx)
+#' z3_register_relation(fp, inv)
+#' z3_add_rule(fp, inv(0))
+#' z3_add_rule(fp, z3_forall(x, z3_implies(inv(x), inv(x + 2))))
+#' lemmas <- list()
+#' z3_on_lemma(fp, lemma = function(lemma, level) lemmas[[length(lemmas) + 1]] <<- lemma)
+#' z3_query(fp, z3_exists(x, inv(x) & x == 7))
+#' length(lemmas) > 0
+#' @export
+z3_on_lemma <- function(fp, lemma = NULL, predecessor = NULL, unfold = NULL) {
+  fns <- callback_list(lemma = lemma, predecessor = predecessor, unfold = unfold)
+  if (!is.null(lemma)) {
+    z3_set_params(fp, spacer.p3.share_lemmas = TRUE, spacer.p3.share_invariants = TRUE)
+  }
+  cpp_fixedpoint_on_lemma(fp, fns)
+  invisible(fp)
+}
+
+#' @rdname z3_on_lemma
+#' @export
+z3_fixedpoint_external <- function(fp, app = NULL, assign = NULL) {
+  cpp_fixedpoint_external(fp, callback_list(app = app, assign = assign))
+  invisible(fp)
+}
+
+callback_list <- function(...) {
+  fns <- Filter(Negate(is.null), list(...))
+  if (!length(fns)) stop("give at least one callback function", call. = FALSE)
+  for (nm in names(fns)) {
+    if (!is.function(fns[[nm]])) stop(sprintf("%s must be a function", nm), call. = FALSE)
+  }
+  c(fns, list(.invoke = callback_invoke))
+}

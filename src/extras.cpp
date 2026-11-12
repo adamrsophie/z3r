@@ -59,9 +59,13 @@ SEXP cpp_update_term(SEXP x, Rcpp::List args) {
 void cpp_solver_from_file(SEXP s_, SEXP file_) {
   SolverHolder* h = solver_of(s_);
   std::string file = as_string(file_, "file");
-  Z3_solver_from_file(h->s.c(), h->s, file.c_str());
-  check(h->s.ctx());
   h->touch();
+  {
+    BusyGuard<SolverHolder> busy(h);
+    Z3_solver_from_file(h->s.c(), h->s, file.c_str());
+  }
+  raise_callback_errors(h->callbacks);
+  check(h->s.ctx());
 }
 
 // [[Rcpp::export(rng = false)]]

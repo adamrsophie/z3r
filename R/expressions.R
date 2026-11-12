@@ -262,7 +262,7 @@ z3_value <- function(x, exact = TRUE, signed = FALSE) {
     bool = info$value,
     string = , char = info$value,
     int = , real = , bv = , ff = number_value(info, exact),
-    complex = complex(real = z3_value(info$re, exact), imaginary = z3_value(info$im, exact)),
+    complex = complex_value(info, exact),
     nul_string = stop(
       "the string contains the character U+0000, which R strings cannot hold; use z3_str_to_code() or z3_seq_nth() on its characters",
       call. = FALSE
@@ -287,6 +287,21 @@ z3_value <- function(x, exact = TRUE, signed = FALSE) {
     stop(sprintf("values of sort %s cannot be converted to R",
                  cpp_sort_to_string(cpp_sort_of(x))), call. = FALSE)
   )
+}
+
+# An R complex number when both parts are exact doubles, or rounded doubles
+# when exact = FALSE; otherwise an error (R has no exact complex type).
+complex_value <- function(info, exact) {
+  parts <- lapply(list(info$re, info$im), function(p) cpp_value_info(p, 20L))
+  ok <- vapply(parts, function(p) isTRUE(p$exact_double), logical(1))
+  if (exact && !all(ok)) {
+    stop(paste(
+      "this complex value has a part that is not exactly representable as a double;",
+      "use exact = FALSE to round it, or z3_real_part() and z3_imag_part() for exact parts"
+    ), call. = FALSE)
+  }
+  num <- function(p) if (isTRUE(p$exact_double)) p$value else p$approx
+  complex(real = num(parts[[1]]), imaginary = num(parts[[2]]))
 }
 
 number_value <- function(info, exact) {
