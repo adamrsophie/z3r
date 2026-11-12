@@ -57,7 +57,9 @@ which version they need.
 * Uninterpreted and recursive functions, quantifiers with patterns and
   weights, special relations, pseudo-Boolean constraints.
 * Tactics, probes, goals and simplifiers.
-* The fixedpoint engine for constrained Horn clauses (Spacer) and Datalog.
+* The fixedpoint engine for constrained Horn clauses (Spacer) and Datalog,
+  and Spacer's model-based projection (`z3_model_project()`), model
+  extrapolation and `z3_qe_lite()`.
 * Real closed fields, algebraic number arithmetic and polynomial
   subresultants.
 * SMT-LIB2 export, parsing and the SMT-LIB2 command interpreter.

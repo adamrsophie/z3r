@@ -118,3 +118,22 @@ test_that("sort universes and as-array values", {
   expect_s3_class(z3_as_array_function(z3_as_array(f)), "z3_func_decl")
   expect_null(z3_as_array_function(z3_int(ctx, "x")))
 })
+
+test_that("function interpretations are sort checked before the model changes", {
+  ctx <- z3_context()
+  I <- z3_int_sort(ctx)
+  R <- z3_real_sort(ctx)
+  f <- z3_function(ctx, "f", I, I)
+  g <- z3_function(ctx, "g", I, R)
+  m <- z3_model(ctx)
+  z3_model_set_function(m, f, list(list(args = list(1), value = 10)), 0)
+  expect_error(z3_model_set_function(m, f, list(), TRUE), "wrong sort")
+  expect_error(z3_model_set_function(m, f, list(list(args = list(TRUE), value = 1)), 0), "wrong sort")
+  expect_error(z3_model_set_function(m, f, list(list(args = list(1), value = 2), list(args = list(2), value = FALSE)), 0),
+               "wrong sort")
+  # The earlier interpretation survives the failed calls.
+  expect_identical(z3_value(z3_eval(m, f(1))), 10)
+  z3_model_set_function(m, g, list(list(args = list(1), value = 2L)), 0L)
+  expect_identical(z3_value(z3_eval(m, g(1))), 2)
+  expect_identical(z3_value(z3_eval(m, g(1) / 4)), 0.5)
+})

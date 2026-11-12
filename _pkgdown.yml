@@ -135,6 +135,7 @@ reference:
 - title: Horn clauses
   contents:
   - z3_fixedpoint
+  - z3_model_project
 - title: Algebraic numbers
   contents:
   - z3_algebraic

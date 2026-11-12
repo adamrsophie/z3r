@@ -22,7 +22,8 @@
 #' `z3_answer_rule_names()`, `z3_add_invariant()` (a known lemma) and
 #' `z3_reachable()` (the reachable states found for a predicate).
 #' `z3_cover()` and `z3_add_cover()` read and add properties of a
-#' predicate at a search level (`-1` is the invariant level).
+#' predicate at a search level (`-1` is the invariant level), and
+#' `z3_query(fp, q, level)` starts the search at a given level.
 #'
 #' `z3_set_params(fp, engine = "datalog")` selects the Datalog engine;
 #' parameters are listed by `z3_param_help(fp)`. `z3_add_fact()` adds a
@@ -40,7 +41,9 @@
 #' @param args Indices of the elements of a fact.
 #' @param query A Boolean formula, or a list of relations for
 #'   `z3_query()`.
-#' @param level Search level.
+#' @param level Search level. For `z3_query()`, `NULL` (the default)
+#'   searches from level 0 and a number starts the Spacer search at that
+#'   level.
 #' @param property A Boolean formula over the relation's arguments, given as
 #'   bound variables (see [z3_bound_var()]).
 #' @param kinds Relation representation names for
@@ -103,10 +106,10 @@ z3_add.z3_fixedpoint <- function(x, ...) {
 
 #' @rdname z3_fixedpoint
 #' @export
-z3_query <- function(fp, query) {
+z3_query <- function(fp, query, level = NULL) {
   if (inherits(query, "z3_function") || inherits(query, "z3_func_decl")) query <- list(query)
   if (is.list(query)) query <- lapply(query, z3_decl)
-  cpp_fixedpoint_query(fp, query)
+  cpp_fixedpoint_query(fp, query, if (is.null(level)) -1L else as_count(level, "level"))
 }
 
 #' @rdname z3_fixedpoint

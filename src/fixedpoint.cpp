@@ -93,13 +93,15 @@ void cpp_fixedpoint_assert(SEXP f_, SEXP axiom_) {
   ++h->generation;
 }
 
-// Query: a formula, or a list of relation declarations.
+// Query: a formula, or a list of relation declarations. A level >= 0 starts
+// the search at that level (Z3_fixedpoint_query_from_lvl).
 // [[Rcpp::export(rng = false)]]
-std::string cpp_fixedpoint_query(SEXP f_, SEXP query) {
+std::string cpp_fixedpoint_query(SEXP f_, SEXP query, int level) {
   FixedpointHolder* h = fixedpoint(f_);
   const CtxPtr& ctx = h->f.ctx();
   Z3_context c = ctx->c;
   Z3_lbool st;
+  if (level >= 0 && TYPEOF(query) == VECSXP) fail("'level' needs a query formula, not relations");
   if (TYPEOF(query) == VECSXP) {
     std::vector<Z3_func_decl> rels;
     AstVec keep;
@@ -113,7 +115,8 @@ std::string cpp_fixedpoint_query(SEXP f_, SEXP query) {
   } else {
     Ast q = lift(ctx, query, Z3_mk_bool_sort(c));
     if (!is_bool(q)) fail("the query must be Boolean");
-    st = Z3_fixedpoint_query(c, h->f, q);
+    st = level < 0 ? Z3_fixedpoint_query(c, h->f, q)
+                   : Z3_fixedpoint_query_from_lvl(c, h->f, q, static_cast<unsigned>(level));
   }
   h->checked = true;
   h->checked_at = h->generation;

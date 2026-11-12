@@ -33,6 +33,7 @@ See \code{vignette("z3r")} for an introduction to SMT solving from R.
 \seealso{
 Useful links:
 \itemize{
+  \item \url{https://adamrsophie.github.io/z3r/}
   \item \url{https://github.com/adamrsophie/z3r}
   \item Report bugs at \url{https://github.com/adamrsophie/z3r/issues}
 }

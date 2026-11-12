@@ -465,8 +465,8 @@ cpp_fixedpoint_assert <- function(f_, axiom_) {
     invisible(.Call(`_z3r_cpp_fixedpoint_assert`, f_, axiom_))
 }
 
-cpp_fixedpoint_query <- function(f_, query) {
-    .Call(`_z3r_cpp_fixedpoint_query`, f_, query)
+cpp_fixedpoint_query <- function(f_, query, level) {
+    .Call(`_z3r_cpp_fixedpoint_query`, f_, query, level)
 }
 
 cpp_fixedpoint_answer <- function(f_, which) {
@@ -603,6 +603,18 @@ cpp_model_translate <- function(m_, target_) {
 
 cpp_as_array_decl <- function(x) {
     .Call(`_z3r_cpp_as_array_decl`, x)
+}
+
+cpp_model_project <- function(m_, vars, body_, method) {
+    .Call(`_z3r_cpp_model_project`, m_, vars, body_, method)
+}
+
+cpp_model_extrapolate <- function(m_, fml_) {
+    .Call(`_z3r_cpp_model_extrapolate`, m_, fml_)
+}
+
+cpp_qe_lite <- function(vars, body_) {
+    .Call(`_z3r_cpp_qe_lite`, vars, body_)
 }
 
 cpp_mk_optimize <- function(ctx_) {

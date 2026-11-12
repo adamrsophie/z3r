@@ -103,10 +103,46 @@ z3_query(fp, path)
 z3_answer(fp)
 ```
 
+## Model-based projection
+
+Spacer's building blocks are available on their own. Model-based
+projection removes variables from a formula, guided by a model: the result
+holds in the model and implies the formula with the variables
+existentially quantified. Here the model has `x = 3, y = 4`, and
+projecting `x` out of `x > 2 & y == x + 1` leaves a constraint on `y`:
+
+```{r}
+x <- z3_int(ctx, "x")
+y <- z3_int(ctx, "y")
+f <- x > 2 & y == x + 1
+sol <- z3_solver(ctx)
+z3_add(sol, f)
+z3_check(sol)
+m <- z3_model(sol)
+z3_model_project(m, x, f)
+```
+
+```{r, eval = z3_version_at_least("4.13.4")}
+w <- z3_model_project(m, x, f, method = "witness")
+w$formula
+w$terms
+```
+
+The witness says how to recover `x` from `y`. `z3_model_extrapolate()`
+generalizes the model into a conjunction of literals that implies a
+formula, and `z3_qe_lite()` eliminates the variables that cheap rewriting
+can remove:
+
+```{r}
+z3_model_extrapolate(m, f | y < 0)
+z3_qe_lite(x, f)
+```
+
 ## More
 
 * `z3_fixedpoint_rules()`, `z3_param_help(fp)`, `z3_statistics(fp)`.
 * Spacer: `z3_ground_answer()`, `z3_answer_trace()`, `z3_add_invariant()`,
-  `z3_reachable()`, `z3_cover()` and `z3_add_cover()`.
+  `z3_reachable()`, `z3_cover()` and `z3_add_cover()`;
+  `z3_query(fp, q, level = k)` starts the search at level `k`.
 * Rules in SMT-LIB2 Horn format can be given to a solver created with
   `z3_solver(ctx, logic = "HORN")`.

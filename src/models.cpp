@@ -93,6 +93,20 @@ SEXP cpp_mk_model(SEXP ctx_) {
   return make_xptr(new Ref<Z3_model>(own(ctx, Z3_mk_model(ctx->c))), Kind::Model);
 }
 
+// Converts a value for a model to the sort it must have: an Int becomes a
+// Real where a Real is expected; any other mismatch is an error (Z3 would
+// accept an ill-sorted interpretation).
+static Ast model_value(const CtxPtr& ctx, SEXP x, Z3_sort sort, const char* what) {
+  Z3_context c = ctx->c;
+  Ast v = lift(ctx, x, sort);
+  if (Z3_get_sort_kind(c, sort) == Z3_REAL_SORT && sort_kind(v) == Z3_INT_SORT) v = to_real(v);
+  if (!Z3_is_eq_sort(c, sort, Z3_get_sort(c, v))) {
+    fail(std::string(what) + " has the wrong sort: " + sort_name(ctx, Z3_get_sort(c, v)) + " where " +
+         sort_name(ctx, sort) + " is needed");
+  }
+  return v;
+}
+
 // Assigns a value to a constant (an application of a nullary declaration).
 // [[Rcpp::export(rng = false)]]
 void cpp_model_set_const(SEXP m_, SEXP constant, SEXP value) {
@@ -105,9 +119,7 @@ void cpp_model_set_const(SEXP m_, SEXP constant, SEXP value) {
     fail("only constants can be assigned in a model");
   }
   Z3_func_decl d = Z3_get_app_decl(c, Z3_to_app(c, k));
-  Ast v = lift(ctx, value, Z3_get_sort(c, k));
-  if (sort_kind(k) == Z3_REAL_SORT && sort_kind(v) == Z3_INT_SORT) v = to_real(v);
-  if (!Z3_is_eq_sort(c, Z3_get_sort(c, k), Z3_get_sort(c, v))) fail("the value has the wrong sort");
+  Ast v = model_value(ctx, value, Z3_get_sort(c, k), "the value");
   Z3_add_const_interp(c, m, d, v);
   check(ctx);
 }
@@ -124,17 +136,24 @@ void cpp_model_set_func(SEXP m_, SEXP decl_, Rcpp::List entries, SEXP otherwise)
   Z3_func_decl f = as_decl(decl);
   unsigned arity = Z3_get_arity(c, f);
   Z3_sort range = Z3_get_range(c, f);
-  Ast els = lift(ctx, otherwise, range);
-  Ref<Z3_func_interp> fi = own(ctx, Z3_add_func_interp(c, m, f, els));
+  Ast els = model_value(ctx, otherwise, range, "the default value");
+  // Convert and check every entry before the model changes.
+  std::vector<Ref<Z3_ast_vector>> keys;
+  AstVec vals;
   for (R_xlen_t i = 0; i < entries.size(); ++i) {
     Rcpp::List e(entries[i]);
     Rcpp::List args = Rcpp::as<Rcpp::List>(e["args"]);
     if (static_cast<unsigned>(args.size()) != arity) fail("entry has the wrong number of arguments");
     AstVec av;
-    for (unsigned j = 0; j < arity; ++j) av.push_back(lift(ctx, args[j], Z3_get_domain(c, f, j)));
-    Ref<Z3_ast_vector> vec = make_ast_vector(ctx, av);
-    Ast val = lift(ctx, e["value"], range);
-    Z3_func_interp_add_entry(c, fi, vec, val);
+    for (unsigned j = 0; j < arity; ++j) {
+      av.push_back(model_value(ctx, args[j], Z3_get_domain(c, f, j), "an entry argument"));
+    }
+    keys.push_back(make_ast_vector(ctx, av));
+    vals.push_back(model_value(ctx, e["value"], range, "an entry value"));
+  }
+  Ref<Z3_func_interp> fi = own(ctx, Z3_add_func_interp(c, m, f, els));
+  for (size_t i = 0; i < keys.size(); ++i) {
+    Z3_func_interp_add_entry(c, fi, keys[i], vals[i]);
     check(ctx);
   }
 }
@@ -191,4 +210,105 @@ SEXP cpp_as_array_decl(SEXP x) {
   const Ast& a = get_expr(x);
   if (!Z3_is_as_array(a.c(), a)) return R_NilValue;
   return wrap_decl(own_ast(a.ctx(), decl_ast(Z3_get_as_array_func_decl(a.c(), a))));
+}
+
+// ---------------------------------------------------------------------------
+// Model-based projection, model extrapolation and light quantifier
+// elimination (z3_spacer.h).
+
+bool cpp_is_const(SEXP x);
+
+namespace {
+
+std::vector<Z3_app> projection_vars(const CtxPtr& ctx, Rcpp::List vars, AstVec& keep) {
+  std::vector<Z3_app> out;
+  for (R_xlen_t i = 0; i < vars.size(); ++i) {
+    SEXP v = vars[i];
+    if (!is_kind(v, Kind::Expr) || !cpp_is_const(v)) {
+      fail("variables must be constants such as those made by z3_int()");
+    }
+    const Ast& a = get_expr(v);
+    same_ctx(ctx, a.ctx());
+    keep.push_back(a);
+    out.push_back(Z3_to_app(ctx->c, a));
+  }
+  return out;
+}
+
+// Projection and extrapolation assume the model satisfies the formula and
+// return meaningless results otherwise.
+void require_true_in(const Ref<Z3_model>& m, const Ast& fml) {
+  Z3_context c = m.c();
+  Z3_ast out = nullptr;
+  bool ok = Z3_model_eval(c, m, fml, true, &out);
+  check(m.ctx());
+  if (!ok || !out || Z3_get_bool_value(c, out) != Z3_L_TRUE) fail("the formula must be true in the model");
+}
+
+}  // namespace
+
+// method: "plain", "skolem" or "witness". The last two also return the
+// variable bindings Z3 records in an AST map.
+// [[Rcpp::export(rng = false)]]
+SEXP cpp_model_project(SEXP m_, Rcpp::List vars, SEXP body_, std::string method) {
+  const Ref<Z3_model>& m = model(m_);
+  const CtxPtr& ctx = m.ctx();
+  Z3_context c = ctx->c;
+  Ast body = lift(ctx, body_, Z3_mk_bool_sort(c));
+  if (!is_bool(body)) fail("the formula to project must be Boolean");
+  require_true_in(m, body);
+  AstVec keep;
+  std::vector<Z3_app> b = projection_vars(ctx, vars, keep);
+  unsigned n = static_cast<unsigned>(b.size());
+  const Z3_app* bp = b.empty() ? nullptr : b.data();
+  if (method == "plain") return wrap_expr(own_ast(ctx, Z3_qe_model_project(c, m, n, bp, body)));
+  Ref<Z3_ast_map> map = own(ctx, Z3_mk_ast_map(c));
+  Z3_ast r = nullptr;
+  if (method == "skolem") {
+    r = Z3_qe_model_project_skolem(c, m, n, bp, body, map);
+  } else {
+#if Z3R_AT_LEAST(4, 13, 4)
+    r = Z3_qe_model_project_with_witness(c, m, n, bp, body, map);
+#else
+    needs_version("z3_model_project(method = \"witness\")", "4.13.4");
+#endif
+  }
+  Ast res = own_ast(ctx, r);
+  Ref<Z3_ast_vector> keys = own(ctx, Z3_ast_map_keys(c, map));
+  unsigned k = Z3_ast_vector_size(c, keys);
+  AstVec from, to;
+  for (unsigned i = 0; i < k; ++i) {
+    Ast key = own_ast(ctx, Z3_ast_vector_get(c, keys, i));
+    to.push_back(own_ast(ctx, Z3_ast_map_find(c, map, key)));
+    from.push_back(key);
+  }
+  return Rcpp::List::create(Rcpp::Named("formula") = wrap_expr(res), Rcpp::Named("vars") = wrap_expr_list(from),
+                            Rcpp::Named("terms") = wrap_expr_list(to));
+}
+
+// [[Rcpp::export(rng = false)]]
+SEXP cpp_model_extrapolate(SEXP m_, SEXP fml_) {
+  const Ref<Z3_model>& m = model(m_);
+  const CtxPtr& ctx = m.ctx();
+  Ast fml = lift(ctx, fml_, Z3_mk_bool_sort(ctx->c));
+  if (!is_bool(fml)) fail("the formula must be Boolean");
+  require_true_in(m, fml);
+  return wrap_expr(own_ast(ctx, Z3_model_extrapolate(ctx->c, m, fml)));
+}
+
+// Returns the result and the variables that were not eliminated.
+// [[Rcpp::export(rng = false)]]
+SEXP cpp_qe_lite(Rcpp::List vars, SEXP body_) {
+  const Ast& body = get_expr(body_);
+  const CtxPtr& ctx = body.ctx();
+  Z3_context c = ctx->c;
+  if (!is_bool(body)) fail("the formula must be Boolean");
+  AstVec keep;
+  projection_vars(ctx, vars, keep);
+  Ref<Z3_ast_vector> v = make_ast_vector(ctx, keep);
+  Ast res = own_ast(ctx, Z3_qe_lite(c, v, body));
+  AstVec left;
+  unsigned k = Z3_ast_vector_size(c, v);
+  for (unsigned i = 0; i < k; ++i) left.push_back(own_ast(ctx, Z3_ast_vector_get(c, v, i)));
+  return Rcpp::List::create(Rcpp::Named("formula") = wrap_expr(res), Rcpp::Named("remaining") = wrap_expr_list(left));
 }

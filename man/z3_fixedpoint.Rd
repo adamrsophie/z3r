@@ -28,7 +28,7 @@ z3_add_rule(fp, rule, name = "", update = FALSE)
 
 z3_add_fact(fp, relation, args)
 
-z3_query(fp, query)
+z3_query(fp, query, level = NULL)
 
 z3_answer(fp)
 
@@ -72,7 +72,9 @@ z3_set_representation(fp, relation, kinds)
 \item{query}{A Boolean formula, or a list of relations for
 \code{z3_query()}.}
 
-\item{level}{Search level.}
+\item{level}{Search level. For \code{z3_query()}, \code{NULL} (the default)
+searches from level 0 and a number starts the Spacer search at that
+level.}
 
 \item{property}{A Boolean formula over the relation's arguments, given as
 bound variables (see \code{\link[=z3_bound_var]{z3_bound_var()}}).}
@@ -111,7 +113,8 @@ Spacer functions: \code{z3_ground_answer()} (a ground derivation),
 \code{z3_answer_rule_names()}, \code{z3_add_invariant()} (a known lemma) and
 \code{z3_reachable()} (the reachable states found for a predicate).
 \code{z3_cover()} and \code{z3_add_cover()} read and add properties of a
-predicate at a search level (\code{-1} is the invariant level).
+predicate at a search level (\code{-1} is the invariant level), and
+\code{z3_query(fp, q, level)} starts the search at a given level.
 
 \code{z3_set_params(fp, engine = "datalog")} selects the Datalog engine;
 parameters are listed by \code{z3_param_help(fp)}. \code{z3_add_fact()} adds a

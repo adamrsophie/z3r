@@ -1276,13 +1276,14 @@ BEGIN_RCPP
 END_RCPP
 }
 // cpp_fixedpoint_query
-std::string cpp_fixedpoint_query(SEXP f_, SEXP query);
-RcppExport SEXP _z3r_cpp_fixedpoint_query(SEXP f_SEXP, SEXP querySEXP) {
+std::string cpp_fixedpoint_query(SEXP f_, SEXP query, int level);
+RcppExport SEXP _z3r_cpp_fixedpoint_query(SEXP f_SEXP, SEXP querySEXP, SEXP levelSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::traits::input_parameter< SEXP >::type f_(f_SEXP);
     Rcpp::traits::input_parameter< SEXP >::type query(querySEXP);
-    rcpp_result_gen = Rcpp::wrap(cpp_fixedpoint_query(f_, query));
+    Rcpp::traits::input_parameter< int >::type level(levelSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_fixedpoint_query(f_, query, level));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -1658,6 +1659,41 @@ BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::traits::input_parameter< SEXP >::type x(xSEXP);
     rcpp_result_gen = Rcpp::wrap(cpp_as_array_decl(x));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_model_project
+SEXP cpp_model_project(SEXP m_, Rcpp::List vars, SEXP body_, std::string method);
+RcppExport SEXP _z3r_cpp_model_project(SEXP m_SEXP, SEXP varsSEXP, SEXP body_SEXP, SEXP methodSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type m_(m_SEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type vars(varsSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type body_(body_SEXP);
+    Rcpp::traits::input_parameter< std::string >::type method(methodSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_model_project(m_, vars, body_, method));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_model_extrapolate
+SEXP cpp_model_extrapolate(SEXP m_, SEXP fml_);
+RcppExport SEXP _z3r_cpp_model_extrapolate(SEXP m_SEXP, SEXP fml_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type m_(m_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type fml_(fml_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_model_extrapolate(m_, fml_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_qe_lite
+SEXP cpp_qe_lite(Rcpp::List vars, SEXP body_);
+RcppExport SEXP _z3r_cpp_qe_lite(SEXP varsSEXP, SEXP body_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type vars(varsSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type body_(body_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_qe_lite(vars, body_));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -2944,7 +2980,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_z3r_cpp_fixedpoint_add_rule", (DL_FUNC) &_z3r_cpp_fixedpoint_add_rule, 4},
     {"_z3r_cpp_fixedpoint_add_fact", (DL_FUNC) &_z3r_cpp_fixedpoint_add_fact, 3},
     {"_z3r_cpp_fixedpoint_assert", (DL_FUNC) &_z3r_cpp_fixedpoint_assert, 2},
-    {"_z3r_cpp_fixedpoint_query", (DL_FUNC) &_z3r_cpp_fixedpoint_query, 2},
+    {"_z3r_cpp_fixedpoint_query", (DL_FUNC) &_z3r_cpp_fixedpoint_query, 3},
     {"_z3r_cpp_fixedpoint_answer", (DL_FUNC) &_z3r_cpp_fixedpoint_answer, 2},
     {"_z3r_cpp_fixedpoint_reason_unknown", (DL_FUNC) &_z3r_cpp_fixedpoint_reason_unknown, 1},
     {"_z3r_cpp_fixedpoint_cover", (DL_FUNC) &_z3r_cpp_fixedpoint_cover, 5},
@@ -2979,6 +3015,9 @@ static const R_CallMethodDef CallEntries[] = {
     {"_z3r_cpp_model_universes", (DL_FUNC) &_z3r_cpp_model_universes, 1},
     {"_z3r_cpp_model_translate", (DL_FUNC) &_z3r_cpp_model_translate, 2},
     {"_z3r_cpp_as_array_decl", (DL_FUNC) &_z3r_cpp_as_array_decl, 1},
+    {"_z3r_cpp_model_project", (DL_FUNC) &_z3r_cpp_model_project, 4},
+    {"_z3r_cpp_model_extrapolate", (DL_FUNC) &_z3r_cpp_model_extrapolate, 2},
+    {"_z3r_cpp_qe_lite", (DL_FUNC) &_z3r_cpp_qe_lite, 2},
     {"_z3r_cpp_mk_optimize", (DL_FUNC) &_z3r_cpp_mk_optimize, 1},
     {"_z3r_cpp_optimize_assert", (DL_FUNC) &_z3r_cpp_optimize_assert, 2},
     {"_z3r_cpp_optimize_assert_and_track", (DL_FUNC) &_z3r_cpp_optimize_assert_and_track, 3},
