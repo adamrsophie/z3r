@@ -16,7 +16,8 @@
 #' life. The most useful are `proof = TRUE` (needed for [z3_proof()]),
 #' `unsat_core`, `timeout` (milliseconds, for every solver of the context),
 #' `auto_config`, `well_sorted_check` and `model_validate`. Values are R
-#' scalars; unknown names are an error.
+#' scalars of the parameter's type (`TRUE`/`FALSE`, a whole number, or a
+#' string); unknown names and values of the wrong type are errors.
 #'
 #' @param ... Named configuration parameters.
 #' @return An object of class `z3_context`.
@@ -37,17 +38,40 @@ z3_context <- function(...) {
                  if (length(unknown) > 1L) "s" else "", paste(unknown, collapse = ", "),
                  paste(context_params, collapse = ", ")), call. = FALSE)
   }
+  for (nm in names(config)) check_context_param(nm, config[[nm]])
   values <- vapply(config, param_string, character(1))
   cpp_mk_context(names(config) %||% character(), unname(values))
 }
 
-# Configuration parameters Z3 accepts for a new context (Z3_set_param_value).
-context_params <- c(
-  "auto_config", "ctrl_c", "debug_ref_count", "dot_proof_file", "dump_models",
-  "encoding", "model", "model_validate", "proof", "rlimit", "smtlib2_compliant",
-  "stats", "timeout", "trace", "trace_file_name", "type_check", "unsat_core",
-  "well_sorted_check"
+# Configuration parameters Z3 accepts for a new context (Z3_set_param_value),
+# by type. Z3 itself only prints a warning for an invalid value.
+context_param_types <- c(
+  auto_config = "bool", ctrl_c = "bool", debug_ref_count = "bool", dot_proof_file = "string",
+  dump_models = "bool", encoding = "encoding", model = "bool", model_validate = "bool",
+  proof = "bool", rlimit = "uint", smtlib2_compliant = "bool", stats = "bool", timeout = "uint",
+  trace = "bool", trace_file_name = "string", type_check = "bool", unsat_core = "bool",
+  well_sorted_check = "bool"
 )
+context_params <- names(context_param_types)
+
+check_context_param <- function(name, value) {
+  type <- context_param_types[[name]]
+  ok <- length(value) == 1L && !is.na(value) && switch(type,
+    bool = is.logical(value),
+    uint = is.numeric(value) && value >= 0 && value == floor(value) && value <= 4294967295,
+    string = is.character(value),
+    encoding = is.character(value) && value %in% c("unicode", "bmp", "ascii")
+  )
+  if (!ok) {
+    want <- switch(type,
+      bool = "TRUE or FALSE",
+      uint = "a whole number between 0 and 4294967295",
+      string = "a single string",
+      encoding = "one of \"unicode\", \"bmp\" or \"ascii\""
+    )
+    stop(sprintf("context parameter %s must be %s", name, want), call. = FALSE)
+  }
+}
 
 `%||%` <- function(a, b) if (is.null(a)) b else a
 
@@ -114,9 +138,19 @@ z3_same_context <- function(x, y) {
 
 .onLoad <- function(libname, pkgname) {
   v <- cpp_version()
-  same <- function(a, b) identical(strsplit(a, ".", fixed = TRUE)[[1]][1:3],
-                                   strsplit(b, ".", fixed = TRUE)[[1]][1:3])
-  if (v$headers != "unknown" && !same(v$headers, v$runtime)) {
+  if (v$headers == "unknown") return(invisible())
+  three <- function(x) package_version(paste(strsplit(x, ".", fixed = TRUE)[[1]][1:3], collapse = "."))
+  h <- three(v$headers)
+  r <- three(v$runtime)
+  # A library older than the headers may lack functions z3r was compiled to
+  # call, which would crash R at the first call; refuse to load.
+  if (r < h) {
+    stop(sprintf(paste(
+      "z3r was compiled against Z3 %s but the Z3 library loaded is the older %s;",
+      "reinstall z3r against the library you use"
+    ), v$headers, v$runtime), call. = FALSE)
+  }
+  if (r != h) {
     warning(sprintf(paste(
       "z3r was compiled against Z3 %s but is running with Z3 %s;",
       "reinstall z3r so that headers and library match"

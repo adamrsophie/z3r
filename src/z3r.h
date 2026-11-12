@@ -1,6 +1,6 @@
 // Core ownership layer for z3r.
 //
-// Ownership rules (see docs/architecture.md):
+// Ownership rules:
 //
 // * A Z3 context is created with Z3_mk_context_rc and owned by a
 //   std::shared_ptr<Context>. Every wrapper of a Z3 object (AST, solver,
@@ -26,8 +26,8 @@
 #include <z3.h>
 
 // Z3 version known at compile time. Functions added after the minimum
-// supported release (4.8.13) are compiled only when the headers have them;
-// see documentation/z3-api-first-version.tsv for when each one appeared.
+// supported release (4.8.13) are compiled only when the headers have them,
+// guarded by the release that first declared them.
 #if defined(__has_include)
 #if __has_include(<z3_version.h>)
 #include <z3_version.h>

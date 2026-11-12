@@ -81,3 +81,10 @@ test_that("finite field and complex values convert to R", {
   expect_identical(z3_value(z3_eval(z3_model(s), z)), complex(real = 1.5, imaginary = -2))
   expect_identical(z3_model_values(z3_model(s))$a, 5)
 })
+
+test_that("finite field moduli beyond 2^53 must be strings", {
+  skip_if_not(z3_version_at_least("5.3.0"))
+  ctx <- z3_context()
+  expect_error(z3_ff_sort(ctx, 2^61 - 1), "2\\^53")
+  expect_s3_class(z3_ff_sort(ctx, "2305843009213693951"), "z3_sort")
+})

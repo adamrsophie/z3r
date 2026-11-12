@@ -152,3 +152,17 @@ test_that("popping an optimizer needs an open scope", {
   z3_push(o)
   expect_no_error(z3_pop(o))
 })
+
+test_that("soft constraint groups have objective handles", {
+  ctx <- z3_context()
+  p <- z3_bools(ctx, c("a", "b", "c"))
+  opt <- z3_optimize(ctx)
+  z3_add(opt, z3_or(!p$a, !p$b), z3_or(!p$b, !p$c))
+  z3_add_soft(opt, p$a, 2)
+  h <- z3_add_soft(opt, p$b, 3)
+  z3_add_soft(opt, p$c, 2)
+  expect_s3_class(h, "z3_objective")
+  expect_identical(z3_check(opt), "sat")
+  # Keeping b violates a and c (weight 4); dropping b costs 3.
+  expect_identical(z3_value(z3_optimum(h)$value), 3)
+})

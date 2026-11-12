@@ -8,9 +8,11 @@
 #   3. pkg-config z3 (for example an Rtools or MSYS2 z3 package).
 #
 # Official Z3 releases ship libz3.dll. The C API has a plain C ABI, so the
-# MinGW toolchain of Rtools links against the DLL directly. The DLL is copied
-# next to z3r.dll at install time, where Windows finds it when R loads the
-# package. Nothing is downloaded.
+# MinGW toolchain of Rtools links against the DLL directly. The DLL, the
+# Microsoft runtime DLLs shipped beside it and Z3's license are copied next
+# to z3r.dll at install time, where Windows finds them when R loads the
+# package. Headers and DLL must be the same Z3 version. Nothing is
+# downloaded.
 
 : "${R_HOME:=`R RHOME`}"
 RBIN="${R_HOME}/bin${R_ARCH_BIN}/R"
@@ -18,13 +20,27 @@ CXX=`"${RBIN}" CMD config CXX`
 CXXFLAGS=`"${RBIN}" CMD config CXXFLAGS`
 
 try_z3 () {
+  # $1 = preprocessor flags, $2 = linker flags (both may quote paths with
+  # spaces; eval honors the quotes), $3 = DLL to copy beside the test program.
   cat > conftest.cpp <<EOF
 #include <z3.h>
 #include <stdio.h>
+#if defined(__has_include)
+#  if __has_include(<z3_version.h>)
+#    include <z3_version.h>
+#  endif
+#endif
 int main(void) {
   unsigned major, minor, build, rev;
   Z3_get_version(&major, &minor, &build, &rev);
   printf("%u.%u.%u\n", major, minor, build);
+#ifdef Z3_MAJOR_VERSION
+  if (major != Z3_MAJOR_VERSION || minor != Z3_MINOR_VERSION || build != Z3_BUILD_NUMBER) {
+    fprintf(stderr, "Z3 headers are version %d.%d.%d but the library is %u.%u.%u",
+            Z3_MAJOR_VERSION, Z3_MINOR_VERSION, Z3_BUILD_NUMBER, major, minor, build);
+    return 3;
+  }
+#endif
   void *p = (void *) &Z3_get_string_contents;
   if (!p) return 2;
   if (major != 4) return major > 4 ? 0 : 1;
@@ -33,16 +49,31 @@ int main(void) {
 }
 EOF
   rm -f conftest.exe
-  ${CXX} $1 ${CXXFLAGS} conftest.cpp -o conftest.exe $2 >> config.log 2>&1 || return 1
+  eval "${CXX} $1 ${CXXFLAGS} conftest.cpp -o conftest.exe $2" >> config.log 2>&1 || return 1
   if test -n "$3"; then cp "$3" . 2>> config.log; fi
-  Z3_FOUND_VERSION=`./conftest.exe 2>> config.log` || return 1
+  Z3_FOUND_VERSION=`./conftest.exe 2> conftest.err`
+  status=$?
+  cat conftest.err >> config.log
+  if test ${status} -ne 0; then
+    if test ${status} -eq 3; then
+      echo "configure.win: `cat conftest.err`; ignoring this Z3" >&2
+    elif test -n "${Z3_FOUND_VERSION}"; then
+      echo "configure.win: found Z3 ${Z3_FOUND_VERSION}, but z3r needs 4.8.13 or later" >&2
+    fi
+    return 1
+  fi
   return 0
 }
+
+# Escapes text for the replacement part of a sed s||| command.
+sed_escape () { printf '%s\n' "$1" | sed -e 's/[\\&|]/\\&/g'; }
 
 : > config.log
 Z3_CPPFLAGS=""
 Z3_LIBS=""
 Z3_DLL=""
+Z3_DLLDIR=""
+Z3_LICENSE=""
 Z3_SOURCE=""
 
 # Windows paths may use backslashes, which sed below would treat as escapes.
@@ -65,12 +96,17 @@ elif test -n "${Z3_INCLUDE_DIR}" || test -n "${Z3_LIB_DIR}"; then
   Z3_CPPFLAGS="-I\"${Z3_INCLUDE_DIR}\""
   if test -f "${Z3_LIB_DIR}/libz3.dll"; then
     Z3_DLL="${Z3_LIB_DIR}/libz3.dll"
+    Z3_DLLDIR="${Z3_LIB_DIR}"
     Z3_LIBS="\"${Z3_DLL}\""
+    # Z3's MIT license must accompany copies of the DLL.
+    for f in "${Z3_LIB_DIR}/../LICENSE.txt" "${Z3_DIR}/LICENSE.txt"; do
+      if test -f "$f"; then Z3_LICENSE="$f"; break; fi
+    done
   else
     Z3_LIBS="-L\"${Z3_LIB_DIR}\" -lz3"
   fi
   Z3_SOURCE="Z3_INCLUDE_DIR/Z3_LIB_DIR"
-  try_z3 "-I${Z3_INCLUDE_DIR}" "${Z3_DLL:--L${Z3_LIB_DIR} -lz3}" "${Z3_DLL}" || Z3_SOURCE=""
+  try_z3 "${Z3_CPPFLAGS}" "${Z3_LIBS}" "${Z3_DLL}" || Z3_SOURCE=""
 elif pkg-config --exists z3 2>/dev/null; then
   Z3_CPPFLAGS=`pkg-config --cflags z3`
   Z3_LIBS=`pkg-config --libs --static z3`
@@ -78,7 +114,7 @@ elif pkg-config --exists z3 2>/dev/null; then
   try_z3 "${Z3_CPPFLAGS}" "${Z3_LIBS}" "" || Z3_SOURCE=""
 fi
 
-rm -f conftest.cpp conftest.exe libz3.dll
+rm -f conftest.cpp conftest.exe conftest.err libz3.dll
 
 if test -z "${Z3_SOURCE}"; then
   cat >&2 <<EOF
@@ -102,8 +138,9 @@ EOF
 fi
 
 echo "configure.win: using Z3 ${Z3_FOUND_VERSION} (found via ${Z3_SOURCE})"
-sed -e "s|@Z3_CPPFLAGS@|${Z3_CPPFLAGS}|" -e "s|@Z3_LIBS@|${Z3_LIBS}|" \
-    -e "s|@Z3_DLL@|${Z3_DLL}|" src/Makevars.win.in > src/Makevars.win.new
+sed -e "s|@Z3_CPPFLAGS@|`sed_escape "${Z3_CPPFLAGS}"`|" -e "s|@Z3_LIBS@|`sed_escape "${Z3_LIBS}"`|" \
+    -e "s|@Z3_DLLDIR@|`sed_escape "${Z3_DLLDIR}"`|" -e "s|@Z3_LICENSE@|`sed_escape "${Z3_LICENSE}"`|" \
+    src/Makevars.win.in > src/Makevars.win.new
 if cmp -s src/Makevars.win.new src/Makevars.win; then
   rm -f src/Makevars.win.new
 else

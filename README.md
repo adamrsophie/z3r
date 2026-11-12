@@ -63,8 +63,9 @@ z3r targets Z3 5.4.1 (and works with every release from 4.8.13).
 
 z3r needs the Z3 C library and headers, version 4.8.13 or later (the first
 release with Z3's Unicode string API). Nothing is downloaded during
-installation. Ubuntu 22.04 and Debian 12 ship Z3 4.8.12, which is too old;
-use a newer distribution package or an official release archive there.
+installation. Ubuntu 22.04 and 24.04 and Debian 12 ship Z3 4.8.12, which is
+too old; use a newer distribution package (Debian 13 and Ubuntu 26.04 ship
+4.13.3) or an official release archive there.
 Features that need a newer Z3 than the one z3r was built with report so
 when they are called.
 
@@ -95,7 +96,7 @@ Z3 4.16.0 on Apple silicon.
 ### Linux
 
 ```sh
-sudo apt-get install libz3-dev    # Debian, Ubuntu
+sudo apt-get install libz3-dev    # Debian 13, Ubuntu 26.04 or later
 sudo dnf install z3-devel         # Fedora
 ```
 

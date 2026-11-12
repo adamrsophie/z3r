@@ -123,7 +123,7 @@ template <typename F> void guarded(CallbackState* st, F f) {
 
 CallbackState* state(void* p) { return static_cast<CallbackState*>(p); }
 
-SEXP expr_arg(const CtxPtr& ctx, Z3_ast a) { return wrap_expr(Ast(ctx, a)); }
+[[maybe_unused]] SEXP expr_arg(const CtxPtr& ctx, Z3_ast a) { return wrap_expr(Ast(ctx, a)); }
 
 // ---- user propagator trampolines ----------------------------------------
 
@@ -303,7 +303,7 @@ CallbackPtr new_state(const CtxPtr& ctx, SEXP fns, SEXP owner, const void* holde
   return st;
 }
 
-bool has(SEXP fns, const char* name) {
+[[maybe_unused]] bool has(SEXP fns, const char* name) {
   SEXP names = Rf_getAttrib(fns, R_NamesSymbol);
   for (R_xlen_t i = 0; i < Rf_xlength(fns); ++i) {
     if (std::string(CHAR(STRING_ELT(names, i))) == name) return true;
@@ -311,7 +311,7 @@ bool has(SEXP fns, const char* name) {
   return false;
 }
 
-CbHolder* cb_handle(SEXP x) { return get_xptr<CbHolder>(x, Kind::Callback); }
+[[maybe_unused]] CbHolder* cb_handle(SEXP x) { return get_xptr<CbHolder>(x, Kind::Callback); }
 
 }  // namespace
 

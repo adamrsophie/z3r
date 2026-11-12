@@ -3,6 +3,9 @@
 // remaining arithmetic and bit-vector constructors.
 #include "z3r.h"
 
+#include <cerrno>
+#include <cstdlib>
+
 using namespace z3r;
 
 namespace {
@@ -346,21 +349,27 @@ SEXP cpp_misc_op(std::string op, SEXP args, Rcpp::IntegerVector params) {
 }
 
 // [[Rcpp::export(rng = false)]]
-SEXP cpp_finite_domain_sort(SEXP ctx_, SEXP name_, double size) {
+SEXP cpp_finite_domain_sort(SEXP ctx_, SEXP name_, std::string size) {
   CtxPtr ctx = get_ctx(ctx_);
   std::string name = as_string(name_, "name");
-  if (ISNAN(size) || size < 1 || size != std::floor(size) || size > 9007199254740992.0) {
-    fail("size must be a positive whole number");
+  // size is a decimal string validated in R; check it fits 64 bits.
+  errno = 0;
+  char* end = nullptr;
+  unsigned long long n = std::strtoull(size.c_str(), &end, 10);
+  if (size.empty() || *end || errno == ERANGE || n == 0 || size[0] == '-') {
+    fail("size must be a positive whole number below 2^64");
   }
-  Z3_sort s = Z3_mk_finite_domain_sort(ctx->c, mk_symbol(ctx, name), static_cast<uint64_t>(size));
+  Z3_sort s = Z3_mk_finite_domain_sort(ctx->c, mk_symbol(ctx, name), static_cast<uint64_t>(n));
   return wrap_sort(own_ast(ctx, sort_ast(s)));
 }
 
+// The size as a double when exact (up to 2^53), otherwise a decimal string.
 // [[Rcpp::export(rng = false)]]
-double cpp_finite_domain_size(SEXP sort_) {
+SEXP cpp_finite_domain_size(SEXP sort_) {
   const Ast& s = get_sort(sort_);
   uint64_t n = 0;
   if (!Z3_get_finite_domain_sort_size(s.c(), as_sort(s), &n)) fail("not a finite domain sort");
   check(s.ctx());
-  return static_cast<double>(n);
+  if (n <= (1ULL << 53)) return Rcpp::wrap(static_cast<double>(n));
+  return Rcpp::wrap(std::to_string(static_cast<unsigned long long>(n)));
 }

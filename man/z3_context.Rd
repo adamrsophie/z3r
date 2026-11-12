@@ -30,7 +30,8 @@ Configuration parameters fix properties of the context for its whole
 life. The most useful are \code{proof = TRUE} (needed for \code{\link[=z3_proof]{z3_proof()}}),
 \code{unsat_core}, \code{timeout} (milliseconds, for every solver of the context),
 \code{auto_config}, \code{well_sorted_check} and \code{model_validate}. Values are R
-scalars; unknown names are an error.
+scalars of the parameter's type (\code{TRUE}/\code{FALSE}, a whole number, or a
+string); unknown names and values of the wrong type are errors.
 }
 \examples{
 ctx <- z3_context()

@@ -49,7 +49,7 @@ test_that("characters and code points", {
   a <- z3_char_val(ctx, 65)
   expect_identical(z3_value(z3_simplify(z3_char_to_int(a))), 65)
   expect_identical(z3_value(z3_simplify(z3_str_to_code(z3_string_val(ctx, "A")))), 65)
-  expect_identical(z3_value(z3_simplify(z3_str_from_code(z3_int_val(ctx, 955)))), "λ")
+  expect_identical(z3_value(z3_simplify(z3_str_from_code(z3_int_val(ctx, 955)))), "\u03bb")
   expect_true(z3_value(z3_simplify(z3_char_le(a, z3_char_val(ctx, 66)))))
   expect_false(z3_value(z3_simplify(z3_char_is_digit(a))))
   expect_identical(check_status(ctx, z3_bv2int(z3_char_to_bv(a)) != 65), "unsat")
@@ -80,4 +80,10 @@ test_that("newer sequence operations", {
   expect_true(check_status(ctx, r != "a#b#c") %in% c("unsat", "unknown"))
   skip_if_not(z3_version_at_least("5.3.0"))
   expect_identical(solve_values(ctx, s == z3_seq_power(z3_string_val(ctx, "ab"), 3), vars = list(s))[[1]], "ababab")
+})
+
+test_that("string literals stay within Z3's characters", {
+  ctx <- z3_context()
+  expect_error(z3_string_val(ctx, "\U000E0001"), "beyond U\\+2FFFF")
+  expect_identical(z3_value(z3_string_val(ctx, "\U0002FFFF")), "\U0002FFFF")
 })

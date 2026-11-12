@@ -73,6 +73,9 @@ static const char* kind_name(Z3_sort_kind k) {
     case Z3_SEQ_SORT: return "sequence";
     case Z3_RE_SORT: return "regex";
     case Z3_CHAR_SORT: return "char";
+#if Z3R_AT_LEAST(4, 12, 3)
+    case Z3_TYPE_VAR: return "type_variable";
+#endif
 #if Z3R_AT_LEAST(5, 3, 0)
     case Z3_FINITE_FIELD_SORT: return "finite_field";
 #endif
@@ -99,7 +102,7 @@ std::string cpp_sort_kind(SEXP x) {
 }
 
 // [[Rcpp::export(rng = false)]]
-std::string cpp_sort_to_string(SEXP x) {
+Rcpp::String cpp_sort_to_string(SEXP x) {
   const Ast& s = get_sort(x);
   return sort_name(s.ctx(), as_sort(s));
 }

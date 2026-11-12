@@ -7,8 +7,8 @@
 z3_optimum(objective)
 }
 \arguments{
-\item{objective}{A \code{z3_objective} from \code{\link[=z3_minimize]{z3_minimize()}} or
-\code{\link[=z3_maximize]{z3_maximize()}}.}
+\item{objective}{A \code{z3_objective} from \code{\link[=z3_minimize]{z3_minimize()}},
+\code{\link[=z3_maximize]{z3_maximize()}} or \code{\link[=z3_add_soft]{z3_add_soft()}}.}
 }
 \value{
 A list of class \code{z3_optimum} with elements \code{status}, \code{value}

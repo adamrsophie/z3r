@@ -5,7 +5,9 @@
 #   1. PKG_CPPFLAGS and PKG_LIBS, used verbatim when PKG_LIBS is set.
 #   2. Z3_INCLUDE_DIR and/or Z3_LIB_DIR.
 #   3. pkg-config z3.
-#   4. Common prefixes: /opt/homebrew, /usr/local, /usr, /opt/local.
+#   4. Common prefixes: $CONDA_PREFIX, /opt/homebrew, /usr/local, /usr,
+#      /opt/local (headers in include/ or include/z3/, libraries in lib/
+#      or lib64/).
 #
 # Every candidate is verified by compiling, linking and running a small
 # program that checks the Z3 version. Nothing is downloaded.
@@ -57,7 +59,8 @@ int main(void) {
 }
 EOF
   rm -f conftest
-  ${CXX} $1 ${R_CPPFLAGS} ${CXXFLAGS} conftest.cpp -o conftest $2 ${R_LDFLAGS} >> config.log 2>&1 || return 1
+  # eval honors the quotes around paths that contain spaces.
+  eval "${CXX} $1 ${R_CPPFLAGS} ${CXXFLAGS} conftest.cpp -o conftest $2 ${R_LDFLAGS}" >> config.log 2>&1 || return 1
   Z3_FOUND_VERSION=`./conftest 2> conftest.err`
   status=$?
   cat conftest.err >> config.log
@@ -76,7 +79,7 @@ rpath_for () {
   # Embed a run-time search path for libraries outside the default locations.
   case "$1" in
     ""|/usr/lib|/usr/lib64|/lib|/lib64|/usr/lib/*-linux-gnu) echo "" ;;
-    *) echo "-Wl,-rpath,$1" ;;
+    *) echo "-Wl,-rpath,\"$1\"" ;;
   esac
 }
 
@@ -86,12 +89,15 @@ rpath_for () {
 z3_lib_flags () {
   for f in "$1/libz3.dylib" "$1/libz3.so"; do
     if test -f "$f"; then
-      echo "$f `rpath_for "$1"`"
+      echo "\"$f\" `rpath_for "$1"`"
       return 0
     fi
   done
-  echo "-L$1 `rpath_for "$1"` -lz3"
+  echo "-L\"$1\" `rpath_for "$1"` -lz3"
 }
+
+# Escapes text for the replacement part of a sed s||| command.
+sed_escape () { printf '%s\n' "$1" | sed -e 's/[\\&|]/\\&/g'; }
 
 : > config.log
 Z3_CPPFLAGS=""
@@ -104,7 +110,7 @@ if test -n "${PKG_LIBS}"; then
   Z3_SOURCE="PKG_CPPFLAGS/PKG_LIBS"
   try_z3 "${Z3_CPPFLAGS}" "${Z3_LIBS}" || Z3_SOURCE=""
 elif test -n "${Z3_INCLUDE_DIR}" || test -n "${Z3_LIB_DIR}"; then
-  if test -n "${Z3_INCLUDE_DIR}"; then Z3_CPPFLAGS="-I${Z3_INCLUDE_DIR}"; fi
+  if test -n "${Z3_INCLUDE_DIR}"; then Z3_CPPFLAGS="-I\"${Z3_INCLUDE_DIR}\""; fi
   if test -n "${Z3_LIB_DIR}"; then
     Z3_LIBS=`z3_lib_flags "${Z3_LIB_DIR}"`
   else
@@ -121,15 +127,19 @@ else
     try_z3 "${Z3_CPPFLAGS}" "${Z3_LIBS}" || Z3_SOURCE=""
   fi
   if test -z "${Z3_SOURCE}"; then
-    for prefix in /opt/homebrew /usr/local /usr /opt/local; do
-      if test -f "${prefix}/include/z3.h"; then
-        Z3_CPPFLAGS="-I${prefix}/include"
-        Z3_LIBS=`z3_lib_flags "${prefix}/lib"`
-        if try_z3 "${Z3_CPPFLAGS}" "${Z3_LIBS}"; then
-          Z3_SOURCE="${prefix}"
-          break
-        fi
-      fi
+    # Headers may sit directly in include/ or (as on Fedora) in include/z3/.
+    for prefix in ${CONDA_PREFIX:+"${CONDA_PREFIX}"} /opt/homebrew /usr/local /usr /opt/local; do
+      for inc in "${prefix}/include" "${prefix}/include/z3"; do
+        test -f "${inc}/z3.h" || continue
+        Z3_CPPFLAGS="-I\"${inc}\""
+        for libdir in "${prefix}/lib" "${prefix}/lib64"; do
+          Z3_LIBS=`z3_lib_flags "${libdir}"`
+          if try_z3 "${Z3_CPPFLAGS}" "${Z3_LIBS}"; then
+            Z3_SOURCE="${prefix}"
+            break 3
+          fi
+        done
+      done
     done
   fi
 fi
@@ -168,7 +178,7 @@ echo "configure: Z3_LIBS=${Z3_LIBS}"
 # Replace src/Makevars only when it changes, so that switching to another Z3
 # rebuilds every object (they depend on Makevars) and an unchanged
 # configuration keeps incremental builds.
-sed -e "s|@Z3_CPPFLAGS@|${Z3_CPPFLAGS}|" -e "s|@Z3_LIBS@|${Z3_LIBS}|" \
+sed -e "s|@Z3_CPPFLAGS@|`sed_escape "${Z3_CPPFLAGS}"`|" -e "s|@Z3_LIBS@|`sed_escape "${Z3_LIBS}"`|" \
   src/Makevars.in > src/Makevars.new
 if cmp -s src/Makevars.new src/Makevars; then
   rm -f src/Makevars.new

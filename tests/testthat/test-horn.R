@@ -113,3 +113,20 @@ test_that("model-based projection, extrapolation and qe_lite", {
   expect_error(z3_model_project(z3_model(ctx), x, f), "true in the model")
   expect_error(z3_qe_lite(x, x + 1), "Boolean")
 })
+
+test_that("fixedpoint engines have help text", {
+  fp <- z3_fixedpoint(z3_context())
+  expect_true(is.character(z3_help(fp)) && nchar(z3_help(fp)) > 0)
+})
+
+test_that("finite domain elements and large sizes", {
+  ctx <- z3_context()
+  S <- z3_finite_domain_sort(ctx, "S", 8)
+  e <- z3_val(ctx, 3, S)
+  expect_identical(z3_sort_kind(e), "finite_domain")
+  expect_error(z3_val(ctx, 8, S), "outside the finite domain")
+  B <- z3_finite_domain_sort(ctx, "B", "18446744073709551615")
+  expect_identical(z3_finite_domain_size(B), "18446744073709551615")
+  expect_error(z3_finite_domain_sort(ctx, "C", 2^60), "2\\^53")
+  expect_error(z3_finite_domain_sort(ctx, "D", "18446744073709551616"), "below 2\\^64")
+})

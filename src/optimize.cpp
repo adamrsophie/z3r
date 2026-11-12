@@ -49,15 +49,15 @@ SEXP cpp_optimize_assert_and_track(SEXP o_, SEXP constraint, SEXP label_) {
 
 // Soft constraint; weight is an exact decimal or rational string.
 // [[Rcpp::export(rng = false)]]
-int cpp_optimize_assert_soft(SEXP o_, SEXP constraint, std::string weight, std::string id) {
+Rcpp::NumericVector cpp_optimize_assert_soft(SEXP o_, SEXP constraint, std::string weight, std::string id) {
   OptimizeHolder* h = optimizer(o_);
   const CtxPtr& ctx = h->o.ctx();
   Ast a = bool_arg(ctx, constraint, "soft constraints");
   unsigned idx = Z3_optimize_assert_soft(ctx->c, h->o, a, weight.c_str(), mk_symbol(ctx, id));
   check(ctx);
   h->touch();
-  h->note_objective(idx);
-  return static_cast<int>(idx);
+  uint64_t serial = h->note_objective(idx);
+  return Rcpp::NumericVector::create(static_cast<double>(idx), static_cast<double>(serial));
 }
 
 // Returns the objective's index and serial number.
@@ -232,7 +232,7 @@ SEXP cpp_optimize_param_help(SEXP o_) {
 }
 
 // [[Rcpp::export(rng = false)]]
-std::string cpp_optimize_to_string(SEXP o_) {
+Rcpp::String cpp_optimize_to_string(SEXP o_) {
   OptimizeHolder* h = optimizer(o_);
   std::string out = str(Z3_optimize_to_string(h->o.c(), h->o));
   check(h->o.ctx());

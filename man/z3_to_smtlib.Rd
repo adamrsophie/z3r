@@ -10,9 +10,9 @@
 \usage{
 z3_to_smtlib(x, logic = "", state = FALSE)
 
-z3_from_smtlib(ctx, text)
+z3_from_smtlib(ctx, text, sorts = list(), decls = list())
 
-z3_read_smtlib(ctx, file)
+z3_read_smtlib(ctx, file, sorts = list(), decls = list())
 
 z3_add_smtlib(x, text = NULL, file = NULL)
 
@@ -31,6 +31,10 @@ benchmark.}
 
 \item{text}{SMT-LIB2 text, a single string (multiple strings are joined
 with newlines).}
+
+\item{sorts, decls}{Named lists of \code{z3_sort} objects and of functions
+(\code{z3_function} or declarations), available to the text under those
+names.}
 
 \item{file}{Path to an SMT-LIB2 file.}
 }
@@ -57,6 +61,8 @@ formulas as a list of \code{z3_expr}. Declarations in the text create
 constants in \code{ctx}; a declared constant is the same object as one made
 with the same name and sort, for example by \code{\link[=z3_int]{z3_int()}}. Commands other
 than declarations and assertions (such as \code{check-sat}) are ignored.
+\code{sorts} and \code{decls} name existing sorts and functions that the text
+uses without declaring them, under names of your choice.
 \item \code{z3_read_smtlib()} does the same for a file.
 \item \code{z3_add_smtlib()} parses text or a file directly into a solver,
 optimizer or fixedpoint engine.

@@ -36,11 +36,13 @@ Context::~Context() {
 ContextHolder::~ContextHolder() {
   // The proof checker's R function lives in this handle's protected slot;
   // unregister it before the handle goes.
+#if Z3R_AT_LEAST(5, 3, 2)
   if (ctx && ctx->proof_check && ctx->proof_check->owner == this) {
     Z3_set_proof_check_callback(ctx->c, nullptr, nullptr);
     Z3_set_error(ctx->c, Z3_OK);
     ctx->proof_check.reset();
   }
+#endif
 }
 
 void keep_callbacks(SEXP owner, SEXP fns) {

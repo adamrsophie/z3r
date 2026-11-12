@@ -77,3 +77,19 @@ test_that("results agree with the independent z3 executable", {
     expect_identical(ours, theirs[[1]])
   }
 })
+
+test_that("parsing can refer to existing sorts and functions by name", {
+  ctx <- z3_context()
+  U <- z3_uninterpreted_sort(ctx, "U")
+  f <- z3_function(ctx, "f", z3_int_sort(ctx), z3_int_sort(ctx))
+  fs <- z3_from_smtlib(ctx, "(declare-const u Thing) (assert (= (g 1) 2)) (assert (= u u))",
+                       sorts = list(Thing = U), decls = list(g = f))
+  expect_length(fs, 2L)
+  lhs <- z3_args(fs[[1]])[[1]]
+  expect_true(z3_identical(z3_decl(lhs), z3_decl(f)))
+  expect_identical(format(z3_sort(z3_args(fs[[2]])[[1]])), "U")
+  path <- tempfile(fileext = ".smt2")
+  writeLines("(assert (> (g 3) 0))", path)
+  expect_match(format(z3_read_smtlib(ctx, path, decls = list(g = f))[[1]]), "f 3")
+  expect_error(z3_from_smtlib(ctx, "(assert true)", sorts = list(U)), "named list")
+})

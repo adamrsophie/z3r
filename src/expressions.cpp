@@ -3,6 +3,7 @@
 
 #include <set>
 
+#include <cerrno>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -140,7 +141,7 @@ static Ast mk_numeral(const CtxPtr& ctx, const std::string& s, Z3_sort sort) {
 // Shortest decimal string that converts back to the same double.
 static std::string shortest_decimal(double v) {
   char buf[64];
-  for (int prec = 15; prec <= 17; ++prec) {
+  for (int prec = 1; prec <= 17; ++prec) {
     std::snprintf(buf, sizeof(buf), "%.*g", prec, v);
     if (std::strtod(buf, nullptr) == v) break;
   }
@@ -196,6 +197,19 @@ static Ast int_literal(const CtxPtr& ctx, const std::string& s, Z3_sort hint) {
 #if Z3R_AT_LEAST(5, 3, 0)
     if (k == Z3_FINITE_FIELD_SORT) return mk_numeral(ctx, s, hint);
 #endif
+    if (k == Z3_FINITE_DOMAIN_SORT) {
+      // Elements are 0, ..., size - 1.
+      uint64_t size = 0;
+      Z3_get_finite_domain_sort_size(ctx->c, hint, &size);
+      check(ctx);
+      bool neg = !s.empty() && s[0] == '-';
+      errno = 0;
+      unsigned long long v = neg ? 0 : std::strtoull(s.c_str(), nullptr, 10);
+      if (neg || errno == ERANGE || v >= size) {
+        fail("element " + s + " is outside the finite domain (0 to " + std::to_string(size - 1) + ")");
+      }
+      return mk_numeral(ctx, s, hint);
+    }
   }
   return mk_numeral(ctx, s, Z3_mk_int_sort(ctx->c));
 }
@@ -218,6 +232,12 @@ static Ast mk_string_literal(const CtxPtr& ctx, SEXP chr) {
     for (int i = 0; i < extra; ++i, ++p) {
       if ((*p & 0xC0) != 0x80) fail("invalid UTF-8 in string literal");
       cp = (cp << 6) | (*p & 0x3F);
+    }
+    // Z3's characters are the code points 0 to 0x2FFFF.
+    if (cp > 0x2FFFF) {
+      char buf[16];
+      std::snprintf(buf, sizeof(buf), "U+%X", cp);
+      fail(std::string("the character ") + buf + " is beyond U+2FFFF, the largest character Z3 strings can hold");
     }
     cps.push_back(cp);
   }
@@ -1017,7 +1037,7 @@ SEXP cpp_const_array(SEXP domain_, SEXP value) {
 // Inspection
 
 // [[Rcpp::export(rng = false)]]
-std::string cpp_expr_to_string(SEXP x) { return to_string(get_expr(x)); }
+Rcpp::String cpp_expr_to_string(SEXP x) { return to_string(get_expr(x)); }
 
 // [[Rcpp::export(rng = false)]]
 SEXP cpp_simplify(SEXP x) {

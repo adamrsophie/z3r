@@ -17,7 +17,9 @@ string.}
 \item{id}{Name of the group of soft constraints.}
 }
 \value{
-\code{opt}, invisibly.
+Invisibly, a \code{z3_objective} handle for the group: after a
+satisfiable check, \code{\link[=z3_optimum]{z3_optimum()}} gives the total weight of its
+violated constraints.
 }
 \description{
 Adds a constraint that the optimizer should satisfy if possible. Z3

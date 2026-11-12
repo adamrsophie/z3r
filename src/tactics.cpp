@@ -186,7 +186,7 @@ SEXP cpp_goal_convert_model(SEXP g_, SEXP m_) {
 }
 
 // [[Rcpp::export(rng = false)]]
-std::string cpp_goal_to_dimacs(SEXP g_, bool include_names) {
+Rcpp::String cpp_goal_to_dimacs(SEXP g_, bool include_names) {
   const Ref<Z3_goal>& g = goal(g_);
   std::string out = str(Z3_goal_to_dimacs_string(g.c(), g, include_names));
   check(g.ctx());

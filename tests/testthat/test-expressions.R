@@ -139,7 +139,7 @@ test_that("as.numeric, as.integer and as.logical are explicit conversions", {
 
 test_that("strings are exact Unicode values", {
   ctx <- z3_context()
-  s <- "héllo ✓ \\u{41} \U0001F600"
+  s <- "h\u00e9llo \u2713 \\u{41} \U0001F600"
   expect_identical(z3_value(z3_string_val(ctx, s)), s)
   expect_identical(z3_value(z3_string_val(ctx, "")), "")
   expect_identical(z3_value(z3_simplify(z3_length(z3_string_val(ctx, s)))), 16)
@@ -160,7 +160,7 @@ test_that("values of more sorts convert to R", {
   # A power-of-two denominator beyond 2^64 is still an exact double.
   expect_identical(z3_value(z3_real_val(ctx, "1/1180591620717411303424")), 2^-70)
   skip_if_not(z3_version_at_least("4.8.15"))
-  expect_identical(z3_value(z3_char_val(ctx, 955)), "λ")
+  expect_identical(z3_value(z3_char_val(ctx, 955)), "\u03bb")
   s <- z3_string(ctx, "s")
   sol <- z3_solver(ctx)
   z3_add(sol, s == z3_str_from_code(z3_int_val(ctx, 0)))
@@ -168,4 +168,15 @@ test_that("values of more sorts convert to R", {
   v <- z3_eval(z3_model(sol), s)
   expect_error(z3_value(v), "U\\+0000")
   expect_s3_class(z3_model_values(z3_model(sol))$s, "z3_expr")
+})
+
+test_that("names and text from Z3 are marked UTF-8", {
+  ctx <- z3_context()
+  x <- z3_int(ctx, "\u00e9t\u00e9")
+  expect_identical(Encoding(format(x)), "UTF-8")
+  expect_identical(format(x), "|\u00e9t\u00e9|")
+  s <- z3_solver(ctx)
+  z3_add(s, x == 1)
+  z3_check(s)
+  expect_identical(names(z3_model_values(z3_model(s))), "\u00e9t\u00e9")
 })

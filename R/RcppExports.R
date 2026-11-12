@@ -57,8 +57,8 @@ cpp_tactic_apply <- function(t_, g_, params) {
     .Call(`_z3r_cpp_tactic_apply`, t_, g_, params)
 }
 
-cpp_parse_smtlib2 <- function(ctx_, text_, is_file) {
-    .Call(`_z3r_cpp_parse_smtlib2`, ctx_, text_, is_file)
+cpp_parse_smtlib2 <- function(ctx_, text_, is_file, sorts, decls) {
+    .Call(`_z3r_cpp_parse_smtlib2`, ctx_, text_, is_file, sorts, decls)
 }
 
 cpp_eval_smtlib2 <- function(ctx_, text_) {

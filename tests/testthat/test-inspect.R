@@ -132,3 +132,20 @@ test_that("generic application of declarations", {
   d <- z3_decl(x + 1)
   expect_identical(format(z3_apply(d, x, 5)), "(+ x 5)")
 })
+
+test_that("declaration kinds cover newer operators", {
+  ctx <- z3_context()
+  s <- z3_string(ctx, "s")
+  if (z3_version_at_least("4.8.15")) {
+    expect_identical(z3_decl_info(z3_decl(z3_str_to_code(s)))$kind, "str_to_code")
+  }
+  f <- z3_rec_function(ctx, "f", z3_int_sort(ctx), z3_int_sort(ctx))
+  expect_identical(z3_decl_info(z3_decl(f(z3_int(ctx, "n"))))$kind, "recursive")
+  if (z3_version_at_least("5.3.0")) {
+    a <- z3_const(ctx, "a", z3_ff_sort(ctx, 7))
+    expect_identical(z3_decl_info(z3_decl(z3_ff_add(a, a)))$kind, "ff_add")
+  }
+  if (z3_version_at_least("4.12.3")) {
+    expect_identical(z3_sort_kind(z3_type_variable(ctx, "T")), "type_variable")
+  }
+})

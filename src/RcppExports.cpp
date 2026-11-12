@@ -150,7 +150,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // cpp_goal_to_string
-std::string cpp_goal_to_string(SEXP g_);
+Rcpp::String cpp_goal_to_string(SEXP g_);
 RcppExport SEXP _z3r_cpp_goal_to_string(SEXP g_SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -172,19 +172,21 @@ BEGIN_RCPP
 END_RCPP
 }
 // cpp_parse_smtlib2
-SEXP cpp_parse_smtlib2(SEXP ctx_, SEXP text_, bool is_file);
-RcppExport SEXP _z3r_cpp_parse_smtlib2(SEXP ctx_SEXP, SEXP text_SEXP, SEXP is_fileSEXP) {
+SEXP cpp_parse_smtlib2(SEXP ctx_, SEXP text_, bool is_file, Rcpp::List sorts, Rcpp::List decls);
+RcppExport SEXP _z3r_cpp_parse_smtlib2(SEXP ctx_SEXP, SEXP text_SEXP, SEXP is_fileSEXP, SEXP sortsSEXP, SEXP declsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
     Rcpp::traits::input_parameter< SEXP >::type text_(text_SEXP);
     Rcpp::traits::input_parameter< bool >::type is_file(is_fileSEXP);
-    rcpp_result_gen = Rcpp::wrap(cpp_parse_smtlib2(ctx_, text_, is_file));
+    Rcpp::traits::input_parameter< Rcpp::List >::type sorts(sortsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type decls(declsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_parse_smtlib2(ctx_, text_, is_file, sorts, decls));
     return rcpp_result_gen;
 END_RCPP
 }
 // cpp_eval_smtlib2
-std::string cpp_eval_smtlib2(SEXP ctx_, SEXP text_);
+Rcpp::String cpp_eval_smtlib2(SEXP ctx_, SEXP text_);
 RcppExport SEXP _z3r_cpp_eval_smtlib2(SEXP ctx_SEXP, SEXP text_SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -195,7 +197,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // cpp_benchmark
-std::string cpp_benchmark(Rcpp::List formulas, std::string logic);
+Rcpp::String cpp_benchmark(Rcpp::List formulas, std::string logic);
 RcppExport SEXP _z3r_cpp_benchmark(SEXP formulasSEXP, SEXP logicSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -400,19 +402,19 @@ BEGIN_RCPP
 END_RCPP
 }
 // cpp_finite_domain_sort
-SEXP cpp_finite_domain_sort(SEXP ctx_, SEXP name_, double size);
+SEXP cpp_finite_domain_sort(SEXP ctx_, SEXP name_, std::string size);
 RcppExport SEXP _z3r_cpp_finite_domain_sort(SEXP ctx_SEXP, SEXP name_SEXP, SEXP sizeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
     Rcpp::traits::input_parameter< SEXP >::type name_(name_SEXP);
-    Rcpp::traits::input_parameter< double >::type size(sizeSEXP);
+    Rcpp::traits::input_parameter< std::string >::type size(sizeSEXP);
     rcpp_result_gen = Rcpp::wrap(cpp_finite_domain_sort(ctx_, name_, size));
     return rcpp_result_gen;
 END_RCPP
 }
 // cpp_finite_domain_size
-double cpp_finite_domain_size(SEXP sort_);
+SEXP cpp_finite_domain_size(SEXP sort_);
 RcppExport SEXP _z3r_cpp_finite_domain_size(SEXP sort_SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -1002,7 +1004,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // cpp_expr_to_string
-std::string cpp_expr_to_string(SEXP x);
+Rcpp::String cpp_expr_to_string(SEXP x);
 RcppExport SEXP _z3r_cpp_expr_to_string(SEXP xSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -1409,7 +1411,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // cpp_fixedpoint_to_string
-std::string cpp_fixedpoint_to_string(SEXP f_, Rcpp::List queries);
+Rcpp::String cpp_fixedpoint_to_string(SEXP f_, Rcpp::List queries);
 RcppExport SEXP _z3r_cpp_fixedpoint_to_string(SEXP f_SEXP, SEXP queriesSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -1558,7 +1560,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // cpp_model_to_string
-std::string cpp_model_to_string(SEXP m_);
+Rcpp::String cpp_model_to_string(SEXP m_);
 RcppExport SEXP _z3r_cpp_model_to_string(SEXP m_SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -1730,7 +1732,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // cpp_optimize_assert_soft
-int cpp_optimize_assert_soft(SEXP o_, SEXP constraint, std::string weight, std::string id);
+Rcpp::NumericVector cpp_optimize_assert_soft(SEXP o_, SEXP constraint, std::string weight, std::string id);
 RcppExport SEXP _z3r_cpp_optimize_assert_soft(SEXP o_SEXP, SEXP constraintSEXP, SEXP weightSEXP, SEXP idSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -1886,7 +1888,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // cpp_optimize_to_string
-std::string cpp_optimize_to_string(SEXP o_);
+Rcpp::String cpp_optimize_to_string(SEXP o_);
 RcppExport SEXP _z3r_cpp_optimize_to_string(SEXP o_SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -2318,7 +2320,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // cpp_solver_to_string
-std::string cpp_solver_to_string(SEXP s_);
+Rcpp::String cpp_solver_to_string(SEXP s_);
 RcppExport SEXP _z3r_cpp_solver_to_string(SEXP s_SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -2393,7 +2395,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // cpp_solver_to_dimacs
-std::string cpp_solver_to_dimacs(SEXP s_, bool include_names);
+Rcpp::String cpp_solver_to_dimacs(SEXP s_, bool include_names);
 RcppExport SEXP _z3r_cpp_solver_to_dimacs(SEXP s_SEXP, SEXP include_namesSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -2543,7 +2545,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // cpp_sort_to_string
-std::string cpp_sort_to_string(SEXP x);
+Rcpp::String cpp_sort_to_string(SEXP x);
 RcppExport SEXP _z3r_cpp_sort_to_string(SEXP xSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -2746,7 +2748,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // cpp_goal_to_dimacs
-std::string cpp_goal_to_dimacs(SEXP g_, bool include_names);
+Rcpp::String cpp_goal_to_dimacs(SEXP g_, bool include_names);
 RcppExport SEXP _z3r_cpp_goal_to_dimacs(SEXP g_SEXP, SEXP include_namesSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -2879,7 +2881,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_z3r_cpp_goal_status", (DL_FUNC) &_z3r_cpp_goal_status, 1},
     {"_z3r_cpp_goal_to_string", (DL_FUNC) &_z3r_cpp_goal_to_string, 1},
     {"_z3r_cpp_tactic_apply", (DL_FUNC) &_z3r_cpp_tactic_apply, 3},
-    {"_z3r_cpp_parse_smtlib2", (DL_FUNC) &_z3r_cpp_parse_smtlib2, 3},
+    {"_z3r_cpp_parse_smtlib2", (DL_FUNC) &_z3r_cpp_parse_smtlib2, 5},
     {"_z3r_cpp_eval_smtlib2", (DL_FUNC) &_z3r_cpp_eval_smtlib2, 2},
     {"_z3r_cpp_benchmark", (DL_FUNC) &_z3r_cpp_benchmark, 2},
     {"_z3r_cpp_array_sort_n", (DL_FUNC) &_z3r_cpp_array_sort_n, 2},

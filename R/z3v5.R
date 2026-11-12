@@ -75,7 +75,7 @@ z3_imag_part <- function(z) v5("imag_part", z)
 #' @rdname z3_v5_theories
 #' @export
 z3_ff_sort <- function(ctx, p) {
-  if (is.numeric(p)) p <- format(p, scientific = FALSE)
+  if (is.numeric(p)) p <- whole_string(p, "p")
   cpp_v5_sort(ctx, "finite_field", check_numeral(p, "^[0-9]+$", "a prime such as \"7\""))
 }
 

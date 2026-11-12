@@ -378,7 +378,7 @@ SEXP cpp_solver_param_help(SEXP s_) {
 }
 
 // [[Rcpp::export(rng = false)]]
-std::string cpp_solver_to_string(SEXP s_) {
+Rcpp::String cpp_solver_to_string(SEXP s_) {
   SolverHolder* h = solver(s_);
   std::string out = str(Z3_solver_to_string(h->s.c(), h->s));
   check(h->s.ctx());
@@ -487,7 +487,7 @@ std::string cpp_solver_help(SEXP s_) {
 }
 
 // [[Rcpp::export(rng = false)]]
-std::string cpp_solver_to_dimacs(SEXP s_, bool include_names) {
+Rcpp::String cpp_solver_to_dimacs(SEXP s_, bool include_names) {
   SolverHolder* h = solver(s_);
   std::string out = str(Z3_solver_to_dimacs_string(h->s.c(), h->s, include_names));
   check(h->s.ctx());

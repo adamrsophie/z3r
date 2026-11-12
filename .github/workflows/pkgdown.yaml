@@ -20,7 +20,17 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - run: sudo apt-get update && sudo apt-get install -y libz3-dev
+      # Ubuntu's libz3-dev (4.8.12) is too old; use the pinned official release.
+      - name: Download pinned Z3 release
+        shell: bash
+        run: |
+          asset=z3-5.4.1-x64-glibc-2.39.zip
+          curl -sSL -o z3.zip "https://github.com/Z3Prover/z3/releases/download/z3-5.4.1/$asset"
+          echo "b548bac48ef2452b4e09ea2945cf4b011d5f43fcf39e4799df268ee7e0769d85  z3.zip" | shasum -a 256 -c -
+          unzip -q z3.zip -d "$RUNNER_TEMP"
+          Z3_DIR="$RUNNER_TEMP/${asset%.zip}"
+          echo "Z3_INCLUDE_DIR=$Z3_DIR/include" >> "$GITHUB_ENV"
+          echo "Z3_LIB_DIR=$Z3_DIR/bin" >> "$GITHUB_ENV"
       - uses: r-lib/actions/setup-pandoc@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2
       - uses: r-lib/actions/setup-r@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2
         with:

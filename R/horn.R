@@ -191,20 +191,24 @@ z3_statistics.z3_fixedpoint <- function(x) cpp_fixedpoint_statistics(x)
 
 #' Finite domain sorts
 #'
-#' A sort with `size` elements, used by the Datalog engine for relations
-#' over finite domains. `z3_finite_domain_size()` reads the size back.
+#' A sort with `size` elements, numbered from 0, used by the Datalog engine
+#' for relations over finite domains. R whole numbers combined with such
+#' expressions become elements, as in `r(1, 2)` or `z3_val(ctx, 3, S)`.
+#' `z3_finite_domain_size()` reads the size back.
 #'
 #' @param ctx A [z3_context()].
 #' @param name Sort name.
-#' @param size Number of elements.
+#' @param size Number of elements: a whole number up to 2^53, or a string
+#'   of digits for larger sizes (below 2^64).
 #' @param sort A finite domain sort.
-#' @return A `z3_sort`, or a number.
+#' @return A `z3_sort`; for `z3_finite_domain_size()` a number, or a string
+#'   when the size exceeds 2^53.
 #' @examples
 #' ctx <- z3_context()
 #' S <- z3_finite_domain_sort(ctx, "S", 10)
 #' z3_finite_domain_size(S)
 #' @export
-z3_finite_domain_sort <- function(ctx, name, size) cpp_finite_domain_sort(ctx, name, size)
+z3_finite_domain_sort <- function(ctx, name, size) cpp_finite_domain_sort(ctx, name, whole_string(size, "size"))
 
 #' @rdname z3_finite_domain_sort
 #' @export

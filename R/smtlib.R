@@ -15,6 +15,8 @@
 #'   constants in `ctx`; a declared constant is the same object as one made
 #'   with the same name and sort, for example by [z3_int()]. Commands other
 #'   than declarations and assertions (such as `check-sat`) are ignored.
+#'   `sorts` and `decls` name existing sorts and functions that the text
+#'   uses without declaring them, under names of your choice.
 #' * `z3_read_smtlib()` does the same for a file.
 #' * `z3_add_smtlib()` parses text or a file directly into a solver,
 #'   optimizer or fixedpoint engine.
@@ -33,6 +35,9 @@
 #' @param text SMT-LIB2 text, a single string (multiple strings are joined
 #'   with newlines).
 #' @param file Path to an SMT-LIB2 file.
+#' @param sorts,decls Named lists of `z3_sort` objects and of functions
+#'   (`z3_function` or declarations), available to the text under those
+#'   names.
 #' @return `z3_to_smtlib()` and `z3_eval_smtlib()` return a string;
 #'   `z3_from_smtlib()` and `z3_read_smtlib()` return a list of `z3_expr`;
 #'   `z3_add_smtlib()` returns `x` invisibly.
@@ -66,17 +71,33 @@ z3_to_smtlib <- function(x, logic = "", state = FALSE) {
 
 #' @rdname z3_to_smtlib
 #' @export
-z3_from_smtlib <- function(ctx, text) {
-  cpp_parse_smtlib2(ctx, paste(text, collapse = "\n"), FALSE)
+z3_from_smtlib <- function(ctx, text, sorts = list(), decls = list()) {
+  cpp_parse_smtlib2(ctx, paste(text, collapse = "\n"), FALSE, smtlib_names(sorts), smtlib_decls(decls))
 }
 
 #' @rdname z3_to_smtlib
 #' @export
-z3_read_smtlib <- function(ctx, file) {
+z3_read_smtlib <- function(ctx, file, sorts = list(), decls = list()) {
   if (!is.character(file) || length(file) != 1L || !file.exists(file)) {
     stop("file must be the path of an existing file", call. = FALSE)
   }
-  z3_from_smtlib(ctx, readLines(file, warn = FALSE, encoding = "UTF-8"))
+  cpp_parse_smtlib2(ctx, normalizePath(file), TRUE, smtlib_names(sorts), smtlib_decls(decls))
+}
+
+smtlib_names <- function(x) {
+  if (!is.list(x)) stop("sorts and decls must be named lists", call. = FALSE)
+  if (length(x) && (is.null(names(x)) || any(!nzchar(names(x))))) {
+    stop("sorts and decls must be named lists", call. = FALSE)
+  }
+  x
+}
+
+smtlib_decls <- function(x) {
+  x <- smtlib_names(x)
+  nm <- names(x)
+  x <- lapply(x, z3_decl)
+  names(x) <- nm
+  x
 }
 
 #' @rdname z3_to_smtlib

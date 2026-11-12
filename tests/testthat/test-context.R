@@ -88,3 +88,26 @@ test_that("every argument is checked for its context", {
     expect_error(z3_propagator_function(a, "f", list(), z3_int_sort(b)), "different contexts")
   }
 })
+
+test_that("sorts and functions translate between contexts", {
+  a <- z3_context()
+  b <- z3_context()
+  U <- z3_uninterpreted_sort(a, "U")
+  f <- z3_function(a, "f", U, z3_int_sort(a))
+  Ub <- z3_translate(U, b)
+  fb <- z3_translate(f, b)
+  expect_true(z3_same_context(Ub, b))
+  expect_s3_class(fb, "z3_function")
+  u <- z3_const(b, "u", Ub)
+  expect_true(z3_same_context(fb(u) + 1, b))
+  x <- z3_int(a, "x")
+  expect_identical(z3_translate(x, a), x)
+})
+
+test_that("context parameter values are validated", {
+  expect_error(z3_context(timeout = -5), "timeout must be a whole number")
+  expect_error(z3_context(timeout = "abc"), "timeout must be")
+  expect_error(z3_context(proof = "yes"), "proof must be TRUE or FALSE")
+  expect_error(z3_context(encoding = "latin1"), "encoding must be one of")
+  expect_s3_class(z3_context(timeout = 1000, proof = TRUE, encoding = "bmp"), "z3_context")
+})

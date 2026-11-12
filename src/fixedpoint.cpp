@@ -253,7 +253,7 @@ SEXP cpp_fixedpoint_statistics(SEXP f_) {
 }
 
 // [[Rcpp::export(rng = false)]]
-std::string cpp_fixedpoint_to_string(SEXP f_, Rcpp::List queries) {
+Rcpp::String cpp_fixedpoint_to_string(SEXP f_, Rcpp::List queries) {
   FixedpointHolder* h = fixedpoint(f_);
   const CtxPtr& ctx = h->f.ctx();
   AstVec q = expr_list(ctx, queries, "queries");

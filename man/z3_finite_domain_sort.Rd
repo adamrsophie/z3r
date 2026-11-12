@@ -14,16 +14,20 @@ z3_finite_domain_size(sort)
 
 \item{name}{Sort name.}
 
-\item{size}{Number of elements.}
+\item{size}{Number of elements: a whole number up to 2^53, or a string
+of digits for larger sizes (below 2^64).}
 
 \item{sort}{A finite domain sort.}
 }
 \value{
-A \code{z3_sort}, or a number.
+A \code{z3_sort}; for \code{z3_finite_domain_size()} a number, or a string
+when the size exceeds 2^53.
 }
 \description{
-A sort with \code{size} elements, used by the Datalog engine for relations
-over finite domains. \code{z3_finite_domain_size()} reads the size back.
+A sort with \code{size} elements, numbered from 0, used by the Datalog engine
+for relations over finite domains. R whole numbers combined with such
+expressions become elements, as in \code{r(1, 2)} or \code{z3_val(ctx, 3, S)}.
+\code{z3_finite_domain_size()} reads the size back.
 }
 \examples{
 ctx <- z3_context()

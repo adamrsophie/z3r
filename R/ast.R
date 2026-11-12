@@ -165,11 +165,13 @@ z3_simplify_help <- function(ctx) cpp_simplify_help(ctx)
 
 #' Translate objects between contexts
 #'
-#' Copies an expression, solver, optimizer or model into another context.
-#' This is the only way to combine objects from different contexts.
-#' Optimizers need Z3 4.15.5 or later.
+#' Copies an expression, sort, function, solver, optimizer, model or goal
+#' into another context. This is the only way to combine objects from
+#' different contexts. Translating into the object's own context returns
+#' it unchanged. Optimizers need Z3 4.15.5 or later.
 #'
-#' @param x A `z3_expr`, `z3_solver`, `z3_optimize`, `z3_model` or `z3_goal`.
+#' @param x A `z3_expr`, `z3_sort`, `z3_function` (or declaration),
+#'   `z3_solver`, `z3_optimize`, `z3_model` or `z3_goal`.
 #' @param ctx The target [z3_context()].
 #' @return An object of the same class in `ctx`.
 #' @examples
@@ -180,12 +182,13 @@ z3_simplify_help <- function(ctx) cpp_simplify_help(ctx)
 #' z3_same_context(y, b)
 #' @export
 z3_translate <- function(x, ctx) {
-  if (is_z3_expr(x)) return(cpp_translate(x, ctx))
+  if (is_z3_expr(x) || inherits(x, "z3_sort") || inherits(x, "z3_func_decl")) return(cpp_translate(x, ctx))
+  if (inherits(x, "z3_function")) return(decl_function(cpp_translate(z3_decl(x), ctx)))
   if (inherits(x, "z3_solver")) return(cpp_solver_translate(x, ctx))
   if (inherits(x, "z3_optimize")) return(cpp_optimize_translate(x, ctx))
   if (inherits(x, "z3_model")) return(cpp_model_translate(x, ctx))
   if (inherits(x, "z3_goal")) return(cpp_goal_translate(x, ctx))
-  stop("x must be an expression, solver, optimizer or model", call. = FALSE)
+  stop("x must be an expression, sort, function, solver, optimizer, model or goal", call. = FALSE)
 }
 
 #' Expression identity and properties

@@ -13,8 +13,8 @@ z3_to_dimacs(x, include_names = TRUE)
 z3_import_model_converter(src, dst)
 }
 \arguments{
-\item{x}{A \code{z3_solver}, \code{z3_optimize}, \code{z3_tactic}, \code{z3_simplifier} or
-(for DIMACS) \code{z3_goal}.}
+\item{x}{A \code{z3_solver}, \code{z3_optimize}, \code{z3_fixedpoint}, \code{z3_tactic},
+\code{z3_simplifier} or (for DIMACS) \code{z3_goal}.}
 
 \item{include_names}{Whether to include variable names as comments.}
 
@@ -25,8 +25,8 @@ A string.
 }
 \description{
 \code{z3_help()} returns Z3's description of the parameters of a solver,
-optimizer, tactic or simplifier. \code{z3_to_dimacs()} writes the assertions
-of a propositional solver or goal in DIMACS CNF.
+optimizer, fixedpoint engine, tactic or simplifier. \code{z3_to_dimacs()}
+writes the assertions of a propositional solver or goal in DIMACS CNF.
 }
 \details{
 \code{z3_import_model_converter(src, dst)} gives \code{dst} the model

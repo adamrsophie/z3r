@@ -488,11 +488,11 @@ z3_set_initial_value <- function(x, var, value) {
 #' Help text and DIMACS export
 #'
 #' `z3_help()` returns Z3's description of the parameters of a solver,
-#' optimizer, tactic or simplifier. `z3_to_dimacs()` writes the assertions
-#' of a propositional solver or goal in DIMACS CNF.
+#' optimizer, fixedpoint engine, tactic or simplifier. `z3_to_dimacs()`
+#' writes the assertions of a propositional solver or goal in DIMACS CNF.
 #'
-#' @param x A `z3_solver`, `z3_optimize`, `z3_tactic`, `z3_simplifier` or
-#'   (for DIMACS) `z3_goal`.
+#' @param x A `z3_solver`, `z3_optimize`, `z3_fixedpoint`, `z3_tactic`,
+#'   `z3_simplifier` or (for DIMACS) `z3_goal`.
 #' @param include_names Whether to include variable names as comments.
 #' @return A string.
 #' @examples
@@ -508,7 +508,8 @@ z3_help <- function(x) {
   if (inherits(x, "z3_optimize")) return(cpp_optimize_help(x))
   if (inherits(x, "z3_tactic")) return(cpp_tactic_help(x))
   if (inherits(x, "z3_simplifier")) return(cpp_simplifier_help(x))
-  stop("x must be a solver, optimizer, tactic or simplifier", call. = FALSE)
+  if (inherits(x, "z3_fixedpoint")) return(cpp_fixedpoint_help(x))
+  stop("x must be a solver, optimizer, fixedpoint engine, tactic or simplifier", call. = FALSE)
 }
 
 #' @rdname z3_help

@@ -61,7 +61,7 @@ SEXP cpp_decl_info(SEXP decl_) {
   unsigned arity = Z3_get_arity(c, d);
   Rcpp::List dom(arity);
   for (unsigned i = 0; i < arity; ++i) dom[i] = wrap_sort(own_ast(ctx, sort_ast(Z3_get_domain(c, d, i))));
-  return Rcpp::List::create(Rcpp::Named("name") = symbol_string(ctx, Z3_get_decl_name(c, d)),
+  return Rcpp::List::create(Rcpp::Named("name") = Rcpp::String(symbol_string(ctx, Z3_get_decl_name(c, d))),
                             Rcpp::Named("domain") = dom,
                             Rcpp::Named("range") = wrap_sort(own_ast(ctx, sort_ast(Z3_get_range(c, d)))),
                             Rcpp::Named("text") = str(Z3_func_decl_to_string(c, d)));
@@ -213,7 +213,7 @@ SEXP cpp_goal_status(SEXP g_) {
 }
 
 // [[Rcpp::export(rng = false)]]
-std::string cpp_goal_to_string(SEXP g_) {
+Rcpp::String cpp_goal_to_string(SEXP g_) {
   const Ref<Z3_goal>& g = goal(g_);
   std::string out = str(Z3_goal_to_string(g.c(), g));
   check(g.ctx());
@@ -245,20 +245,54 @@ SEXP cpp_tactic_apply(SEXP t_, SEXP g_, SEXP params) {
 // ---------------------------------------------------------------------------
 // SMT-LIB2 text
 
-// Parses declarations and assertions; returns the asserted formulas.
+// Parses declarations and assertions; returns the asserted formulas. The
+// named lists `sorts` and `decls` give SMT-LIB names for existing sorts and
+// function declarations, which the text may use without declaring them.
 // [[Rcpp::export(rng = false)]]
-SEXP cpp_parse_smtlib2(SEXP ctx_, SEXP text_, bool is_file) {
+SEXP cpp_parse_smtlib2(SEXP ctx_, SEXP text_, bool is_file, Rcpp::List sorts, Rcpp::List decls) {
   CtxPtr ctx = get_ctx(ctx_);
   std::string text = as_string(text_, is_file ? "file" : "text");
-  Z3_ast_vector v = is_file
-      ? Z3_parse_smtlib2_file(ctx->c, text.c_str(), 0, nullptr, nullptr, 0, nullptr, nullptr)
-      : Z3_parse_smtlib2_string(ctx->c, text.c_str(), 0, nullptr, nullptr, 0, nullptr, nullptr);
+  auto names_of = [&](Rcpp::List l, const char* what) {
+    std::vector<Z3_symbol> out;
+    if (l.size() == 0) return out;
+    SEXP nm = Rf_getAttrib(l, R_NamesSymbol);
+    for (R_xlen_t i = 0; i < l.size(); ++i) {
+      if (nm == R_NilValue || STRING_ELT(nm, i) == NA_STRING || CHAR(STRING_ELT(nm, i))[0] == '\0') {
+        fail(std::string(what) + " must be a named list");
+      }
+      out.push_back(mk_symbol(ctx, Rf_translateCharUTF8(STRING_ELT(nm, i))));
+    }
+    return out;
+  };
+  std::vector<Z3_symbol> sort_names = names_of(sorts, "sorts"), decl_names = names_of(decls, "decls");
+  std::vector<Z3_sort> ss;
+  std::vector<Z3_func_decl> ds;
+  AstVec keep;
+  for (R_xlen_t i = 0; i < sorts.size(); ++i) {
+    const Ast& a = get_sort(sorts[i]);
+    same_ctx(ctx, a.ctx());
+    keep.push_back(a);
+    ss.push_back(as_sort(a));
+  }
+  for (R_xlen_t i = 0; i < decls.size(); ++i) {
+    const Ast& a = get_decl(decls[i]);
+    same_ctx(ctx, a.ctx());
+    keep.push_back(a);
+    ds.push_back(as_decl(a));
+  }
+  unsigned ns = static_cast<unsigned>(ss.size()), nd = static_cast<unsigned>(ds.size());
+  Z3_symbol* sn = ss.empty() ? nullptr : sort_names.data();
+  Z3_sort* sp = ss.empty() ? nullptr : ss.data();
+  Z3_symbol* dn = ds.empty() ? nullptr : decl_names.data();
+  Z3_func_decl* dp = ds.empty() ? nullptr : ds.data();
+  Z3_ast_vector v = is_file ? Z3_parse_smtlib2_file(ctx->c, text.c_str(), ns, sn, sp, nd, dn, dp)
+                            : Z3_parse_smtlib2_string(ctx->c, text.c_str(), ns, sn, sp, nd, dn, dp);
   return wrap_ast_vector(ctx, v);
 }
 
 // Runs SMT-LIB2 commands and returns Z3's textual output.
 // [[Rcpp::export(rng = false)]]
-std::string cpp_eval_smtlib2(SEXP ctx_, SEXP text_) {
+Rcpp::String cpp_eval_smtlib2(SEXP ctx_, SEXP text_) {
   CtxPtr ctx = get_ctx(ctx_);
   std::string text = as_string(text_, "text");
   // The proof checker runs inside the interpreter and must not start
@@ -284,7 +318,7 @@ std::string cpp_eval_smtlib2(SEXP ctx_, SEXP text_) {
 
 // SMT-LIB2 benchmark for a list of Boolean formulas.
 // [[Rcpp::export(rng = false)]]
-std::string cpp_benchmark(Rcpp::List formulas, std::string logic) {
+Rcpp::String cpp_benchmark(Rcpp::List formulas, std::string logic) {
   CtxPtr ctx = ctx_from_list(formulas);
   AstVec v;
   for (R_xlen_t i = 0; i < formulas.size(); ++i) {

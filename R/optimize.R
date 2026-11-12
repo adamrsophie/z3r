@@ -130,8 +130,12 @@ new_objective <- function(opt, x, maximize) {
 
 #' @export
 print.z3_objective <- function(x, ...) {
-  cat(sprintf("<z3_objective: %s %s>\n", if (x$maximize) "maximize" else "minimize",
-              format(x$expr)))
+  if (!is.null(x$soft)) {
+    cat(sprintf("<z3_objective: violated weight of soft constraints \"%s\">\n", x$soft))
+  } else {
+    cat(sprintf("<z3_objective: %s %s>\n", if (x$maximize) "maximize" else "minimize",
+                format(x$expr)))
+  }
   invisible(x)
 }
 
@@ -146,7 +150,9 @@ print.z3_objective <- function(x, ...) {
 #' @param weight Positive weight: a number or an exact decimal or fraction
 #'   string.
 #' @param id Name of the group of soft constraints.
-#' @return `opt`, invisibly.
+#' @return Invisibly, a `z3_objective` handle for the group: after a
+#'   satisfiable check, [z3_optimum()] gives the total weight of its
+#'   violated constraints.
 #' @examples
 #' ctx <- z3_context()
 #' p <- z3_bools(ctx, c("a", "b", "c"))
@@ -173,8 +179,11 @@ z3_add_soft <- function(opt, constraint, weight = 1, id = "soft") {
   if (!is.character(id) || length(id) != 1L || is.na(id)) {
     stop("id must be a single string", call. = FALSE)
   }
-  cpp_optimize_assert_soft(opt, constraint, weight, id)
-  invisible(opt)
+  h <- cpp_optimize_assert_soft(opt, constraint, weight, id)
+  # The handle reads the total weight of the group's violated constraints.
+  invisible(structure(list(optimizer = opt, index = as.integer(h[[1]]), serial = h[[2]], expr = NULL,
+                           maximize = FALSE, soft = id),
+                      class = "z3_objective"))
 }
 
 #' Optimal value of an objective
@@ -194,8 +203,8 @@ z3_add_soft <- function(opt, constraint, weight = 1, id = "soft") {
 #' Over nonlinear arithmetic the result can be non-optimal; Z3 does not
 #' guarantee optimality there.
 #'
-#' @param objective A `z3_objective` from [z3_minimize()] or
-#'   [z3_maximize()].
+#' @param objective A `z3_objective` from [z3_minimize()],
+#'   [z3_maximize()] or [z3_add_soft()].
 #' @return A list of class `z3_optimum` with elements `status`, `value`
 #'   (a `z3_expr` or `NULL`), `lower` and `upper` (bound text from Z3).
 #' @inherit z3_optimize examples

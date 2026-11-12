@@ -82,7 +82,7 @@ SEXP cpp_decl_details(SEXP d_) {
       case Z3_PARAMETER_DOUBLE: params[i] = Z3_get_decl_double_parameter(c, f, i); break;
       case Z3_PARAMETER_RATIONAL: params[i] = str(Z3_get_decl_rational_parameter(c, f, i)); break;
       case Z3_PARAMETER_SYMBOL:
-        params[i] = symbol_string(ctx, Z3_get_decl_symbol_parameter(c, f, i));
+        params[i] = Rcpp::String(symbol_string(ctx, Z3_get_decl_symbol_parameter(c, f, i)));
         break;
       case Z3_PARAMETER_SORT:
         params[i] = wrap_sort(own_ast(ctx, sort_ast(Z3_get_decl_sort_parameter(c, f, i))));
@@ -124,7 +124,7 @@ SEXP cpp_quantifier_parts(SEXP x) {
   Rcpp::CharacterVector names(n);
   Rcpp::List sorts(n);
   for (unsigned i = 0; i < n; ++i) {
-    names[i] = symbol_string(ctx, Z3_get_quantifier_bound_name(c, a, i));
+    names[i] = Rcpp::String(symbol_string(ctx, Z3_get_quantifier_bound_name(c, a, i)));
     sorts[i] = wrap_sort(own_ast(ctx, sort_ast(Z3_get_quantifier_bound_sort(c, a, i))));
   }
   unsigned np = Z3_get_quantifier_num_patterns(c, a);
@@ -150,8 +150,8 @@ SEXP cpp_quantifier_parts(SEXP x) {
                                       Rcpp::Named("patterns") = patterns,
                                       Rcpp::Named("no_patterns") = wrap_expr_list(nopats));
 #if Z3R_AT_LEAST(4, 12, 3)
-  out["id"] = symbol_string(ctx, Z3_get_quantifier_id(c, a));
-  out["skolem_id"] = symbol_string(ctx, Z3_get_quantifier_skolem_id(c, a));
+  out["id"] = Rcpp::String(symbol_string(ctx, Z3_get_quantifier_id(c, a)));
+  out["skolem_id"] = Rcpp::String(symbol_string(ctx, Z3_get_quantifier_skolem_id(c, a)));
 #endif
   return out;
 }
@@ -242,13 +242,17 @@ SEXP cpp_substitute_funs(SEXP x, Rcpp::List from, Rcpp::List to) {
 #endif
 }
 
+// Expressions, sorts and function declarations are all ASTs.
 // [[Rcpp::export(rng = false)]]
 SEXP cpp_translate(SEXP x, SEXP target_) {
-  const Ast& a = get_expr(x);
+  Kind k = is_kind(x, Kind::Sort) ? Kind::Sort : is_kind(x, Kind::FuncDecl) ? Kind::FuncDecl : Kind::Expr;
+  const Ast& a = *get_xptr<Ast>(x, k);
   CtxPtr target = get_ctx(target_);
+  if (a.ctx().get() == target.get()) return x;  // Z3 rejects translating into the same context
   Z3_ast t = Z3_translate(a.c(), a, target->c);
   check(a.ctx());
-  return wrap_expr(own_ast(target, t));
+  Ast out = own_ast(target, t);
+  return k == Kind::Sort ? wrap_sort(out) : k == Kind::FuncDecl ? wrap_decl(out) : wrap_expr(out);
 }
 
 // [[Rcpp::export(rng = false)]]

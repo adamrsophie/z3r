@@ -18,7 +18,7 @@ SEXP cpp_model_eval(SEXP m_, SEXP x, bool completion) {
 }
 
 // [[Rcpp::export(rng = false)]]
-std::string cpp_model_to_string(SEXP m_) {
+Rcpp::String cpp_model_to_string(SEXP m_) {
   const Ref<Z3_model>& m = model(m_);
   std::string out = str(Z3_model_to_string(m.c(), m));
   check(m.ctx());
@@ -38,7 +38,7 @@ SEXP cpp_model_consts(SEXP m_) {
   for (unsigned i = 0; i < n; ++i) {
     Z3_func_decl d = Z3_model_get_const_decl(c, m, i);
     Ast decl = own_ast(ctx, decl_ast(d));
-    names[i] = symbol_string(ctx, Z3_get_decl_name(c, d));
+    names[i] = Rcpp::String(symbol_string(ctx, Z3_get_decl_name(c, d)));
     consts[i] = wrap_expr(own_ast(ctx, Z3_mk_app(c, d, 0, nullptr)));
     values[i] = wrap_expr(own_ast(ctx, Z3_model_get_const_interp(c, m, d)));
   }
@@ -59,7 +59,7 @@ SEXP cpp_model_funcs(SEXP m_) {
   for (unsigned i = 0; i < n; ++i) {
     Z3_func_decl d = Z3_model_get_func_decl(c, m, i);
     Ast decl = own_ast(ctx, decl_ast(d));
-    names[i] = symbol_string(ctx, Z3_get_decl_name(c, d));
+    names[i] = Rcpp::String(symbol_string(ctx, Z3_get_decl_name(c, d)));
     Ref<Z3_func_interp> fi = own(ctx, Z3_model_get_func_interp(c, m, d));
     unsigned ne = Z3_func_interp_get_num_entries(c, fi);
     Rcpp::List entries(ne);
