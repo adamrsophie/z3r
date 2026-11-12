@@ -373,11 +373,15 @@ void cpp_global_param_reset() { Z3_global_param_reset_all(); }
 
 // [[Rcpp::export(rng = false)]]
 SEXP cpp_global_param_help(SEXP ctx_) {
-#if Z3R_AT_LEAST(4, 9, 0)
+  // Before Z3 4.15.0 the returned object shares Z3's own table of global
+  // parameters and frees it when released, so later contexts crash (Z3
+  // issue 7622).
+#if Z3R_AT_LEAST(4, 15, 0)
   CtxPtr ctx = get_ctx(ctx_);
   return describe_params(ctx, Z3_get_global_param_descrs(ctx->c));
 #else
-  needs_version("z3_global_param_help()", "4.9.0");
+  (void)ctx_;
+  needs_version("z3_global_param_help()", "4.15.0");
 #endif
 }
 

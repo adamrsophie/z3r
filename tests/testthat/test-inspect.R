@@ -122,8 +122,15 @@ test_that("global parameters round trip", {
   expect_identical(z3_global_param_get("verbose"), "0")
   expect_error(z3_global_param_set("no.such.param", 1), "unknown global parameter")
   expect_true(is.na(z3_global_param_get("no.such.param")))
-  skip_if_not(z3_version_at_least("4.9.0"))
+  if (!z3_version_at_least("4.15.0")) {
+    expect_error(z3_global_param_help(z3_context()), "4.15.0")
+    skip("z3_global_param_help() needs Z3 4.15.0")
+  }
   expect_gt(nrow(z3_global_param_help(z3_context())), 10)
+  # The list is a copy: releasing it leaves Z3's own table intact.
+  gc()
+  expect_s3_class(z3_context(), "z3_context")
+  expect_identical(z3_global_param_get("verbose"), "0")
 })
 
 test_that("generic application of declarations", {

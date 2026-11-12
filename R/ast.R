@@ -274,8 +274,9 @@ z3_set_print_mode <- function(ctx, mode = c("smtlib2", "low_level", "smtlib_full
 #' * `z3_global_param_get(name)` returns the current value as a string, or
 #'   `NA` when the name is unknown.
 #' * `z3_global_param_reset()` restores all defaults.
-#' * `z3_global_param_help()` lists the global parameters (Z3 4.9.0 or
-#'   later).
+#' * `z3_global_param_help()` lists the global parameters (Z3 4.15.0 or
+#'   later; in older releases Z3 frees its own parameter table when the
+#'   list is released).
 #' * `z3_log_open(file)`/`z3_log_close()` record every Z3 API call into a
 #'   file for bug reports. `z3_warnings(enabled)` turns Z3's warning
 #'   messages on or off.

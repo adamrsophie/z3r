@@ -158,7 +158,7 @@ z3_translate(list(a = x + 1, b = y), other)
 
 ```{r}
 z3_global_param_get("model.completion")
-head(z3_global_param_help(ctx)[, c("name", "kind")], 4)
+if (z3_version_at_least("4.15.0")) head(z3_global_param_help(ctx)[, c("name", "kind")], 4)
 ```
 
 `z3_log_open(file)` records every Z3 API call made by z3r, for reproducing a
