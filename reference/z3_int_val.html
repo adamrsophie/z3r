@@ -119,7 +119,7 @@ a whole number with absolute value at most 2^53, an R integer, or a
 <code><a href="https://rdrr.io/pkg/gmp/man/bigrational.html" class="external-link">gmp::bigq</a></code>. Strings are parsed exactly, so <code>z3_real_val(ctx, "0.1")</code> is
 the rational 1/10. With <code>den</code>, <code>z3_real_val(ctx, value, den)</code> is the
 fraction <code>value / den</code> of two whole numbers (R integers, doubles of
-absolute value at most 2^53, or <code>bit64::integer64</code> values), built without
+absolute value at most 2^53, or <code><a href="https://bit64.r-lib.org/reference/bit64-package.html" class="external-link">bit64::integer64</a></code> values), built without
 going through strings.</p>
 <p><code>z3_string_val()</code> converts an R string exactly, character by character.
 With <code>escaped = TRUE</code> it reads the string as an SMT-LIB string literal

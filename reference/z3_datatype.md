@@ -108,16 +108,18 @@ The result is a `z3_datatype` with:
 
 `z3_enum_sort()`, `z3_tuple_sort()` and `z3_list_sort()` are shortcuts
 for the common shapes. `z3_enum_sort()` and `z3_list_sort()` use Z3's
-dedicated constructors; since Z3 4.12.0 an enumeration cannot reuse the
-name of a datatype already declared in the context. `z3_tuple_sort()`
-names its constructor `mk_<name>`. A datatype with a single constructor
-that has the datatype's own name and no recursive fields, as in
-`z3_datatype(ctx, "Point", Point = list(x = I, y = I))`, is declared as
-a Z3 tuple sort. `z3_update_field()` returns a copy of a value with one
-field changed. `z3_datatype_of()` rebuilds the object from a datatype
-sort, for example one read from SMT-LIB2. `z3_tuple_fields()` reads a
-tuple sort (a datatype with one constructor and no recursive fields):
-its constructor and its field accessors, in order.
+dedicated constructors. Z3 4.12.0 and later refuse an enumeration whose
+name is already declared in the context, also when a script runs again:
+keep the earlier object, or use another name or a new context.
+`z3_tuple_sort()` names its constructor `mk_<name>`. A datatype with a
+single constructor that has the datatype's own name and no recursive
+fields, as in `z3_datatype(ctx, "Point", Point = list(x = I, y = I))`,
+is declared as a Z3 tuple sort. `z3_update_field()` returns a copy of a
+value with one field changed. `z3_datatype_of()` rebuilds the object
+from a datatype sort, for example one read from SMT-LIB2.
+`z3_tuple_fields()` reads a tuple sort (a datatype with one constructor
+and no recursive fields): its constructor and its field accessors, in
+order.
 
 Polymorphic datatypes (Z3 4.15.4 and later) take `parameters`, a list of
 type variables made with `z3_type_variable()` that fields may use as

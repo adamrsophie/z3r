@@ -62,7 +62,9 @@ fraction (`"1/3"`, `"-22/7"`), an R number, or a
 parsed exactly, so `z3_real_val(ctx, "0.1")` is the rational 1/10. With
 `den`, `z3_real_val(ctx, value, den)` is the fraction `value / den` of
 two whole numbers (R integers, doubles of absolute value at most 2^53,
-or `bit64::integer64` values), built without going through strings.
+or
+[`bit64::integer64`](https://bit64.r-lib.org/reference/bit64-package.html)
+values), built without going through strings.
 
 `z3_string_val()` converts an R string exactly, character by character.
 With `escaped = TRUE` it reads the string as an SMT-LIB string literal

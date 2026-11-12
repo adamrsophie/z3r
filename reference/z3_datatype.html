@@ -164,8 +164,10 @@ constructor;</p></li>
 <li><p>one element per field: accessor functions.</p></li>
 </ul><p><code>z3_enum_sort()</code>, <code>z3_tuple_sort()</code> and <code>z3_list_sort()</code> are shortcuts
 for the common shapes. <code>z3_enum_sort()</code> and <code>z3_list_sort()</code> use Z3's
-dedicated constructors; since Z3 4.12.0 an enumeration cannot reuse the
-name of a datatype already declared in the context. <code>z3_tuple_sort()</code>
+dedicated constructors. Z3 4.12.0 and later refuse an enumeration
+whose name is already declared in the context, also when a script runs
+again: keep the earlier object, or use another name or a new context.
+<code>z3_tuple_sort()</code>
 names its constructor <code>mk_&lt;name&gt;</code>. A datatype with a single constructor
 that has the datatype's own name and no recursive fields, as in
 <code>z3_datatype(ctx, "Point", Point = list(x = I, y = I))</code>, is declared as a

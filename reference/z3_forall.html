@@ -177,7 +177,10 @@ variables are described by <code>sorts</code> and <code>names</code>: index 0 re
 last of them, index 1 to the one before it, and so on. Higher indices
 refer to enclosing binders, so quantifiers can be nested. The body (and
 any pattern) uses the variables directly. With <code>type = "lambda"</code> the
-result is an array, as from <code><a href="z3_array.html">z3_lambda()</a></code>.</p>
+result is an array, as from <code><a href="z3_array.html">z3_lambda()</a></code>. <code>z3_forall()</code>, <code>z3_exists()</code>
+and <code><a href="z3_array.html">z3_lambda()</a></code> refuse a term with a free de Bruijn variable: Z3
+releases before 5.3.0 would bind it to the new binder and later ones to
+an enclosing one, so nest such terms in <code>z3_quantifier_db()</code> only.</p>
     </div>
 
     <div class="section level2">

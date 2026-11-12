@@ -196,7 +196,7 @@ z3_assert_and_track(s, y == 2, "y_two")
 z3_check(s)
 #> [1] "unsat"
 names(z3_unsat_core(s))
-#> [1] "x_small" "x_big"
+#> [1] "x_big"   "x_small"
 ```
 
 The core names a subset of the labelled constraints that is already
@@ -211,7 +211,7 @@ z3_add(s, z3_implies(a$a1, x > 5), z3_implies(a$a2, x < 3), z3_implies(a$a3, y =
 z3_check(s, a$a1, a$a2, a$a3)
 #> [1] "unsat"
 names(z3_unsat_core(s))
-#> [1] "a2" "a1"
+#> [1] "a1" "a2"
 ```
 
 ## Proofs
@@ -308,9 +308,9 @@ z3_check(s)
 #> [1] "sat"
 head(unlist(z3_statistics(s)), 6)
 #>        propagations binary propagations        final checks           added eqs 
-#>                   2                   2                   1                   1 
+#>                   2                   2                   1                   3 
 #>           mk clause    mk clause binary 
-#>                   1                   2
+#>                   1                   3
 ```
 
 [`z3_statistics_text()`](https://adamrsophie.github.io/z3r/reference/z3_statistics.md)

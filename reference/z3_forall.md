@@ -113,6 +113,11 @@ so quantifiers can be nested. The body (and any pattern) uses the
 variables directly. With `type = "lambda"` the result is an array, as
 from
 [`z3_lambda()`](https://adamrsophie.github.io/z3r/reference/z3_array.md).
+`z3_forall()`, `z3_exists()` and
+[`z3_lambda()`](https://adamrsophie.github.io/z3r/reference/z3_array.md)
+refuse a term with a free de Bruijn variable: Z3 releases before 5.3.0
+would bind it to the new binder and later ones to an enclosing one, so
+nest such terms in `z3_quantifier_db()` only.
 
 ## Examples
 

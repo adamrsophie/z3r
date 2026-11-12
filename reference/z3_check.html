@@ -111,12 +111,13 @@ timeout of the solver or optimizer for this call only; a check that runs
 out of time returns <code>"unknown"</code>. Afterwards z3r sets the object's
 parameters back, also when the check fails or is interrupted: the
 timeout set with <code><a href="z3_set_params.html">z3_set_params()</a></code> returns, and without one the object
-gets the context's timeout as last set through z3r
-(<code>z3_context(timeout = )</code> or <code><a href="z3_memory_usage.html">z3_update_param()</a></code>), or none. Z3 cannot
-remove a parameter, so the object then keeps that value as its own: a
-later change of the context's timeout, or a global <code>timeout</code> set with
-<code><a href="z3_global_param_set.html">z3_global_param_set()</a></code>, no longer reaches it. Printing the object shows
-the parameters z3r has set on it.</p>
+gets the context's timeout: the one set through z3r
+(<code>z3_context(timeout = )</code> or <code><a href="z3_memory_usage.html">z3_update_param()</a></code>), or else a global
+<code>timeout</code> that was in force when the context was made, or none. Z3
+cannot remove a parameter, so the object then keeps that value as its
+own: a later change of the context's timeout, or of a global <code>timeout</code>
+or <code>solver.timeout</code> set with <code><a href="z3_global_param_set.html">z3_global_param_set()</a></code>, no longer reaches
+it. Printing the object shows the parameters z3r has set on it.</p>
     </div>
     <div class="section level2">
     <h2 id="interrupting-a-check">Interrupting a check<a class="anchor" aria-label="anchor" href="#interrupting-a-check"></a></h2>

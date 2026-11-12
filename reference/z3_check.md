@@ -56,12 +56,13 @@ out of time returns `"unknown"`. Afterwards z3r sets the object's
 parameters back, also when the check fails or is interrupted: the
 timeout set with
 [`z3_set_params()`](https://adamrsophie.github.io/z3r/reference/z3_set_params.md)
-returns, and without one the object gets the context's timeout as last
+returns, and without one the object gets the context's timeout: the one
 set through z3r (`z3_context(timeout = )` or
 [`z3_update_param()`](https://adamrsophie.github.io/z3r/reference/z3_memory_usage.md)),
+or else a global `timeout` that was in force when the context was made,
 or none. Z3 cannot remove a parameter, so the object then keeps that
-value as its own: a later change of the context's timeout, or a global
-`timeout` set with
+value as its own: a later change of the context's timeout, or of a
+global `timeout` or `solver.timeout` set with
 [`z3_global_param_set()`](https://adamrsophie.github.io/z3r/reference/z3_global_param_set.md),
 no longer reaches it. Printing the object shows the parameters z3r has
 set on it.

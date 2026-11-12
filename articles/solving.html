@@ -249,7 +249,7 @@ was reached, or Z3 gave up:</p>
 <span><span class="fu"><a href="../reference/z3_check.html">z3_check</a></span><span class="op">(</span><span class="va">s</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "unsat"</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="fu"><a href="../reference/z3_unsat_core.html">z3_unsat_core</a></span><span class="op">(</span><span class="va">s</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "x_small" "x_big"</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] "x_big"   "x_small"</span></span></code></pre></div>
 <p>The core names a subset of the labelled constraints that is already
 contradictory; <code>y_two</code> is not in it. Cores are not guaranteed
 minimal. The same works with assumptions:</p>
@@ -260,7 +260,7 @@ minimal. The same works with assumptions:</p>
 <span><span class="fu"><a href="../reference/z3_check.html">z3_check</a></span><span class="op">(</span><span class="va">s</span>, <span class="va">a</span><span class="op">$</span><span class="va">a1</span>, <span class="va">a</span><span class="op">$</span><span class="va">a2</span>, <span class="va">a</span><span class="op">$</span><span class="va">a3</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "unsat"</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="fu"><a href="../reference/z3_unsat_core.html">z3_unsat_core</a></span><span class="op">(</span><span class="va">s</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "a2" "a1"</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] "a1" "a2"</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="proofs">Proofs<a class="anchor" aria-label="anchor" href="#proofs"></a>
@@ -346,9 +346,9 @@ is unsatisfiable:</p>
 <span><span class="co">#&gt; [1] "sat"</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/unlist.html" class="external-link">unlist</a></span><span class="op">(</span><span class="fu"><a href="../reference/z3_statistics.html">z3_statistics</a></span><span class="op">(</span><span class="va">s</span><span class="op">)</span><span class="op">)</span>, <span class="fl">6</span><span class="op">)</span></span>
 <span><span class="co">#&gt;        propagations binary propagations        final checks           added eqs </span></span>
-<span><span class="co">#&gt;                   2                   2                   1                   1 </span></span>
+<span><span class="co">#&gt;                   2                   2                   1                   3 </span></span>
 <span><span class="co">#&gt;           mk clause    mk clause binary </span></span>
-<span><span class="co">#&gt;                   1                   2</span></span></code></pre></div>
+<span><span class="co">#&gt;                   1                   3</span></span></code></pre></div>
 <p><code><a href="../reference/z3_statistics.html">z3_statistics_text()</a></code> gives the same statistics as Z3
 prints them.</p>
 </div>
