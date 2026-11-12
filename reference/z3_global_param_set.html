@@ -127,8 +127,9 @@ their input invisibly.</p>
 <li><p><code>z3_global_param_get(name)</code> returns the current value as a string, or
 <code>NA</code> when the name is unknown.</p></li>
 <li><p><code>z3_global_param_reset()</code> restores all defaults.</p></li>
-<li><p><code>z3_global_param_help()</code> lists the global parameters (Z3 4.9.0 or
-later).</p></li>
+<li><p><code>z3_global_param_help()</code> lists the global parameters (Z3 4.15.0 or
+later; in older releases Z3 frees its own parameter table when the
+list is released).</p></li>
 <li><p><code>z3_log_open(file)</code>/<code>z3_log_close()</code> record every Z3 API call into a
 file for bug reports. <code>z3_warnings(enabled)</code> turns Z3's warning
 messages on or off.</p></li>

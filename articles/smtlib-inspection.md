@@ -240,7 +240,7 @@ z3_translate(list(a = x + 1, b = y), other)
 
 z3_global_param_get("model.completion")
 #> [1] "false"
-head(z3_global_param_help(ctx)[, c("name", "kind")], 4)
+if (z3_version_at_least("4.15.0")) head(z3_global_param_help(ctx)[, c("name", "kind")], 4)
 #>                       name kind
 #> 1                    proof bool
 #> 2        smtlib2_compliant bool
