@@ -114,6 +114,30 @@ z3_check(s, x == 30)
 z3_assertions(s)
 ```
 
+`z3_with_scope()` pops for you, even when the code inside fails:
+
+```{r}
+z3_with_scope(s, {
+  z3_add(s, x > 20)
+  z3_check(s)
+})
+z3_num_scopes(s)
+```
+
+## Enumerating solutions
+
+`z3_all_models()` lists distinct assignments of some variables by blocking
+each one found. The `"status"` attribute says whether all were found
+(`"unsat"`), the limit was reached, or Z3 gave up:
+
+```{r}
+s <- z3_solver(ctx)
+z3_add(s, x >= 0, y >= 0, x + 2 * y == 6)
+sols <- z3_all_models(s, list(x, y))
+do.call(rbind, lapply(sols, as.data.frame))
+attr(sols, "status")
+```
+
 ## Unsatisfiable cores
 
 ```{r}

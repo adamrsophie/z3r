@@ -106,9 +106,11 @@ test_that("bound variable substitution checks sorts", {
   v0 <- z3_bound_var(ctx, 0, I)
   expect_error(z3_substitute_vars(v0 + 1, list(p)), "wrong sort")
   expect_identical(format(z3_substitute_vars(v0 + 1, list(z3_int_val(ctx, 3)))), "(+ 3 1)")
-  # Variables bound inside a quantifier are not free.
-  q <- z3_forall(z3_int(ctx, "y"), z3_int(ctx, "y") > v0)
+  # Variables bound by a quantifier are not free: only the outer v0 is.
+  y <- z3_int(ctx, "y")
+  q <- z3_and(z3_forall(y, y > 0), v0 > 1)
   expect_error(z3_substitute_vars(q, list(p)), "wrong sort")
+  expect_no_error(z3_substitute_vars(z3_forall(y, y > 0), list(p)))
   f <- z3_function(ctx, "f", I, I)
   x <- z3_int(ctx, "x")
   expect_error(z3_substitute_funs(f(x), f, p), "wrong sort")

@@ -531,3 +531,75 @@ z3_import_model_converter <- function(src, dst) {
   cpp_solver_import_model_converter(src, dst)
   invisible(dst)
 }
+
+#' Scoped solving and model enumeration
+#'
+#' `z3_with_scope(x, code)` evaluates `code` inside a [z3_push()] /
+#' [z3_pop()] pair on a solver or optimizer: assertions added by `code` are
+#' removed afterwards, also when `code` fails.
+#'
+#' `z3_all_models(solver, vars, limit)` lists the distinct assignments of
+#' `vars` in models of the solver's assertions, at most `limit` of them. It
+#' blocks each assignment found and checks again, inside a scope, so the
+#' solver is unchanged afterwards. Values are converted as by
+#' [z3_model_values()]. The `"status"` attribute says why enumeration
+#' stopped: `"unsat"` (all assignments were found), `"limit"` or
+#' `"unknown"`.
+#'
+#' @param x A `z3_solver` or `z3_optimize`.
+#' @param code Code to evaluate.
+#' @param solver A `z3_solver`.
+#' @param vars A constant or a list of constants.
+#' @param limit Maximum number of assignments.
+#' @return `z3_with_scope()` returns the value of `code`. `z3_all_models()`
+#'   returns a list of named lists, one per assignment, with attribute
+#'   `"status"`.
+#' @examples
+#' ctx <- z3_context()
+#' x <- z3_int(ctx, "x")
+#' y <- z3_int(ctx, "y")
+#' s <- z3_solver(ctx)
+#' z3_add(s, x >= 0, y >= 0, x + y == 2)
+#' z3_with_scope(s, {
+#'   z3_add(s, x > 5)
+#'   z3_check(s)
+#' })
+#' z3_check(s)
+#' sols <- z3_all_models(s, list(x, y))
+#' length(sols)
+#' attr(sols, "status")
+#' @export
+z3_with_scope <- function(x, code) {
+  z3_push(x)
+  on.exit(z3_pop(x), add = TRUE)
+  force(code)
+}
+
+#' @rdname z3_with_scope
+#' @export
+z3_all_models <- function(solver, vars, limit = 100) {
+  if (!inherits(solver, "z3_solver")) stop("solver must be a z3_solver", call. = FALSE)
+  vars <- as_list(vars)
+  if (!length(vars) || !all(vapply(vars, z3_is_const, logical(1)))) {
+    stop("vars must be one or more constants", call. = FALSE)
+  }
+  limit <- as_count(limit, "limit", positive = TRUE)
+  found <- list()
+  status <- "limit"
+  z3_with_scope(solver, {
+    while (length(found) < limit) {
+      st <- z3_check(solver)
+      if (st != "sat") {
+        status <- st
+        break
+      }
+      m <- z3_model(solver)
+      vals <- lapply(vars, function(v) z3_eval(m, v, completion = TRUE))
+      found[[length(found) + 1L]] <- vals
+      z3_add(solver, z3_or(Map(function(v, val) v != val, vars, vals)))
+    }
+  })
+  nm <- vapply(vars, format, character(1))
+  out <- lapply(found, function(vals) stats::setNames(lapply(vals, value_or_expr), nm))
+  structure(out, status = status)
+}

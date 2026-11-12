@@ -21,7 +21,8 @@ test_that("finite fields", {
   z3_add(s, z3_ff_mul(f, f) == z3_val(ctx, 2, F7))
   expect_identical(z3_check(s), "sat")
   root <- z3_eval(z3_model(s), f)
-  expect_true(format(root) %in% c("#f3m7", "#f4m7", "3", "4") || z3_kind(root) == "numeral")
+  # The square roots of 2 modulo 7 are 3 and 4.
+  expect_true(z3_value(root) %in% c(3, 4))
   s2 <- z3_solver(ctx)
   z3_add(s2, z3_ff_mul(f, f) == z3_val(ctx, 3, F7))
   expect_identical(z3_check(s2), "unsat")

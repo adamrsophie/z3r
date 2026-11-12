@@ -67,12 +67,13 @@ as.list.z3_model <- function(x, ...) {
 
 #' @rdname as.list.z3_model
 #' @export
-z3_model_values <- function(model) {
-  lapply(as.list(model), function(v) {
-    info <- cpp_value_info(v, 20L)
-    if (info$kind %in% c("bool", "int", "real", "bv", "string", "char", "ff", "rm") ||
-        (info$kind == "fp" && info$exact_double)) z3_value(v) else v
-  })
+z3_model_values <- function(model) lapply(as.list(model), value_or_expr)
+
+# An R value where one represents the Z3 value exactly, else the expression.
+value_or_expr <- function(v) {
+  info <- cpp_value_info(v, 20L)
+  if (info$kind %in% c("bool", "int", "real", "bv", "string", "char", "ff", "rm") ||
+      (info$kind == "fp" && info$exact_double)) z3_value(v) else v
 }
 
 #' @rdname as.list.z3_model

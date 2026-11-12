@@ -88,6 +88,7 @@ reference:
   - as.list.z3_model
   - z3_model_set
   - z3_push
+  - z3_with_scope
   - z3_assertions
   - z3_assert_and_track
   - z3_unsat_core

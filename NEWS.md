@@ -18,7 +18,9 @@ which version they need.
   `Z3_INCLUDE_DIR`/`Z3_LIB_DIR`, `pkg-config` or common prefixes, links it
   by full path, and refuses mismatched headers and libraries.
   `configure.win` supports official Windows release archives through
-  `Z3_DIR`. z3r warns at load time if the Z3 library changed.
+  `Z3_DIR` and installs their DLLs and license beside z3r. z3r refuses to
+  load with a Z3 library older than its headers and warns about a newer
+  one.
 * Ctrl-C interrupts a running check.
 
 ## Expressions
@@ -26,7 +28,7 @@ which version they need.
 * Int, Real, Bool, bit-vector, floating point, rounding mode, String,
   sequence, regular expression, character, array, set, datatype, finite
   domain and uninterpreted sorts, plus the complex, finite field and finite
-  set sorts of Z3 5.
+  set sorts of Z3 5, with complex arithmetic and R complex literals.
 * Exact numerals from strings, R numbers and `gmp` numbers, with a
   documented conversion policy for doubles. `z3_value()` converts results to
   R without loss of precision.
@@ -38,14 +40,18 @@ which version they need.
 ## Solving
 
 * Solvers with assertions, tracked assertions, assumptions,
-  push/pop/reset, models with staleness protection, hand-built models,
+  push/pop/reset, `z3_with_scope()`, model enumeration
+  (`z3_all_models()`), models with staleness protection, hand-built models,
   unsatisfiable cores, proofs, consequences, cubes, units and trails,
   congruence classes, solving for variables, initial values, typed
   parameters, statistics and DIMACS export.
-* Optimization with hard and soft constraints, objectives and priorities,
-  unbounded and non-attained optima, and model callbacks.
-* User propagators, clause callbacks and the proof checker callback, with
-  R errors raised safely after the check.
+* Optimization with hard and soft constraints, objectives (including the
+  cost of soft constraint groups) and priorities, unbounded and
+  non-attained optima, and model callbacks.
+* User propagators, clause callbacks and the proof checker callback. R
+  errors and interrupts are raised safely after the check, callbacks
+  cannot reenter their own solver, and callback closures do not keep
+  their solver or context alive.
 
 ## Theories and engines
 

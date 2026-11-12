@@ -1,4 +1,5 @@
 test_that("repeated creation and destruction is safe", {
+  checks <- 0
   for (i in 1:200) {
     ctx <- z3_context()
     x <- z3_int(ctx, "x")
@@ -7,11 +8,28 @@ test_that("repeated creation and destruction is safe", {
     stopifnot(z3_check(s) == "sat")
     m <- z3_model(s)
     stopifnot(z3_value(z3_eval(m, x)) == i + 1)
+    checks <- checks + 1
     if (i %% 50 == 0) gc()
   }
   rm(ctx, x, s, m)
   gc()
-  expect_true(TRUE)
+  expect_identical(checks, 200)
+})
+
+test_that("collected contexts release their Z3 memory", {
+  # Contexts that are no longer reachable are deleted, including those
+  # whose objects refer to each other.
+  before <- z3_memory_usage()
+  for (i in 1:30) local({
+    ctx <- z3_context()
+    xs <- z3_ints(ctx, paste0("v", 1:200))
+    s <- z3_solver(ctx)
+    for (x in xs) z3_add(s, x > 0)
+    z3_check(s)
+  })
+  gc()
+  gc()
+  expect_lt(z3_memory_usage() - before, 50e6)
 })
 
 test_that("garbage collection with live expressions, models and solvers", {
