@@ -15,6 +15,23 @@ const char* lbool_string(Z3_lbool r) {
   return r == Z3_L_TRUE ? "sat" : r == Z3_L_FALSE ? "unsat" : "unknown";
 }
 
+bool has_propagator(const CallbackPtr& cb) {
+  SEXP names = Rf_getAttrib(cb->fns, R_NamesSymbol);
+  for (R_xlen_t i = 0; i < Rf_xlength(cb->fns); ++i) {
+    if (std::string(CHAR(STRING_ELT(names, i))) == "push") return true;
+  }
+  return false;
+}
+
+// Z3 copies solvers without their R callbacks; a copy of a solver with a
+// user propagator or clause callback would silently lose them.
+void refuse_copy_with_callbacks(SolverHolder* h, const char* what) {
+  if (!h->callbacks.empty()) {
+    fail(std::string(what) + " cannot copy a solver with R callbacks (a user propagator or "
+         "z3_on_clause()); Z3 would copy it without them");
+  }
+}
+
 // Builds a Z3 parameter set from a named R list, using the parameter
 // descriptions of the target object to choose each value's type.
 Ref<Z3_params> make_params(const CtxPtr& ctx, Z3_param_descrs descrs, SEXP values) {
@@ -124,7 +141,7 @@ SEXP stats_list(const CtxPtr& ctx, Z3_stats raw_stats) {
 
 using namespace z3r;
 
-static SolverHolder* solver(SEXP x) { return get_xptr<SolverHolder>(x, Kind::Solver); }
+static SolverHolder* solver(SEXP x) { return solver_of(x); }
 
 static SEXP wrap_solver(const CtxPtr& ctx, Z3_solver s) {
   Ref<Z3_solver> ref = own(ctx, s);  // checks for an error before allocating
@@ -166,12 +183,13 @@ void cpp_solver_assert(SEXP s_, Rcpp::List constraints) {
     }
     v.push_back(a);
   }
-  // Validate everything before asserting anything.
+  // Validate everything before asserting anything. The solver counts as
+  // changed even if Z3 fails partway.
+  h->touch();
   for (const Ast& a : v) {
     Z3_solver_assert(ctx->c, h->s, a);
     check(ctx);
   }
-  h->touch();
 }
 
 // [[Rcpp::export(rng = false)]]
@@ -206,23 +224,31 @@ std::string cpp_solver_check(SEXP s_, Rcpp::List assumptions) {
     as.push_back(a);
   }
   std::vector<Z3_ast> r = raw(as);
-  for (CallbackPtr& cb : h->callbacks) { cb->error.clear(); cb->cloned = false; }
-  Z3_lbool st = r.empty() ? Z3_solver_check(ctx->c, h->s)
-                          : Z3_solver_check_assumptions(ctx->c, h->s,
-                                                        static_cast<unsigned>(r.size()), r.data());
+  for (CallbackPtr& cb : h->callbacks) cb->cloned = false;
+  Z3_lbool st;
+  {
+    BusyGuard<SolverHolder> busy(h);
+    st = r.empty() ? Z3_solver_check(ctx->c, h->s)
+                   : Z3_solver_check_assumptions(ctx->c, h->s, static_cast<unsigned>(r.size()), r.data());
+  }
   h->checked = true;
   h->checked_at = h->generation;
   h->status = Z3_L_UNDEF;
   raise_callback_errors(h->callbacks);
   check(ctx);
-  h->status = st;
-  for (CallbackPtr& cb : h->callbacks) {
-    if (cb->cloned) {
-      Rf_warning("Z3 copied the solver during this check; callbacks did not run in the copy, so "
-                 "constraints enforced only by a user propagator may not hold in the result");
-      break;
+  // A copy made by Z3 during the check runs no R callbacks, so a "sat"
+  // found in it may violate constraints a propagator enforces. ("unsat"
+  // stays sound: the copy has fewer constraints.)
+  if (st == Z3_L_TRUE) {
+    for (CallbackPtr& cb : h->callbacks) {
+      if (cb->cloned && has_propagator(cb)) {
+        fail("Z3 copied the solver during this check (for example in parallel mode), and the copy "
+             "does not run R callbacks; the \"sat\" result may violate constraints of the user "
+             "propagator, so it is refused");
+      }
     }
   }
+  h->status = st;
   if (st == Z3_L_UNDEF) forward_interrupt(st, str(Z3_solver_get_reason_unknown(ctx->c, h->s)));
   return lbool_string(st);
 }
@@ -275,9 +301,13 @@ std::string cpp_solver_reason_unknown(SEXP s_) {
 // [[Rcpp::export(rng = false)]]
 void cpp_solver_push(SEXP s_) {
   SolverHolder* h = solver(s_);
-  Z3_solver_push(h->s.c(), h->s);
-  check(h->s.ctx());
+  {
+    BusyGuard<SolverHolder> busy(h);
+    Z3_solver_push(h->s.c(), h->s);
+  }
   h->touch();
+  raise_callback_errors(h->callbacks);
+  check(h->s.ctx());
 }
 
 // [[Rcpp::export(rng = false)]]
@@ -289,9 +319,13 @@ void cpp_solver_pop(SEXP s_, int n) {
     fail("cannot pop " + std::to_string(n) + " scope(s); the solver has " +
          std::to_string(scopes) + " open scope(s)");
   }
-  Z3_solver_pop(h->s.c(), h->s, static_cast<unsigned>(n));
-  check(h->s.ctx());
+  {
+    BusyGuard<SolverHolder> busy(h);
+    Z3_solver_pop(h->s.c(), h->s, static_cast<unsigned>(n));
+  }
   h->touch();
+  raise_callback_errors(h->callbacks);
+  check(h->s.ctx());
 }
 
 // [[Rcpp::export(rng = false)]]
@@ -309,6 +343,10 @@ void cpp_solver_reset(SEXP s_) {
   check(h->s.ctx());
   h->touch();
   h->checked = false;
+  // Resetting discards Z3's solver, including user propagators and clause
+  // callbacks; drop their state so they can be installed again.
+  h->callbacks.clear();
+  drop_callbacks(s_);
 }
 
 // [[Rcpp::export(rng = false)]]
@@ -381,10 +419,15 @@ SEXP cpp_solver_consequences(SEXP s_, Rcpp::List assumptions, Rcpp::List variabl
   Ref<Z3_ast_vector> va = make_ast_vector(ctx, as);
   Ref<Z3_ast_vector> vv = make_ast_vector(ctx, vs);
   Ref<Z3_ast_vector> out = own(ctx, Z3_mk_ast_vector(ctx->c));
-  Z3_lbool st = Z3_solver_get_consequences(ctx->c, h->s, va, vv, out);
+  Z3_lbool st;
+  {
+    BusyGuard<SolverHolder> busy(h);
+    st = Z3_solver_get_consequences(ctx->c, h->s, va, vv, out);
+  }
   h->checked = true;
   h->checked_at = h->generation;
   h->status = Z3_L_UNDEF;
+  raise_callback_errors(h->callbacks);
   check(ctx);
   h->status = st;
   if (st == Z3_L_UNDEF) forward_interrupt(st, str(Z3_solver_get_reason_unknown(ctx->c, h->s)));
@@ -403,7 +446,14 @@ SEXP cpp_solver_cube(SEXP s_, Rcpp::List vars, int backtrack_level) {
   Ref<Z3_ast_vector> vv = make_ast_vector(ctx, vs);
   ensure_solver_ready(ctx->c, h->s);
   check(ctx);
-  Z3_ast_vector cube = Z3_solver_cube(ctx->c, h->s, vv, static_cast<unsigned>(backtrack_level));
+  Z3_ast_vector cube;
+  {
+    BusyGuard<SolverHolder> busy(h);
+    cube = Z3_solver_cube(ctx->c, h->s, vv, static_cast<unsigned>(backtrack_level));
+  }
+  // Cubing searches and replaces the solver's last result.
+  h->checked = false;
+  raise_callback_errors(h->callbacks);
   return wrap_ast_vector(ctx, cube);
 }
 
@@ -447,6 +497,7 @@ std::string cpp_solver_to_dimacs(SEXP s_, bool include_names) {
 // [[Rcpp::export(rng = false)]]
 SEXP cpp_solver_translate(SEXP s_, SEXP target_ctx) {
   SolverHolder* h = solver(s_);
+  refuse_copy_with_callbacks(h, "z3_translate()");
   CtxPtr target = get_ctx(target_ctx);
   Z3_solver t = Z3_solver_translate(h->s.c(), h->s, target->c);
   check(h->s.ctx());

@@ -117,9 +117,18 @@ conflict, and Z3 backtracks.
 \item \code{z3_next_split(cb, term, index, phase)} suggests the next decision.
 }
 
-An error in a callback interrupts the check and is raised as an R error.
-Z3 sometimes copies a solver internally; the copy does not run R
-callbacks, and z3r warns when that happens.
+An error in a callback interrupts the check and is raised as an R error
+(an interrupt with Ctrl-C is raised as an interrupt). While a check runs,
+its solver cannot be used from its own callbacks: \code{z3_add()},
+\code{z3_push()}, \code{z3_check()} and every other function on it fail; act
+through the callback handle instead.
+
+Z3 cannot copy R callbacks. \code{\link[=z3_translate]{z3_translate()}} and
+\code{\link[=z3_solver_add_simplifier]{z3_solver_add_simplifier()}} refuse solvers that have them, and when Z3
+copies a solver internally during a check (as in parallel mode), z3r
+refuses a \code{"sat"} result, which the copy may have found without the
+propagator's constraints. \code{\link[=z3_reset]{z3_reset()}} removes a solver's callbacks;
+install them again afterwards.
 
 \code{z3_on_clause(solver, fn)} registers \code{fn(proof_hint, deps, literals)},
 called for every clause the solver asserts, infers or deletes (Z3
@@ -127,8 +136,15 @@ called for every clause the solver asserts, infers or deletes (Z3
 each improved model during optimization. \code{z3_set_proof_checker(ctx, fn)}
 (Z3 5.3.2) registers \code{fn(proof, assertions)}, called by the SMT-LIB2
 interpreter (\code{\link[=z3_eval_smtlib]{z3_eval_smtlib()}}) after unsatisfiable checks when proofs
-are enabled; it returns a report string or \code{NULL}. Pass \code{fn = NULL} to
-remove it.
+are enabled; it returns a report string, or \code{NULL} for an empty report,
+and an R error in it is raised when \code{\link[=z3_eval_smtlib]{z3_eval_smtlib()}} returns. The
+checker stays registered while the context object exists; pass
+\code{fn = NULL} to remove it. It cannot replace itself or call
+\code{\link[=z3_eval_smtlib]{z3_eval_smtlib()}} on its own context.
+
+Callback functions are owned by the solver, optimizer or context they
+are registered with, so closures that refer back to that object do not
+keep it alive.
 }
 \examples{
 ctx <- z3_context()

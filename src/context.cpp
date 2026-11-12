@@ -27,7 +27,27 @@ Context::Context(const std::vector<std::pair<std::string, std::string>>& config)
   Z3_set_error_handler(c, nullptr);
 }
 
-Context::~Context() { Z3_del_context(c); }
+Context::~Context() {
+  proof_check.reset();
+  if (handle != R_NilValue) R_ReleaseObject(handle);
+  Z3_del_context(c);
+}
+
+ContextHolder::~ContextHolder() {
+  // The proof checker's R function lives in this handle's protected slot;
+  // unregister it before the handle goes.
+  if (ctx && ctx->proof_check && ctx->proof_check->owner == this) {
+    Z3_set_proof_check_callback(ctx->c, nullptr, nullptr);
+    Z3_set_error(ctx->c, Z3_OK);
+    ctx->proof_check.reset();
+  }
+}
+
+void keep_callbacks(SEXP owner, SEXP fns) {
+  R_SetExternalPtrProtected(owner, Rf_cons(fns, R_ExternalPtrProtected(owner)));
+}
+
+void drop_callbacks(SEXP owner) { R_SetExternalPtrProtected(owner, R_NilValue); }
 
 void check(Z3_context c) {
   Z3_error_code e = Z3_get_error_code(c);
@@ -104,9 +124,19 @@ const char* kind_label(Kind k) {
 CtxPtr get_ctx(SEXP x) { return get_xptr<ContextHolder>(x, Kind::Context)->ctx; }
 
 SEXP wrap_ctx(const CtxPtr& ctx) {
+  if (ctx->handle != R_NilValue) {
+    SEXP key = R_WeakRefKey(ctx->handle);
+    if (key != R_NilValue && R_ExternalPtrAddr(key)) return key;
+  }
   ContextHolder* h = new ContextHolder();
   h->ctx = ctx;
-  return make_xptr(h, Kind::Context);
+  SEXP x = PROTECT(make_xptr(h, Kind::Context));
+  SEXP w = PROTECT(R_MakeWeakRef(x, R_NilValue, R_NilValue, FALSE));
+  if (ctx->handle != R_NilValue) R_ReleaseObject(ctx->handle);
+  R_PreserveObject(w);
+  ctx->handle = w;
+  UNPROTECT(2);
+  return x;
 }
 SEXP wrap_expr(const Ast& a) { return make_xptr(new Ast(a), Kind::Expr); }
 SEXP wrap_sort(const Ast& a) { return make_xptr(new Ast(a), Kind::Sort); }

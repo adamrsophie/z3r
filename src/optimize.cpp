@@ -3,7 +3,7 @@
 
 using namespace z3r;
 
-static OptimizeHolder* optimizer(SEXP x) { return get_xptr<OptimizeHolder>(x, Kind::Optimize); }
+static OptimizeHolder* optimizer(SEXP x) { return optimizer_of(x); }
 
 // [[Rcpp::export(rng = false)]]
 SEXP cpp_mk_optimize(SEXP ctx_) {
@@ -85,9 +85,11 @@ std::string cpp_optimize_check(SEXP o_, Rcpp::List assumptions) {
   AstVec as;
   for (R_xlen_t i = 0; i < assumptions.size(); ++i) as.push_back(bool_arg(ctx, assumptions[i], "assumptions"));
   std::vector<Z3_ast> r = raw(as);
-  for (CallbackPtr& cb : h->callbacks) cb->error.clear();
-  Z3_lbool st = Z3_optimize_check(ctx->c, h->o, static_cast<unsigned>(r.size()),
-                                  r.empty() ? nullptr : r.data());
+  Z3_lbool st;
+  {
+    BusyGuard<OptimizeHolder> busy(h);
+    st = Z3_optimize_check(ctx->c, h->o, static_cast<unsigned>(r.size()), r.empty() ? nullptr : r.data());
+  }
   h->checked = true;
   h->checked_at = h->generation;
   h->status = Z3_L_UNDEF;
@@ -184,13 +186,13 @@ void cpp_optimize_push(SEXP o_) {
 // [[Rcpp::export(rng = false)]]
 void cpp_optimize_pop(SEXP o_) {
   OptimizeHolder* h = optimizer(o_);
+  // Z3 ignores a pop without a scope; refuse it, as for solvers.
+  if (h->scopes.empty()) fail("cannot pop: the optimizer has no open scope from z3_push()");
   Z3_optimize_pop(h->o.c(), h->o);
   check(h->o.ctx());
   h->touch();
-  if (!h->scopes.empty()) {
-    if (h->objectives.size() > h->scopes.back()) h->objectives.resize(h->scopes.back());
-    h->scopes.pop_back();
-  }
+  if (h->objectives.size() > h->scopes.back()) h->objectives.resize(h->scopes.back());
+  h->scopes.pop_back();
 }
 
 // [[Rcpp::export(rng = false)]]
@@ -282,6 +284,9 @@ void cpp_optimize_initial_value(SEXP o_, SEXP var, SEXP value) {
 SEXP cpp_optimize_translate(SEXP o_, SEXP target_) {
 #if Z3R_AT_LEAST(4, 15, 5)
   OptimizeHolder* h = optimizer(o_);
+  if (!h->callbacks.empty()) {
+    fail("z3_translate() cannot copy an optimizer with a z3_on_model() callback; Z3 would copy it without it");
+  }
   CtxPtr target = get_ctx(target_);
   Z3_optimize t = Z3_optimize_translate(h->o.c(), h->o, target->c);
   check(h->o.ctx());

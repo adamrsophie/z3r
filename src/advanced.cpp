@@ -261,7 +261,23 @@ SEXP cpp_parse_smtlib2(SEXP ctx_, SEXP text_, bool is_file) {
 std::string cpp_eval_smtlib2(SEXP ctx_, SEXP text_) {
   CtxPtr ctx = get_ctx(ctx_);
   std::string text = as_string(text_, "text");
-  std::string out = str(Z3_eval_smtlib2_string(ctx->c, text.c_str()));
+  // The proof checker runs inside the interpreter and must not start
+  // another evaluation on the same context.
+  if (ctx->interpreting) fail("z3_eval_smtlib() cannot run inside a proof checker on the same context");
+  if (ctx->proof_check) {
+    ctx->proof_check->error.clear();
+    ctx->proof_check->interrupted = false;
+  }
+  std::string out;
+  {
+    struct Flag {
+      bool& f;
+      explicit Flag(bool& x) : f(x) { f = true; }
+      ~Flag() { f = false; }
+    } flag(ctx->interpreting);
+    out = str(Z3_eval_smtlib2_string(ctx->c, text.c_str()));
+  }
+  raise_proof_check_error(ctx);
   check(ctx);
   return out;
 }

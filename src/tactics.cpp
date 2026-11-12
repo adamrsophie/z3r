@@ -281,7 +281,8 @@ SEXP cpp_simplifier_names(SEXP ctx_) {
 // [[Rcpp::export(rng = false)]]
 SEXP cpp_solver_add_simplifier(SEXP s_, SEXP simp_) {
 #if Z3R_AT_LEAST(4, 12, 2)
-  SolverHolder* h = get_xptr<SolverHolder>(s_, Kind::Solver);
+  SolverHolder* h = solver_of(s_);
+  refuse_copy_with_callbacks(h, "z3_solver_add_simplifier()");
   const Ref<Z3_simplifier>& sp = simplifier(simp_);
   same_ctx(h->s.ctx(), sp.ctx());
   Z3_solver ns = Z3_solver_add_simplifier(sp.c(), h->s, sp);

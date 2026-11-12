@@ -26,8 +26,10 @@ z3_num_scopes(x)
 \description{
 \code{z3_push()} opens a backtracking scope; \code{z3_pop()} removes every
 assertion added since the matching push. \code{z3_reset()} removes all
-assertions and scopes. \code{z3_num_scopes()} reports the number of open
-scopes.
+assertions and scopes, and also user propagators and clause callbacks
+(\code{\link[=z3_propagator]{z3_propagator()}}). \code{z3_num_scopes()} reports the number of open
+scopes. Popping an optimizer removes the objectives added in the scope;
+their handles can no longer be used.
 }
 \examples{
 ctx <- z3_context()

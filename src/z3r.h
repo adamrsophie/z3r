@@ -57,6 +57,11 @@ struct CallbackState;
 struct Context {
   Z3_context c;
   std::shared_ptr<CallbackState> proof_check;  // Z3_set_proof_check_callback
+  // Weak reference to the one R handle of this context, so that every R
+  // object refers to the same handle (callbacks owned by the context are
+  // kept in that handle's protected slot).
+  SEXP handle = R_NilValue;
+  bool interpreting = false;  // running Z3_eval_smtlib2_string
   // config: pairs of Z3 configuration parameter names and values.
   explicit Context(const std::vector<std::pair<std::string, std::string>>& config = {});
   ~Context();
@@ -155,37 +160,50 @@ inline std::string str(const char* s) { return s ? std::string(s) : std::string(
 
 struct ContextHolder {
   CtxPtr ctx;
+  ~ContextHolder();  // removes callbacks owned by this handle
 };
 
 // State of R callbacks registered with Z3 (user propagators, clause and
 // model callbacks). Owned by the solver, optimizer or context that uses it,
 // so it lives as long as Z3 may call it.
-struct CallbackState {
+// The R functions are not preserved globally: they are stored in the
+// protected slot of the R object that owns the state (solver, optimizer or
+// context handle), so R's collector sees closures that refer back to their
+// owner and can collect both.
+struct CallbackState : std::enable_shared_from_this<CallbackState> {
   CtxPtr ctx;                // owning reference (solver and optimizer callbacks)
   std::weak_ptr<Context> weak;  // used instead by context-owned callbacks
   CtxPtr context() const { return ctx ? ctx : weak.lock(); }
-  SEXP fns = R_NilValue;     // named list of R functions, preserved
+  SEXP fns = R_NilValue;     // named list of R functions, kept by the owner
   std::string error;         // first error raised by an R callback
+  bool interrupted = false;  // the error was a user interrupt
   std::string report;        // storage for strings returned to Z3
   bool cloned = false;       // Z3 copied the solver; the copy has no callbacks
+  int running = 0;           // R callbacks of this state now running
+  const void* owner = nullptr;  // holder of the owning R object
   Ref<Z3_model> model;       // model updated by Z3_optimize_register_model_eh
-  ~CallbackState() {
-    if (fns != R_NilValue) R_ReleaseObject(fns);
-  }
 };
 typedef std::shared_ptr<CallbackState> CallbackPtr;
+
+// Stores callback functions in the protected slot of their owner, and drops
+// them all (after the owner's callbacks were removed).
+void keep_callbacks(SEXP owner, SEXP fns);
+void drop_callbacks(SEXP owner);
 
 // Some Z3 solver functions use the solver's internal state without creating
 // it first (Z3 creates it lazily), and crash on a solver that has not been
 // used yet. Z3_solver_get_num_scopes creates it; call this before them.
 inline void ensure_solver_ready(Z3_context c, Z3_solver s) { Z3_solver_get_num_scopes(c, s); }
 
-// Raises the first callback error recorded during a check, if any.
+// Raises the first callback error recorded during a check, if any (an R
+// interrupt when the callback was interrupted).
 void raise_callback_errors(std::vector<CallbackPtr>& cbs);
+void raise_proof_check_error(const CtxPtr& ctx);
 
 struct SolverHolder {
   Ref<Z3_solver> s;
   std::vector<CallbackPtr> callbacks;
+  bool busy = false;            // running Z3 code that may call R callbacks
   uint64_t generation = 0;      // bumped whenever the assertion stack changes
   uint64_t checked_at = 0;      // generation of the last check
   bool checked = false;
@@ -196,6 +214,7 @@ struct SolverHolder {
 struct OptimizeHolder {
   Ref<Z3_optimize> o;
   std::vector<CallbackPtr> callbacks;
+  bool busy = false;
   uint64_t generation = 0;
   uint64_t checked_at = 0;
   bool checked = false;
@@ -242,6 +261,9 @@ template <typename T> T* get_xptr(SEXP x, Kind k) {
     fail(std::string("expected ") + kind_label(k));
   }
   T* p = static_cast<T*>(R_ExternalPtrAddr(x));
+  if (!p && k == Kind::Callback) {
+    fail("this callback handle has expired; it is valid only during the callback that received it");
+  }
   if (!p) {
     fail(std::string("this ") + kind_label(k) +
          " is no longer valid; Z3 objects cannot be saved and restored "
@@ -249,6 +271,37 @@ template <typename T> T* get_xptr(SEXP x, Kind k) {
   }
   return p;
 }
+
+// Solvers and optimizers as seen by every entry point. While one runs Z3
+// code that may call R callbacks, every other use of it is refused: a
+// callback that changed or reentered its own solver would corrupt the
+// search. Callbacks act through their callback handle instead.
+template <typename H> H* holder_of(SEXP x, Kind k, const char* what) {
+  H* h = get_xptr<H>(x, k);
+  if (h->busy) {
+    fail(std::string("this ") + what + " is running a check and cannot be used from its own callbacks; "
+         "use the callback handle instead");
+  }
+  return h;
+}
+inline SolverHolder* solver_of(SEXP x) { return holder_of<SolverHolder>(x, Kind::Solver, "solver"); }
+inline OptimizeHolder* optimizer_of(SEXP x) { return holder_of<OptimizeHolder>(x, Kind::Optimize, "optimizer"); }
+
+// Marks a holder busy for the duration of a Z3 call that may run callbacks,
+// and clears errors left from earlier calls.
+template <typename H> struct BusyGuard {
+  H* h;
+  explicit BusyGuard(H* holder) : h(holder) {
+    h->busy = true;
+    for (CallbackPtr& cb : h->callbacks) {
+      cb->error.clear();
+      cb->interrupted = false;
+    }
+  }
+  ~BusyGuard() { h->busy = false; }
+  BusyGuard(const BusyGuard&) = delete;
+  BusyGuard& operator=(const BusyGuard&) = delete;
+};
 
 inline bool is_kind(SEXP x, Kind k) {
   return TYPEOF(x) == EXTPTRSXP && R_ExternalPtrTag(x) == Rf_install(kind_tag(k));
@@ -300,6 +353,8 @@ SEXP stats_list(const CtxPtr& ctx, Z3_stats raw_stats);
 // Z3 handles SIGINT itself during checks and returns unknown with this
 // reason; z3r turns that into an ordinary R interrupt.
 void forward_interrupt(Z3_lbool status, const std::string& reason);
+bool has_propagator(const CallbackPtr& cb);
+void refuse_copy_with_callbacks(SolverHolder* h, const char* what);
 
 // Floating point (fpa.cpp)
 bool is_fp(const Ast& e);

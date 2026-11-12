@@ -144,3 +144,11 @@ test_that("objective handles are refused after their scope is popped", {
   expect_error(z3_optimum(h1), "removed by z3_pop")
   expect_identical(z3_value(z3_optimum(h2)$value), 0)
 })
+
+test_that("popping an optimizer needs an open scope", {
+  ctx <- z3_context()
+  o <- z3_optimize(ctx)
+  expect_error(z3_pop(o), "no open scope")
+  z3_push(o)
+  expect_no_error(z3_pop(o))
+})

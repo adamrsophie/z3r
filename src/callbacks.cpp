@@ -2,12 +2,16 @@
 // callbacks, optimizer model callbacks and proof checking.
 //
 // Z3 calls these synchronously on the thread running the check, which is
-// R's main thread. Each R function is evaluated with R_tryEval inside an R
-// tryCatch, so an R error or interrupt never unwinds through Z3's frames.
-// After an error, the check is interrupted with Z3_interrupt and the error
-// is raised in R once Z3 has returned. C++ exceptions are caught in each
-// trampoline for the same reason.
+// R's main thread. Everything a trampoline does in R (allocating arguments,
+// evaluating the R function) runs inside R_ToplevelExec, so neither an R
+// error nor a longjmp from a failed allocation can unwind through Z3's
+// frames, and C++ exceptions are caught before they reach R or Z3. After an
+// error the check is interrupted with Z3_interrupt and the error is raised
+// in R once Z3 has returned. While a check runs, its solver or optimizer is
+// marked busy, so callbacks cannot reenter or change it.
 #include "z3r.h"
+
+#include <functional>
 
 using namespace z3r;
 
@@ -35,8 +39,23 @@ struct ScopedHandle {
   }
 };
 
-// Calls fns[[name]](args...) through z3r:::callback_invoke. Returns the R
-// value (or R_NilValue), unprotected; callers protect it if needed.
+// Counts the R callbacks of a state that are running.
+struct Running {
+  CallbackState* st;
+  explicit Running(CallbackState* s) : st(s) { ++st->running; }
+  ~Running() { --st->running; }
+};
+
+void record_error(CallbackState* st, const std::string& msg, bool interrupted = false) {
+  if (!st || !st->error.empty()) return;
+  st->error = msg;
+  st->interrupted = interrupted;
+  if (CtxPtr c = st->context()) Z3_interrupt(c->c);
+}
+
+// Calls fns[[name]](args...) through z3r:::callback_invoke, which returns
+// list(value, error message, interrupted). Returns the R value (or
+// R_NilValue), unprotected; callers protect it if needed.
 SEXP invoke(CallbackState* st, const char* name, std::vector<SEXP> args) {
   if (!st || !st->error.empty()) return R_NilValue;
   // fns holds the user's functions and, under ".invoke", z3r's wrapper
@@ -58,36 +77,48 @@ SEXP invoke(CallbackState* st, const char* name, std::vector<SEXP> args) {
     tail = CDR(tail);
   }
   int failed = 0;
-  SEXP res = R_tryEval(call, R_GlobalEnv, &failed);
+  SEXP res;
+  {
+    Running r(st);
+    res = R_tryEval(call, R_GlobalEnv, &failed);
+  }
   UNPROTECT(1);
-  if (failed || TYPEOF(res) != VECSXP || Rf_xlength(res) != 2) {
-    st->error = std::string("the R callback '") + name + "' failed";
-    if (CtxPtr c = st->context()) Z3_interrupt(c->c);
+  if (failed || TYPEOF(res) != VECSXP || Rf_xlength(res) != 3) {
+    record_error(st, std::string("the R callback '") + name + "' failed");
     return R_NilValue;
   }
   SEXP msg = VECTOR_ELT(res, 1);
   if (msg != R_NilValue) {
-    st->error = std::string("error in the R callback '") + name + "': " + CHAR(STRING_ELT(msg, 0));
-    if (CtxPtr c = st->context()) Z3_interrupt(c->c);
+    bool intr = Rf_asLogical(VECTOR_ELT(res, 2)) == TRUE;
+    record_error(st, std::string("error in the R callback '") + name + "': " + CHAR(STRING_ELT(msg, 0)), intr);
     return R_NilValue;
   }
   return VECTOR_ELT(res, 0);
 }
 
-template <typename F> void guarded(CallbackState* st, F f) {
+struct Job {
+  std::function<void()> body;
+  std::string error;
+};
+
+void run_job(void* data) {
+  Job* j = static_cast<Job*>(data);
   try {
-    f();
+    j->body();
   } catch (std::exception& e) {
-    if (st && st->error.empty()) {
-      st->error = e.what();
-      if (CtxPtr c = st->context()) Z3_interrupt(c->c);
-    }
+    j->error = e.what();
   } catch (...) {
-    if (st && st->error.empty()) {
-      st->error = "unexpected error in a callback";
-      if (CtxPtr c = st->context()) Z3_interrupt(c->c);
-    }
+    j->error = "unexpected error in a callback";
   }
+}
+
+// Runs the R-facing part of a trampoline. R_ToplevelExec stops any R
+// longjmp at this frame; run_job stops C++ exceptions.
+template <typename F> void guarded(CallbackState* st, F f) {
+  Job j{f, std::string()};
+  Rboolean ok = R_ToplevelExec(run_job, &j);
+  if (!ok && j.error.empty()) j.error = "an R error occurred while calling a callback";
+  if (!j.error.empty()) record_error(st, j.error);
 }
 
 CallbackState* state(void* p) { return static_cast<CallbackState*>(p); }
@@ -240,32 +271,35 @@ void Z3_API model_eh(void* p) {
 #if Z3R_AT_LEAST(5, 3, 2)
 Z3_string Z3_API proof_check_eh(void* p, Z3_context, Z3_ast proof, Z3_ast_vector assertions) {
   CallbackState* st = state(p);
-  const char* out = nullptr;
+  if (!st) return "";
+  // Hold the state: the checker cannot replace itself while it runs (see
+  // cpp_set_proof_check), but keep it alive regardless.
+  CallbackPtr keep = st->shared_from_this();
   guarded(st, [&] {
-    CtxPtr ctx = st ? st->context() : CtxPtr();
+    CtxPtr ctx = st->context();
     if (!ctx) return;
-    st->error.clear();
     SEXP pr = PROTECT(expr_arg(ctx, proof));
     SEXP as = PROTECT(wrap_ast_vector(ctx, assertions));
     SEXP r = invoke(st, "check", {pr, as});
     if (TYPEOF(r) == STRSXP && Rf_xlength(r) == 1 && STRING_ELT(r, 0) != NA_STRING) {
-      st->report = CHAR(STRING_ELT(r, 0));
-      out = st->report.c_str();
-    } else if (!st->error.empty()) {
-      st->report = st->error;
-      out = st->report.c_str();
+      st->report = Rf_translateCharUTF8(STRING_ELT(r, 0));
+    } else {
+      st->report.clear();  // NULL or no usable report: an empty report
     }
     UNPROTECT(2);
   });
-  return out;
+  // Z3 copies the report; an error is raised after the interpreter returns.
+  return st->report.c_str();
 }
 #endif
 
-CallbackPtr new_state(const CtxPtr& ctx, SEXP fns) {
+// A state whose R functions are kept by `owner`, the R object of `holder`.
+CallbackPtr new_state(const CtxPtr& ctx, SEXP fns, SEXP owner, const void* holder) {
   CallbackPtr st = std::make_shared<CallbackState>();
   st->ctx = ctx;
-  R_PreserveObject(fns);
+  keep_callbacks(owner, fns);
   st->fns = fns;
+  st->owner = holder;
   return st;
 }
 
@@ -286,7 +320,10 @@ void raise_callback_errors(std::vector<CallbackPtr>& cbs) {
   for (CallbackPtr& cb : cbs) {
     if (!cb->error.empty()) {
       std::string msg = cb->error;
+      bool intr = cb->interrupted;
       cb->error.clear();
+      cb->interrupted = false;
+      if (intr) throw Rcpp::internal::InterruptedException();
       fail(msg + " (the check was interrupted)");
     }
   }
@@ -296,13 +333,19 @@ void raise_callback_errors(std::vector<CallbackPtr>& cbs) {
 // [[Rcpp::export(rng = false)]]
 void cpp_propagate_init(SEXP s_, SEXP fns) {
 #if Z3R_AT_LEAST(4, 13, 0)
-  SolverHolder* h = get_xptr<SolverHolder>(s_, Kind::Solver);
+  SolverHolder* h = solver_of(s_);
   const CtxPtr& ctx = h->s.ctx();
   Z3_context c = ctx->c;
   for (const CallbackPtr& cb : h->callbacks) {
     if (has(cb->fns, "push")) fail("this solver already has a user propagator");
   }
-  CallbackPtr st = new_state(ctx, fns);
+  // Check every option before Z3 can keep a pointer to the state.
+#if !Z3R_AT_LEAST(4, 15, 3)
+  if (has(fns, "binding")) needs_version("the binding callback", "4.15.3");
+#endif
+  // The holder owns the state from now on, even if registration fails.
+  CallbackPtr st = new_state(ctx, fns, s_, h);
+  h->callbacks.push_back(st);
   Z3_solver_propagate_init(c, h->s, st.get(), push_eh, pop_eh, fresh_eh);
   check(ctx);
   if (has(fns, "fixed")) Z3_solver_propagate_fixed(c, h->s, fixed_eh);
@@ -313,11 +356,8 @@ void cpp_propagate_init(SEXP s_, SEXP fns) {
   if (has(fns, "decide")) Z3_solver_propagate_decide(c, h->s, decide_eh);
 #if Z3R_AT_LEAST(4, 15, 3)
   if (has(fns, "binding")) Z3_solver_propagate_on_binding(c, h->s, on_binding_eh);
-#else
-  if (has(fns, "binding")) needs_version("the binding callback", "4.15.3");
 #endif
   check(ctx);
-  h->callbacks.push_back(st);
 #else
   (void)s_; (void)fns;
   needs_version("user propagators", "4.13.0");
@@ -327,7 +367,7 @@ void cpp_propagate_init(SEXP s_, SEXP fns) {
 // [[Rcpp::export(rng = false)]]
 void cpp_propagate_register(SEXP s_, SEXP e_) {
 #if Z3R_AT_LEAST(4, 13, 0)
-  SolverHolder* h = get_xptr<SolverHolder>(s_, Kind::Solver);
+  SolverHolder* h = solver_of(s_);
   bool has_propagator = false;
   for (const CallbackPtr& cb : h->callbacks) has_propagator = has_propagator || has(cb->fns, "push");
   if (!has_propagator) fail("install a user propagator with z3_propagator() before registering terms");
@@ -423,11 +463,11 @@ bool cpp_cb_next_split(SEXP cb_, SEXP t_, int idx, int phase) {
 // [[Rcpp::export(rng = false)]]
 void cpp_on_clause(SEXP s_, SEXP fns) {
 #if Z3R_AT_LEAST(4, 13, 0)
-  SolverHolder* h = get_xptr<SolverHolder>(s_, Kind::Solver);
-  CallbackPtr st = new_state(h->s.ctx(), fns);
+  SolverHolder* h = solver_of(s_);
+  CallbackPtr st = new_state(h->s.ctx(), fns, s_, h);
+  h->callbacks.push_back(st);
   Z3_solver_register_on_clause(h->s.c(), h->s, st.get(), on_clause_eh);
   check(h->s.ctx());
-  h->callbacks.push_back(st);
 #else
   (void)s_; (void)fns;
   needs_version("z3_on_clause()", "4.13.0");
@@ -436,33 +476,55 @@ void cpp_on_clause(SEXP s_, SEXP fns) {
 
 // [[Rcpp::export(rng = false)]]
 void cpp_on_model(SEXP o_, SEXP fns) {
-  OptimizeHolder* h = get_xptr<OptimizeHolder>(o_, Kind::Optimize);
+  OptimizeHolder* h = optimizer_of(o_);
   const CtxPtr& ctx = h->o.ctx();
-  CallbackPtr st = new_state(ctx, fns);
+  CallbackPtr st = new_state(ctx, fns, o_, h);
   st->model = own(ctx, Z3_mk_model(ctx->c));
+  h->callbacks.push_back(st);
   Z3_optimize_register_model_eh(ctx->c, h->o, st->model, st.get(), model_eh);
   check(ctx);
-  h->callbacks.push_back(st);
 }
 
+// The checker belongs to the context's R handle: its function is kept in
+// the handle's protected slot and it is removed when the handle is
+// collected (ContextHolder::~ContextHolder).
 // [[Rcpp::export(rng = false)]]
 void cpp_set_proof_check(SEXP ctx_, SEXP fns) {
 #if Z3R_AT_LEAST(5, 3, 2)
   CtxPtr ctx = get_ctx(ctx_);
+  if (ctx->proof_check && ctx->proof_check->running > 0) {
+    fail("the proof checker cannot be replaced or removed while it runs");
+  }
+  SEXP handle = PROTECT(wrap_ctx(ctx));
+  ContextHolder* holder = get_xptr<ContextHolder>(handle, Kind::Context);
   if (Rf_isNull(fns)) {
     Z3_set_proof_check_callback(ctx->c, nullptr, nullptr);
-    check(ctx);
     ctx->proof_check.reset();
+    drop_callbacks(handle);
+    UNPROTECT(1);
+    check(ctx);
     return;
   }
-  CallbackPtr st = new_state(ctx, fns);
+  drop_callbacks(handle);
+  CallbackPtr st = new_state(ctx, fns, handle, holder);
   st->ctx.reset();  // the context owns this state; avoid a reference cycle
   st->weak = ctx;
-  Z3_set_proof_check_callback(ctx->c, st.get(), proof_check_eh);
-  check(ctx);
   ctx->proof_check = st;
+  Z3_set_proof_check_callback(ctx->c, st.get(), proof_check_eh);
+  UNPROTECT(1);
+  check(ctx);
 #else
   (void)ctx_; (void)fns;
   needs_version("z3_set_proof_checker()", "5.3.2");
 #endif
 }
+
+// Raises an error recorded by the proof checker during the last SMT-LIB2
+// evaluation.
+namespace z3r {
+void raise_proof_check_error(const CtxPtr& ctx) {
+  if (!ctx->proof_check) return;
+  std::vector<CallbackPtr> v(1, ctx->proof_check);
+  raise_callback_errors(v);
+}
+}  // namespace z3r

@@ -215,8 +215,10 @@ z3_reason_unknown.z3_solver <- function(x) cpp_solver_reason_unknown(x)
 #'
 #' `z3_push()` opens a backtracking scope; `z3_pop()` removes every
 #' assertion added since the matching push. `z3_reset()` removes all
-#' assertions and scopes. `z3_num_scopes()` reports the number of open
-#' scopes.
+#' assertions and scopes, and also user propagators and clause callbacks
+#' ([z3_propagator()]). `z3_num_scopes()` reports the number of open
+#' scopes. Popping an optimizer removes the objectives added in the scope;
+#' their handles can no longer be used.
 #'
 #' @param x A `z3_solver` (or a `z3_optimize` for push and pop).
 #' @param n Number of scopes to pop.

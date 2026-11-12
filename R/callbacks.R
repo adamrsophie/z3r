@@ -1,8 +1,9 @@
-# Called from C++ for every R callback. Returns list(value, error message).
+# Called from C++ for every R callback. Returns list(value, error message,
+# interrupted).
 callback_invoke <- function(fn, ...) {
-  tryCatch(list(fn(...), NULL),
-           error = function(e) list(NULL, conditionMessage(e)),
-           interrupt = function(e) list(NULL, "interrupted by the user"))
+  tryCatch(list(fn(...), NULL, FALSE),
+           error = function(e) list(NULL, conditionMessage(e), FALSE),
+           interrupt = function(e) list(NULL, "interrupted by the user", TRUE))
 }
 
 #' User propagators
@@ -35,9 +36,18 @@ callback_invoke <- function(fn, ...) {
 #' * `z3_propagate_conflict(cb, fixed)` is the same with `FALSE`.
 #' * `z3_next_split(cb, term, index, phase)` suggests the next decision.
 #'
-#' An error in a callback interrupts the check and is raised as an R error.
-#' Z3 sometimes copies a solver internally; the copy does not run R
-#' callbacks, and z3r warns when that happens.
+#' An error in a callback interrupts the check and is raised as an R error
+#' (an interrupt with Ctrl-C is raised as an interrupt). While a check runs,
+#' its solver cannot be used from its own callbacks: `z3_add()`,
+#' `z3_push()`, `z3_check()` and every other function on it fail; act
+#' through the callback handle instead.
+#'
+#' Z3 cannot copy R callbacks. [z3_translate()] and
+#' [z3_solver_add_simplifier()] refuse solvers that have them, and when Z3
+#' copies a solver internally during a check (as in parallel mode), z3r
+#' refuses a `"sat"` result, which the copy may have found without the
+#' propagator's constraints. [z3_reset()] removes a solver's callbacks;
+#' install them again afterwards.
 #'
 #' `z3_on_clause(solver, fn)` registers `fn(proof_hint, deps, literals)`,
 #' called for every clause the solver asserts, infers or deletes (Z3
@@ -45,8 +55,15 @@ callback_invoke <- function(fn, ...) {
 #' each improved model during optimization. `z3_set_proof_checker(ctx, fn)`
 #' (Z3 5.3.2) registers `fn(proof, assertions)`, called by the SMT-LIB2
 #' interpreter ([z3_eval_smtlib()]) after unsatisfiable checks when proofs
-#' are enabled; it returns a report string or `NULL`. Pass `fn = NULL` to
-#' remove it.
+#' are enabled; it returns a report string, or `NULL` for an empty report,
+#' and an R error in it is raised when [z3_eval_smtlib()] returns. The
+#' checker stays registered while the context object exists; pass
+#' `fn = NULL` to remove it. It cannot replace itself or call
+#' [z3_eval_smtlib()] on its own context.
+#'
+#' Callback functions are owned by the solver, optimizer or context they
+#' are registered with, so closures that refer back to that object do not
+#' keep it alive.
 #'
 #' @param solver A `z3_solver`.
 #' @param optimizer A `z3_optimize`.

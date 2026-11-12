@@ -9,13 +9,21 @@ using namespace z3r;
 // Classes of terms that are equal in every model of the solver's assertions.
 // [[Rcpp::export(rng = false)]]
 SEXP cpp_implied_equalities(SEXP s_, Rcpp::List terms) {
-  SolverHolder* h = get_xptr<SolverHolder>(s_, Kind::Solver);
+  SolverHolder* h = solver_of(s_);
   const CtxPtr& ctx = h->s.ctx();
   AstVec t = expr_list(ctx, terms, "terms");
   std::vector<Z3_ast> r = raw(t);
   std::vector<unsigned> ids(r.size(), 0);
-  Z3_lbool st = Z3_get_implied_equalities(ctx->c, h->s, static_cast<unsigned>(r.size()),
-                                          r.empty() ? nullptr : r.data(), ids.empty() ? nullptr : ids.data());
+  Z3_lbool st;
+  {
+    BusyGuard<SolverHolder> busy(h);
+    st = Z3_get_implied_equalities(ctx->c, h->s, static_cast<unsigned>(r.size()), r.empty() ? nullptr : r.data(),
+                                   ids.empty() ? nullptr : ids.data());
+  }
+  // Z3 runs its own checks here, replacing the model and core of the last
+  // z3_check(); they are no longer available.
+  h->checked = false;
+  raise_callback_errors(h->callbacks);
   check(ctx);
   Rcpp::IntegerVector cls(ids.size());
   for (size_t i = 0; i < ids.size(); ++i) cls[i] = static_cast<int>(ids[i]);
@@ -49,7 +57,7 @@ SEXP cpp_update_term(SEXP x, Rcpp::List args) {
 
 // [[Rcpp::export(rng = false)]]
 void cpp_solver_from_file(SEXP s_, SEXP file_) {
-  SolverHolder* h = get_xptr<SolverHolder>(s_, Kind::Solver);
+  SolverHolder* h = solver_of(s_);
   std::string file = as_string(file_, "file");
   Z3_solver_from_file(h->s.c(), h->s, file.c_str());
   check(h->s.ctx());
@@ -58,8 +66,8 @@ void cpp_solver_from_file(SEXP s_, SEXP file_) {
 
 // [[Rcpp::export(rng = false)]]
 void cpp_solver_import_model_converter(SEXP src_, SEXP dst_) {
-  SolverHolder* src = get_xptr<SolverHolder>(src_, Kind::Solver);
-  SolverHolder* dst = get_xptr<SolverHolder>(dst_, Kind::Solver);
+  SolverHolder* src = solver_of(src_);
+  SolverHolder* dst = solver_of(dst_);
   same_ctx(src->s.ctx(), dst->s.ctx());
   ensure_solver_ready(src->s.c(), src->s);
   ensure_solver_ready(dst->s.c(), dst->s);

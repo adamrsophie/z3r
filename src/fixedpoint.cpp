@@ -45,6 +45,7 @@ void cpp_fixedpoint_register(SEXP f_, SEXP decl_) {
   same_ctx(h->f.ctx(), d.ctx());
   Z3_fixedpoint_register_relation(h->f.c(), h->f, as_decl(d));
   check(h->f.ctx());
+  ++h->generation;
 }
 
 // Adds a rule (a Horn clause, possibly universally quantified) or a fact.
@@ -132,6 +133,10 @@ std::string cpp_fixedpoint_query(SEXP f_, SEXP query, int level) {
 SEXP cpp_fixedpoint_answer(SEXP f_, std::string which) {
   FixedpointHolder* h = fixedpoint(f_);
   require_status(h, "an answer");
+  if (h->status == Z3_L_UNDEF) fail("there is no answer: the last z3_query() returned \"unknown\"");
+  if (which != "answer" && h->status != Z3_L_TRUE) {
+    fail("ground answers and traces exist only after z3_query() returns \"sat\"");
+  }
   const CtxPtr& ctx = h->f.ctx();
   Z3_context c = ctx->c;
   if (which == "answer") return wrap_expr(own_ast(ctx, Z3_fixedpoint_get_answer(c, h->f)));
@@ -163,6 +168,7 @@ SEXP cpp_fixedpoint_cover(SEXP f_, int level, SEXP decl_, SEXP property, bool ad
     Ast p = lift(ctx, property, Z3_mk_bool_sort(ctx->c));
     Z3_fixedpoint_add_cover(ctx->c, h->f, level, as_decl(d), p);
     check(ctx);
+    ++h->generation;
     return R_NilValue;
   }
   return wrap_expr(own_ast(ctx, Z3_fixedpoint_get_cover_delta(ctx->c, h->f, level, as_decl(d))));
@@ -189,6 +195,7 @@ SEXP cpp_fixedpoint_spacer(SEXP f_, std::string what, SEXP decl_, SEXP property)
     Ast p = lift(ctx, property, Z3_mk_bool_sort(ctx->c));
     Z3_fixedpoint_add_invariant(ctx->c, h->f, as_decl(d), p);
     check(ctx);
+    ++h->generation;
     return R_NilValue;
   }
   return wrap_expr(own_ast(ctx, Z3_fixedpoint_get_reachable(ctx->c, h->f, as_decl(d))));
