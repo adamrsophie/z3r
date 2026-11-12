@@ -124,6 +124,12 @@ test_that("default values of function interpretations can be replaced", {
   expect_identical(z3_value(z3_eval(m, f(6))), 9)
   z3_model_set_default(m, f, z3_bound_var(ctx, 0, I) + 1)
   expect_identical(z3_value(z3_eval(m, f(7))), 8)
+  # A default that tests the argument keeps the existing entries (Z3 before
+  # 4.12.2 replaced them).
+  v0 <- z3_bound_var(ctx, 0, I)
+  z3_model_set_default(m, f, z3_ite(v0 == 5, 0, 1))
+  expect_identical(z3_value(z3_eval(m, f(5))), 50)
+  expect_identical(z3_value(z3_eval(m, f(8))), 1)
   expect_error(z3_model_set_default(m, f, z3_bound_var(ctx, 1, I)), "bound variable 1")
   expect_error(z3_model_set_default(m, f, TRUE), "wrong sort")
   h <- z3_function(ctx, "h", I, I)

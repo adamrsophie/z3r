@@ -162,6 +162,7 @@ SEXP cpp_lambda(Rcpp::List vars, SEXP body_) {
     }
     bound.push_back(Z3_to_app(c, v));
   }
+  refuse_free_vars(c, std::vector<Z3_ast>{body}, "z3_lambda()");
   return wrap_expr(own_ast(ctx, Z3_mk_lambda_const(c, static_cast<unsigned>(bound.size()), bound.data(), body)));
 }
 

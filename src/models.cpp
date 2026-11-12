@@ -215,8 +215,30 @@ void cpp_model_set_else(SEXP m_, SEXP decl_, SEXP otherwise) {
   check(ctx);
   Ast els = model_value(ctx, otherwise, Z3_get_range(c, f), "the default value");
   check_default(c, f, arity, els);
+#if !Z3R_AT_LEAST(4, 12, 2)
+  // Before Z3 4.12.2, set_else replaces existing entries with the ones it
+  // reads off a default of the form ite(var == value, result, rest); put
+  // them back afterwards (adding an entry overwrites one).
+  std::vector<Ref<Z3_ast_vector>> keys;
+  AstVec vals;
+  for (unsigned j = 0, ne = Z3_func_interp_get_num_entries(c, fi); j < ne; ++j) {
+    Ref<Z3_func_entry> e = own(ctx, Z3_func_interp_get_entry(c, fi, j));
+    Ref<Z3_ast_vector> args = own(ctx, Z3_mk_ast_vector(c));
+    for (unsigned k = 0, na = Z3_func_entry_get_num_args(c, e); k < na; ++k) {
+      Z3_ast_vector_push(c, args, Z3_func_entry_get_arg(c, e, k));
+    }
+    keys.push_back(args);
+    vals.push_back(own_ast(ctx, Z3_func_entry_get_value(c, e)));
+  }
+#endif
   Z3_func_interp_set_else(c, fi, els);
   check(ctx);
+#if !Z3R_AT_LEAST(4, 12, 2)
+  for (size_t j = 0; j < keys.size(); ++j) {
+    Z3_func_interp_add_entry(c, fi, keys[j], vals[j]);
+    check(ctx);
+  }
+#endif
   clear_eval_cache(m);
 }
 

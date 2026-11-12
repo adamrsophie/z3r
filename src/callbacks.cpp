@@ -129,7 +129,7 @@ CallbackState* state(void* p) { return static_cast<CallbackState*>(p); }
 // ---- user propagator trampolines ----------------------------------------
 
 #if Z3R_AT_LEAST(4, 12, 3)
-void Z3_API push_eh(void* p, Z3_solver_callback cb) {
+void push_eh(void* p, Z3_solver_callback cb) {
   CallbackState* st = state(p);
   guarded(st, [&] {
     if (!st) return;
@@ -138,7 +138,7 @@ void Z3_API push_eh(void* p, Z3_solver_callback cb) {
   });
 }
 
-void Z3_API pop_eh(void* p, Z3_solver_callback cb, unsigned n) {
+void pop_eh(void* p, Z3_solver_callback cb, unsigned n) {
   CallbackState* st = state(p);
   guarded(st, [&] {
     if (!st) return;
@@ -151,13 +151,13 @@ void Z3_API pop_eh(void* p, Z3_solver_callback cb, unsigned n) {
 
 // Z3 copies the solver in some configurations. The copy lives in another
 // context and gets no callbacks; z3r records this and warns after the check.
-void* Z3_API fresh_eh(void* p, Z3_context) {
+void* fresh_eh(void* p, Z3_context) {
   CallbackState* st = state(p);
   if (st) st->cloned = true;
   return nullptr;
 }
 
-void Z3_API fixed_eh(void* p, Z3_solver_callback cb, Z3_ast t, Z3_ast value) {
+void fixed_eh(void* p, Z3_solver_callback cb, Z3_ast t, Z3_ast value) {
   CallbackState* st = state(p);
   guarded(st, [&] {
     if (!st) return;
@@ -169,7 +169,7 @@ void Z3_API fixed_eh(void* p, Z3_solver_callback cb, Z3_ast t, Z3_ast value) {
   });
 }
 
-void Z3_API eq_eh(void* p, Z3_solver_callback cb, Z3_ast s, Z3_ast t) {
+void eq_eh(void* p, Z3_solver_callback cb, Z3_ast s, Z3_ast t) {
   CallbackState* st = state(p);
   guarded(st, [&] {
     if (!st) return;
@@ -181,7 +181,7 @@ void Z3_API eq_eh(void* p, Z3_solver_callback cb, Z3_ast s, Z3_ast t) {
   });
 }
 
-void Z3_API diseq_eh(void* p, Z3_solver_callback cb, Z3_ast s, Z3_ast t) {
+void diseq_eh(void* p, Z3_solver_callback cb, Z3_ast s, Z3_ast t) {
   CallbackState* st = state(p);
   guarded(st, [&] {
     if (!st) return;
@@ -193,7 +193,7 @@ void Z3_API diseq_eh(void* p, Z3_solver_callback cb, Z3_ast s, Z3_ast t) {
   });
 }
 
-void Z3_API final_eh(void* p, Z3_solver_callback cb) {
+void final_eh(void* p, Z3_solver_callback cb) {
   CallbackState* st = state(p);
   guarded(st, [&] {
     if (!st) return;
@@ -202,7 +202,7 @@ void Z3_API final_eh(void* p, Z3_solver_callback cb) {
   });
 }
 
-void Z3_API created_eh(void* p, Z3_solver_callback cb, Z3_ast t) {
+void created_eh(void* p, Z3_solver_callback cb, Z3_ast t) {
   CallbackState* st = state(p);
   guarded(st, [&] {
     if (!st) return;
@@ -213,7 +213,7 @@ void Z3_API created_eh(void* p, Z3_solver_callback cb, Z3_ast t) {
   });
 }
 
-void Z3_API decide_eh(void* p, Z3_solver_callback cb, Z3_ast t, unsigned idx, bool phase) {
+void decide_eh(void* p, Z3_solver_callback cb, Z3_ast t, unsigned idx, bool phase) {
   CallbackState* st = state(p);
   guarded(st, [&] {
     if (!st) return;
@@ -226,7 +226,7 @@ void Z3_API decide_eh(void* p, Z3_solver_callback cb, Z3_ast t, unsigned idx, bo
   });
 }
 
-void Z3_API on_clause_eh(void* p, Z3_ast proof_hint, unsigned n, unsigned const* deps, Z3_ast_vector literals) {
+void on_clause_eh(void* p, Z3_ast proof_hint, unsigned n, unsigned const* deps, Z3_ast_vector literals) {
   CallbackState* st = state(p);
   guarded(st, [&] {
     if (!st) return;
@@ -241,7 +241,7 @@ void Z3_API on_clause_eh(void* p, Z3_ast proof_hint, unsigned n, unsigned const*
 #endif
 
 #if Z3R_AT_LEAST(4, 15, 3)
-bool Z3_API on_binding_eh(void* p, Z3_solver_callback cb, Z3_ast q, Z3_ast inst) {
+bool on_binding_eh(void* p, Z3_solver_callback cb, Z3_ast q, Z3_ast inst) {
   CallbackState* st = state(p);
   bool keep = true;
   guarded(st, [&] {
@@ -257,7 +257,7 @@ bool Z3_API on_binding_eh(void* p, Z3_solver_callback cb, Z3_ast q, Z3_ast inst)
 }
 #endif
 
-void Z3_API model_eh(void* p) {
+void model_eh(void* p) {
   CallbackState* st = state(p);
   guarded(st, [&] {
     if (!st || !st->model.get()) return;
@@ -270,7 +270,7 @@ void Z3_API model_eh(void* p) {
 }
 
 #if Z3R_AT_LEAST(5, 3, 2)
-Z3_string Z3_API proof_check_eh(void* p, Z3_context, Z3_ast proof, Z3_ast_vector assertions) {
+Z3_string proof_check_eh(void* p, Z3_context, Z3_ast proof, Z3_ast_vector assertions) {
   CallbackState* st = state(p);
   if (!st) return "";
   // Hold the state: the checker cannot replace itself while it runs (see

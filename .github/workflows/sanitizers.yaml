@@ -20,8 +20,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install Z3 and R dependencies
         run: |
-          apt-get update && apt-get install -y libz3-dev libgmp-dev
-          RD -e 'install.packages(c("Rcpp", "testthat", "gmp"), repos = "https://cloud.r-project.org")'
+          apt-get update && apt-get install -y libz3-dev libgmp-dev libuv1-dev
+          RD -e 'install.packages(c("Rcpp", "testthat", "gmp"), repos = "https://cloud.r-project.org"); stopifnot(requireNamespace("testthat"), requireNamespace("gmp"))'
       - name: Install and test with sanitizers
         run: |
           RD CMD INSTALL .

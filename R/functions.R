@@ -63,7 +63,10 @@ print.z3_func_decl <- function(x, ...) {
 #' last of them, index 1 to the one before it, and so on. Higher indices
 #' refer to enclosing binders, so quantifiers can be nested. The body (and
 #' any pattern) uses the variables directly. With `type = "lambda"` the
-#' result is an array, as from [z3_lambda()].
+#' result is an array, as from [z3_lambda()]. `z3_forall()`, `z3_exists()`
+#' and [z3_lambda()] refuse a term with a free de Bruijn variable: Z3
+#' releases before 5.3.0 would bind it to the new binder and later ones to
+#' an enclosing one, so nest such terms in `z3_quantifier_db()` only.
 #'
 #' @param vars A constant or a list of constants to bind.
 #' @param body A Boolean expression (any expression for a lambda).
@@ -145,9 +148,11 @@ print.z3_pattern <- function(x, ...) {
 }
 
 # Patterns for Z3: a list of patterns, each a list of terms. A single
-# z3_pattern is one pattern, and a single term is a pattern of one term.
+# z3_pattern is one pattern, and a single term (alone or in the list) is a
+# pattern of one term.
 as_patterns <- function(patterns) {
   if (inherits(patterns, "z3_pattern")) return(list(patterns))
+  if (is_z3_expr(patterns)) return(list(list(patterns)))
   lapply(patterns, function(p) if (is_z3_expr(p)) list(p) else p)
 }
 

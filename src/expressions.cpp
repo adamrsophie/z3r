@@ -153,6 +153,19 @@ std::vector<Z3_sort> free_var_sorts(Z3_context c, const std::vector<Z3_ast>& ter
   return out;
 }
 
+// Binding constants around a term with a free de Bruijn variable means
+// different things across Z3 releases: before 5.3.0 the new binders capture
+// the variable, from 5.3.0 Z3 shifts it to the enclosing binder.
+void refuse_free_vars(Z3_context c, const std::vector<Z3_ast>& terms, const char* what) {
+  for (Z3_sort s : free_var_sorts(c, terms)) {
+    if (s) {
+      fail(std::string(what) + " cannot bind constants around a free de Bruijn variable (from "
+           "z3_bound_var()), which Z3 releases treat differently; bind every variable with "
+           "z3_quantifier_db() instead");
+    }
+  }
+}
+
 // Context of the expressions in an argument list. All of them must share it:
 // callers take sort hints for R literals from any of them before lifting.
 CtxPtr ctx_from_list(SEXP args) {

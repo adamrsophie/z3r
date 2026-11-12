@@ -43,12 +43,13 @@ timeout of the solver or optimizer for this call only; a check that runs
 out of time returns \code{"unknown"}. Afterwards z3r sets the object's
 parameters back, also when the check fails or is interrupted: the
 timeout set with \code{\link[=z3_set_params]{z3_set_params()}} returns, and without one the object
-gets the context's timeout as last set through z3r
-(\code{z3_context(timeout = )} or \code{\link[=z3_update_param]{z3_update_param()}}), or none. Z3 cannot
-remove a parameter, so the object then keeps that value as its own: a
-later change of the context's timeout, or a global \code{timeout} set with
-\code{\link[=z3_global_param_set]{z3_global_param_set()}}, no longer reaches it. Printing the object shows
-the parameters z3r has set on it.
+gets the context's timeout: the one set through z3r
+(\code{z3_context(timeout = )} or \code{\link[=z3_update_param]{z3_update_param()}}), or else a global
+\code{timeout} that was in force when the context was made, or none. Z3
+cannot remove a parameter, so the object then keeps that value as its
+own: a later change of the context's timeout, or of a global \code{timeout}
+or \code{solver.timeout} set with \code{\link[=z3_global_param_set]{z3_global_param_set()}}, no longer reaches
+it. Printing the object shows the parameters z3r has set on it.
 }
 
 \section{Interrupting a check}{

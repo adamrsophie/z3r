@@ -136,6 +136,10 @@ test_that("de Bruijn quantifiers and lambdas", {
   f <- z3_function(ctx, "f", I, I)
   pq <- z3_quantifier_db(I, "x", f(v0) > 0, patterns = z3_pattern(f(v0)))
   expect_length(z3_quantifier_info(pq)$patterns, 1)
+  # A single term is a pattern of one term, alone or in a list.
+  xc <- z3_int(ctx, "xc")
+  expect_length(z3_quantifier_info(z3_forall(xc, f(xc) > 0, patterns = f(xc)))$patterns, 1)
+  expect_length(z3_quantifier_info(z3_forall(xc, f(xc) > 0, patterns = list(f(xc))))$patterns, 1)
   expect_identical(check_status(ctx, pq, f(2) < 0), "unsat")
   expect_identical(z3_quantifier_info(z3_quantifier_db(I, "x", f(v0) > 0, weight = 5))$weight, 5L)
   nq <- z3_quantifier_info(z3_quantifier_db(I, "x", f(v0) > 0, qid = "fpos", no_patterns = list(f(v0))))
@@ -152,6 +156,14 @@ test_that("de Bruijn quantifiers and lambdas", {
   nested <- z3_quantifier_db(I, "y", v0 > 0, no_patterns = list(f(v1)))
   expect_error(z3_quantifier_db(B, "b", nested), "has sort Int but its binder 'b' has sort Bool")
   expect_true(z3_is_well_sorted(z3_quantifier_db(I, "x", nested)))
+
+  # Binders over constants refuse a free de Bruijn variable, which Z3
+  # releases before 5.3.0 would capture; one bound inside the body is fine.
+  yc <- z3_int(ctx, "yc")
+  expect_error(z3_exists(yc, yc > v0), "free de Bruijn variable")
+  expect_error(z3_forall(yc, f(yc) > 0, no_patterns = list(f(v0))), "free de Bruijn variable")
+  expect_error(z3_lambda(yc, yc + v0), "free de Bruijn variable")
+  expect_true(z3_is_quantifier(z3_forall(yc, z3_quantifier_db(I, "z", v0 > yc))))
 
   expect_error(z3_quantifier_db(list(I, I), "x", v0 > 0), "same length")
   expect_error(z3_quantifier_db(I, "x", v0 + 1), "Boolean")

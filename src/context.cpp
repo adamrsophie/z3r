@@ -32,6 +32,10 @@ Context::Context(const std::vector<std::pair<std::string, std::string>>& config)
   Z3_config cfg = Z3_mk_config();
   if (!cfg) fail("could not create a Z3 configuration");
   Z3_set_param_value(cfg, "model", "true");
+  // Z3 gives the context a global timeout in force now (z3_global_param_set());
+  // per-call timeouts restore it like one set through the configuration.
+  Z3_string global = nullptr;
+  if (Z3_global_param_get("timeout", &global) && global) note_param("timeout", global);
   for (const auto& kv : config) {
     Z3_set_param_value(cfg, kv.first.c_str(), kv.second.c_str());
     note_param(kv.first, kv.second);

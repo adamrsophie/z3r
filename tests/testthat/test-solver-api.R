@@ -75,6 +75,15 @@ test_that("an explicit unlimited timeout survives a per-call timeout", {
   expect_false(any(grepl("timeout 1\\b", capture.output(print(opt)), perl = TRUE)))
 })
 
+test_that("a global timeout in force when the context was made is restored", {
+  z3_global_param_set("timeout", 5000)
+  ctx <- tryCatch(z3_context(), finally = z3_global_param_reset())
+  s <- z3_solver(ctx)
+  z3_add(s, z3_int(ctx, "x") > 0)
+  expect_identical(z3_check(s, timeout = 60000), "sat")
+  expect_output(print(s), "timeout 5000")
+})
+
 test_that("optimizer options survive later parameter sets and per-call timeouts", {
   # Z3 resets the optimizer options a parameter set leaves out.
   ctx <- z3_context()

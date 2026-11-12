@@ -21,8 +21,10 @@
 #'
 #' `z3_enum_sort()`, `z3_tuple_sort()` and `z3_list_sort()` are shortcuts
 #' for the common shapes. `z3_enum_sort()` and `z3_list_sort()` use Z3's
-#' dedicated constructors; since Z3 4.12.0 an enumeration cannot reuse the
-#' name of a datatype already declared in the context. `z3_tuple_sort()`
+#' dedicated constructors. Z3 4.12.0 and later refuse an enumeration
+#' whose name is already declared in the context, also when a script runs
+#' again: keep the earlier object, or use another name or a new context.
+#' `z3_tuple_sort()`
 #' names its constructor `mk_<name>`. A datatype with a single constructor
 #' that has the datatype's own name and no recursive fields, as in
 #' `z3_datatype(ctx, "Point", Point = list(x = I, y = I))`, is declared as a
@@ -219,7 +221,12 @@ z3_enum_sort <- function(ctx, name, values) {
     stop("values must be distinct non-missing names", call. = FALSE)
   }
   check_part_names(name, values)
-  built <- cpp_mk_enumeration_sort(ctx, name, enc2utf8(values))
+  built <- tryCatch(cpp_mk_enumeration_sort(ctx, name, enc2utf8(values)), error = function(e) {
+    if (!grepl("already declared", conditionMessage(e), fixed = TRUE)) stop(e)
+    stop(sprintf(paste("an enumeration named '%s' is already declared in this context, and Z3",
+                       "4.12.0 and later do not declare it again; keep the earlier object, or",
+                       "use another name or a new context"), name), call. = FALSE)
+  })
   new_datatype(built$sort, built$parts)
 }
 

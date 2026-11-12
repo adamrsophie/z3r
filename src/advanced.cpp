@@ -126,6 +126,10 @@ SEXP cpp_quantifier(bool forall, Rcpp::List vars, SEXP body_, Rcpp::List pattern
   AstVec nopats = expr_list(ctx, no_patterns, "no-patterns");
   std::vector<Z3_ast> rn = raw(nopats);
   if (!pats.empty() && !rn.empty()) fail("a quantifier takes patterns or no-patterns, not both");
+  std::vector<Z3_ast> scope = rn;
+  scope.push_back(body);
+  for (Z3_pattern p : pats) scope.push_back(Z3_pattern_to_ast(c, p));
+  refuse_free_vars(c, scope, forall ? "z3_forall()" : "z3_exists()");
   if (weight < 0) fail("weight must be a non-negative integer");
   unsigned w = static_cast<unsigned>(weight);
   unsigned nb = static_cast<unsigned>(bound.size());

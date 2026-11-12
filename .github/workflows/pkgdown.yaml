@@ -25,10 +25,12 @@ jobs:
         shell: bash
         run: |
           asset=z3-5.4.1-x64-glibc-2.39.zip
-          curl -sSL -o z3.zip "https://github.com/Z3Prover/z3/releases/download/z3-5.4.1/$asset"
-          if command -v sha256sum > /dev/null; then sum="sha256sum"; else sum="shasum -a 256"; fi
-          echo "b548bac48ef2452b4e09ea2945cf4b011d5f43fcf39e4799df268ee7e0769d85  z3.zip" | $sum -c -
-          unzip -q z3.zip -d "$RUNNER_TEMP"
+          (
+            cd "$RUNNER_TEMP"
+            curl -sSL -o z3.zip "https://github.com/Z3Prover/z3/releases/download/z3-5.4.1/$asset"
+            echo "b548bac48ef2452b4e09ea2945cf4b011d5f43fcf39e4799df268ee7e0769d85  z3.zip" | sha256sum -c -
+            unzip -q z3.zip
+          )
           Z3_DIR="$RUNNER_TEMP/${asset%.zip}"
           echo "Z3_INCLUDE_DIR=$Z3_DIR/include" >> "$GITHUB_ENV"
           echo "Z3_LIB_DIR=$Z3_DIR/bin" >> "$GITHUB_ENV"

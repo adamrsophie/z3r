@@ -91,7 +91,10 @@ variables are described by \code{sorts} and \code{names}: index 0 refers to the
 last of them, index 1 to the one before it, and so on. Higher indices
 refer to enclosing binders, so quantifiers can be nested. The body (and
 any pattern) uses the variables directly. With \code{type = "lambda"} the
-result is an array, as from \code{\link[=z3_lambda]{z3_lambda()}}.
+result is an array, as from \code{\link[=z3_lambda]{z3_lambda()}}. \code{z3_forall()}, \code{z3_exists()}
+and \code{\link[=z3_lambda]{z3_lambda()}} refuse a term with a free de Bruijn variable: Z3
+releases before 5.3.0 would bind it to the new binder and later ones to
+an enclosing one, so nest such terms in \code{z3_quantifier_db()} only.
 }
 \examples{
 ctx <- z3_context()

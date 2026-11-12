@@ -62,8 +62,9 @@ struct Context {
   // kept in that handle's protected slot).
   SEXP handle = R_NilValue;
   bool interpreting = false;  // running Z3_eval_smtlib2_string
-  // The context's "timeout" parameter as last set through z3r (4294967295:
-  // none); per-call timeouts restore it on objects without their own.
+  // The context's "timeout" parameter: the global one when the context was
+  // made, then as last set through z3r (4294967295: none); per-call
+  // timeouts restore it on objects without their own.
   unsigned timeout = 4294967295u;
   void note_param(const std::string& name, const std::string& value);
   // config: pairs of Z3 configuration parameter names and values.
@@ -419,6 +420,7 @@ Ast coerce_sort(const Ast& v, Z3_sort sort, const std::string& what);
 // indices that do not occur).
 std::vector<Z3_sort> free_var_sorts(Z3_context c, Z3_ast a);
 std::vector<Z3_sort> free_var_sorts(Z3_context c, const std::vector<Z3_ast>& terms);
+void refuse_free_vars(Z3_context c, const std::vector<Z3_ast>& terms, const char* what);
 
 }  // namespace z3r
 

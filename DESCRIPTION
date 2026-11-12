@@ -29,6 +29,7 @@ Imports:
 LinkingTo:
     Rcpp
 Suggests:
+    bit64,
     gmp,
     symcompR,
     knitr,

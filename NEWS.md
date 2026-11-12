@@ -56,7 +56,9 @@ which version they need.
   parameters, statistics (also as Z3's text, `z3_statistics_text()`) and
   DIMACS export.
 * Timeouts for a single check (`z3_check(timeout = )`), which keep the
-  other parameters of a solver or optimizer, and `z3_interrupt()`, which
+  other parameters of a solver or optimizer and restore the context's
+  timeout (also a global one in force when the context was made), and
+  `z3_interrupt()`, which
   stops a solver's or optimizer's check from inside its own callbacks.
 * Optimization with hard and soft constraints, objectives (including the
   cost of soft constraint groups) and priorities, unbounded and

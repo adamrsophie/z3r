@@ -84,6 +84,14 @@ test_that("member names that collide are refused", {
   expect_error(z3_enum_sort(ctx, "E2", c("sort", "b")), "reserved")
 })
 
+test_that("an enumeration declared again says why Z3 refuses it", {
+  skip_if_not(z3_version_at_least("4.12.0"))
+  ctx <- z3_context()
+  Color <- z3_enum_sort(ctx, "Color", c("red", "green"))
+  expect_error(z3_enum_sort(ctx, "Color", c("red", "green")), "already declared in this context")
+  expect_identical(check_status(ctx, z3_const(ctx, "c1", Color$sort) != Color$red), "sat")
+})
+
 test_that("a refused datatype leaves its name free for a corrected one", {
   # The names are checked before Z3 declares the sort.
   ctx <- z3_context()
