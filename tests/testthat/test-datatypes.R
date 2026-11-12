@@ -71,3 +71,11 @@ test_that("polymorphic datatypes", {
   expect_identical(z3_check(s), "sat")
   expect_identical(format(z3_eval(z3_model(s), b)), "(box 5)")
 })
+
+test_that("member names that collide are refused", {
+  ctx <- z3_context()
+  expect_error(z3_datatype(ctx, "D1", sort = list()), "reserved")
+  I <- z3_int_sort(ctx)
+  expect_error(z3_datatype(ctx, "D2", a = list(x = I), b = list(x = I)), "used twice")
+  expect_error(z3_datatype(ctx, "D3", p = list(is_q = I), q = list()), "used twice")
+})

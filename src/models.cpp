@@ -64,21 +64,21 @@ SEXP cpp_model_funcs(SEXP m_) {
     unsigned ne = Z3_func_interp_get_num_entries(c, fi);
     Rcpp::List entries(ne);
     for (unsigned j = 0; j < ne; ++j) {
-      Z3_func_entry e = Z3_func_interp_get_entry(c, fi, j);
-      check(ctx);
-      Z3_func_entry_inc_ref(c, e);
+      Ref<Z3_func_entry> e = own(ctx, Z3_func_interp_get_entry(c, fi, j));
       unsigned na = Z3_func_entry_get_num_args(c, e);
       AstVec args;
       for (unsigned k = 0; k < na; ++k) args.push_back(own_ast(ctx, Z3_func_entry_get_arg(c, e, k)));
       Ast value = own_ast(ctx, Z3_func_entry_get_value(c, e));
-      Z3_func_entry_dec_ref(c, e);
       entries[j] = Rcpp::List::create(Rcpp::Named("args") = wrap_expr_list(args),
                                       Rcpp::Named("value") = wrap_expr(value));
     }
-    Ast els = own_ast(ctx, Z3_func_interp_get_else(c, fi));
+    // Partial models (model.partial) have no default value.
+    Z3_ast raw_else = Z3_func_interp_get_else(c, fi);
+    check(ctx);
+    Rcpp::RObject els = raw_else ? wrap_expr(own_ast(ctx, raw_else)) : R_NilValue;
     out[i] = Rcpp::List::create(Rcpp::Named("decl") = wrap_decl(decl),
                                 Rcpp::Named("entries") = entries,
-                                Rcpp::Named("else") = wrap_expr(els));
+                                Rcpp::Named("else") = els);
   }
   out.names() = names;
   return out;
@@ -97,14 +97,7 @@ SEXP cpp_mk_model(SEXP ctx_) {
 // Real where a Real is expected; any other mismatch is an error (Z3 would
 // accept an ill-sorted interpretation).
 static Ast model_value(const CtxPtr& ctx, SEXP x, Z3_sort sort, const char* what) {
-  Z3_context c = ctx->c;
-  Ast v = lift(ctx, x, sort);
-  if (Z3_get_sort_kind(c, sort) == Z3_REAL_SORT && sort_kind(v) == Z3_INT_SORT) v = to_real(v);
-  if (!Z3_is_eq_sort(c, sort, Z3_get_sort(c, v))) {
-    fail(std::string(what) + " has the wrong sort: " + sort_name(ctx, Z3_get_sort(c, v)) + " where " +
-         sort_name(ctx, sort) + " is needed");
-  }
-  return v;
+  return coerce_sort(lift(ctx, x, sort), sort, what);
 }
 
 // Assigns a value to a constant (an application of a nullary declaration).
@@ -135,6 +128,7 @@ void cpp_model_set_func(SEXP m_, SEXP decl_, Rcpp::List entries, SEXP otherwise)
   same_ctx(ctx, decl.ctx());
   Z3_func_decl f = as_decl(decl);
   unsigned arity = Z3_get_arity(c, f);
+  if (arity == 0) fail("this declaration has no arguments; use z3_model_set() for constants");
   Z3_sort range = Z3_get_range(c, f);
   Ast els = model_value(ctx, otherwise, range, "the default value");
   // Convert and check every entry before the model changes.
@@ -165,9 +159,11 @@ bool cpp_model_has(SEXP m_, SEXP x) {
   Z3_context c = ctx->c;
   Z3_func_decl d;
   if (is_kind(x, Kind::FuncDecl)) {
+    same_ctx(ctx, get_decl(x).ctx());
     d = as_decl(get_decl(x));
   } else {
     const Ast& k = get_expr(x);
+    same_ctx(ctx, k.ctx());
     if (!Z3_is_app(c, k)) fail("expected a constant or a function declaration");
     d = Z3_get_app_decl(c, Z3_to_app(c, k));
   }

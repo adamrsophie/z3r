@@ -69,6 +69,11 @@ SEXP cpp_array_sort_n(Rcpp::List domain, SEXP range_) {
   AstVec keep;
   std::vector<Z3_sort> d = sort_list(ctx, domain, keep);
   if (d.empty()) fail("an array needs at least one index sort");
+#if !Z3R_AT_LEAST(4, 8, 15)
+  // Older releases cannot report the index sorts of such an array, which
+  // every operation on it needs.
+  if (d.size() > 1) needs_version("arrays with several index sorts", "4.8.15");
+#endif
   return wrap_sort(own_ast(ctx, sort_ast(Z3_mk_array_sort_n(ctx->c, static_cast<unsigned>(d.size()), d.data(),
                                                             as_sort(r)))));
 }

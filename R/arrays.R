@@ -5,7 +5,8 @@
 #' new array equal to `a` except that index `i` maps to `v`.
 #' `z3_const_array()` maps every index to the same value.
 #'
-#' Arrays may have several index sorts (give `domain` as a list); then
+#' Arrays may have several index sorts (give `domain` as a list; Z3
+#' 4.8.15 or later); then
 #' `z3_select(a, i, j)` takes one index per sort and `z3_store(a, list(i, j),
 #' v)` takes the indices as a list.
 #'

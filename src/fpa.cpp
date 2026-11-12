@@ -143,6 +143,7 @@ SEXP cpp_fp_from_double(SEXP ctx_, double v, SEXP sort_, SEXP rm_) {
   if (ISNA(v)) fail("NA cannot be used in a Z3 expression");
   if (Rf_isNull(rm_)) return wrap_expr(fp_literal(ctx, v, false, as_sort(s)));
   const Ast& rm = get_expr(rm_);
+  same_ctx(ctx, rm.ctx());
   if (!is_rm(rm)) fail("rounding must be a rounding mode");
   // Exact in Float64, then rounded into the target format.
   Ast d = std::isnan(v) ? own_ast(ctx, Z3_mk_fpa_nan(c, Z3_mk_fpa_sort_double(c)))

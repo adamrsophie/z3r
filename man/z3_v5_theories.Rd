@@ -106,7 +106,11 @@ Z3 that has it; otherwise the functions report the version they need.
 \details{
 \itemize{
 \item Complex numbers (Z3 5.3.2): \code{z3_complex_sort(ctx)},
-\code{z3_complex(re, im)}, \code{z3_real_part(z)}, \code{z3_imag_part(z)}.
+\code{z3_complex(re, im)}, \code{z3_real_part(z)}, \code{z3_imag_part(z)}. \code{+}, \code{-},
+\code{*}, \code{/}, \code{\link[=z3_sum]{z3_sum()}}, \code{\link[=z3_prod]{z3_prod()}} and equality accept complex
+expressions, with Int and Real embedded exactly; R complex numbers
+such as \code{1+2i} are literals under the usual double policy. Ordering
+is not defined for complex numbers.
 \item Finite fields (Z3 5.3.0): \code{z3_ff_sort(ctx, p)} is the field of integers
 modulo the prime \code{p} (given as a string for large primes);
 \code{z3_ff_add()}, \code{z3_ff_mul()}, \code{z3_ff_neg()} and \code{z3_ff_bitsum()}

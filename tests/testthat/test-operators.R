@@ -196,3 +196,8 @@ test_that("Ops dispatch prefers z3_expr over gmp methods", {
   expect_s3_class(gmp::as.bigz(3) * x, "z3_expr")
   expect_s3_class(gmp::as.bigz(3) < x, "z3_expr")
 })
+
+test_that("z3_decimal() truncates and marks inexact digits", {
+  ctx <- z3_context()
+  expect_identical(z3_decimal(z3_real_val(ctx, "2/3"), 2), "0.66?")
+})

@@ -39,6 +39,18 @@ z3_eval(m, z)
 z3_eval(m, w)
 ```
 
+Addition, subtraction, multiplication, negation and division work on
+complex expressions, and R complex numbers are exact literals. Ordering is
+not defined. The square roots of `-1`:
+
+```{r, eval = has_complex}
+s <- z3_solver(ctx)
+z3_add(s, z * z == -1)
+z3_check(s)
+z3_eval(z3_model(s), z)
+z3_simplify(z3_complex(z3_real_val(ctx, 1), 2) * (3-1i) / 2)
+```
+
 ## Finite fields (Z3 5.3.0)
 
 The field of integers modulo a prime. Square roots modulo 7:

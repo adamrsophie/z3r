@@ -438,12 +438,15 @@ z3_congruence_explain <- function(x, a, b) cpp_solver_congruence(x, "explain", a
 
 #' Solve for variables
 #'
-#' Asks the solver to express each variable as a term over the others,
-#' valid under the returned guards. Needs Z3 4.14.0 or later.
+#' Asks the solver to express variables as terms over the others, valid
+#' under the returned guards. Z3 may solve for only some of the variables;
+#' the result lists those it solved for (`vars`) with their `terms`, in the
+#' same order. Needs Z3 4.14.0 or later.
 #'
 #' @param x A `z3_solver`.
 #' @param vars A list of constants.
-#' @return A list with elements `terms` and `guards`, lists of `z3_expr`.
+#' @return A list with elements `vars`, `terms` and `guards`, lists of
+#'   `z3_expr`; `vars[[i]]` equals `terms[[i]]` under the guards.
 #' @examples
 #' ctx <- z3_context()
 #' x <- z3_int(ctx, "x")

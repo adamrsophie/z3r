@@ -19,8 +19,9 @@ A character string.
 }
 \description{
 Returns a decimal string for an exact number or an algebraic number,
-rounded to \code{digits} digits after the decimal point. Z3 marks inexact
-results with a trailing \verb{?}.
+truncated (not rounded) to \code{digits} digits after the decimal point. Z3
+marks results that are not exact with a trailing \verb{?}: \code{2/3} with two
+digits is \code{"0.66?"}.
 }
 \details{
 \code{z3_binary_string()} returns the binary digits of an integer

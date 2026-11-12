@@ -8,6 +8,7 @@ test_that("complex numbers", {
   expect_identical(z3_check(s), "sat")
   expect_identical(format(z3_eval(z3_model(s), z)), "(complex.make 3.0 (- 4.0))")
   expect_identical(format(z3_complex(z3_real_val(ctx, 1), 2)), "(complex.make 1.0 2.0)")
+  expect_error(z3_complex(z3_bool(ctx, "p"), 1), "Int or Real")
 })
 
 test_that("finite fields", {
@@ -40,4 +41,43 @@ test_that("finite sets", {
   expect_identical(z3_check(s2), "unsat")
   expect_s3_class(z3_fs_empty(z3_finite_set_sort(I)), "z3_expr")
   expect_s3_class(z3_fs_size(fs), "z3_expr")
+})
+
+test_that("complex arithmetic", {
+  skip_if_not(z3_version_at_least("5.3.2"))
+  ctx <- z3_context()
+  C <- z3_complex_sort(ctx)
+  z <- z3_const(ctx, "z", C)
+  w <- z3_const(ctx, "w", C)
+  s <- z3_solver(ctx)
+  # z * w == -1 with z = i gives w = i.
+  z3_add(s, z == 0+1i, z * w == -1)
+  expect_identical(z3_check(s), "sat")
+  m <- z3_model(s)
+  expect_identical(format(z3_simplify(z3_eval(m, w))), "(complex.make 0.0 1.0)")
+  expect_identical(format(z3_simplify(z3_complex(z3_real_val(ctx, 1), 2) + 3)), "(complex.make 4.0 2.0)")
+  expect_identical(format(z3_simplify(-z3_complex(z3_real_val(ctx, 1), 2))), "(complex.make (- 1.0) (- 2.0))")
+  expect_identical(format(z3_simplify(z3_sum(z3_complex(z3_real_val(ctx, 1), 1), 2, 0.5))), "(complex.make (/ 7.0 2.0) 1.0)")
+  # R complex literals are exact.
+  expect_identical(format(z3_simplify(z + 0 == 1+2i)), format(z3_simplify(z == z3_complex(z3_real_val(ctx, 1), 2))))
+  s2 <- z3_solver(ctx)
+  z3_add(s2, z * (0+1i) == 1+0i)
+  expect_identical(z3_check(s2), "sat")
+  expect_error(z < w, "not defined for complex")
+  expect_error(z + z3_bool(ctx, "p"), "Complex arguments")
+})
+
+test_that("finite field and complex values convert to R", {
+  skip_if_not(z3_version_at_least("5.3.2"))
+  ctx <- z3_context()
+  a <- z3_const(ctx, "a", z3_ff_sort(ctx, 7))
+  s <- z3_solver(ctx)
+  z3_add(s, a == 5)
+  z3_check(s)
+  expect_identical(z3_value(z3_eval(z3_model(s), a)), 5)
+  z <- z3_const(ctx, "z", z3_complex_sort(ctx))
+  z3_add(s, z == 1.5-2i)
+  z3_check(s)
+  expect_identical(z3_value(z3_eval(z3_model(s), z)), complex(real = 1.5, imaginary = -2))
+  expect_identical(z3_model_values(z3_model(s))$a, 5)
 })

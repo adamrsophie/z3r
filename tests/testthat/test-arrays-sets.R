@@ -1,4 +1,5 @@
 test_that("multi-index arrays", {
+  skip_if_not(z3_version_at_least("4.8.15"))
   ctx <- z3_context()
   I <- z3_int_sort(ctx)
   B <- z3_bool_sort(ctx)

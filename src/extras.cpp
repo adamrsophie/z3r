@@ -2,6 +2,8 @@
 // contexts, numeral forms, memory and logging.
 #include "z3r.h"
 
+#include <cerrno>
+
 using namespace z3r;
 
 // Classes of terms that are equal in every model of the solver's assertions.
@@ -108,17 +110,65 @@ SEXP cpp_bv_from_bits(SEXP ctx_, Rcpp::LogicalVector bits) {
   return wrap_expr(own_ast(ctx, Z3_mk_bv_numeral(ctx->c, static_cast<unsigned>(bits.size()), b.get())));
 }
 
+namespace {
+// Whether the decimal digit string `d` is below 2^k.
+bool decimal_below_pow2(const std::string& d, unsigned k) {
+  size_t i = d.find_first_not_of('0');
+  std::string v = i == std::string::npos ? "0" : d.substr(i);
+  std::string p = "1";  // 2^k in decimal, least significant digit first
+  for (unsigned j = 0; j < k; ++j) {
+    int carry = 0;
+    for (char& ch : p) {
+      int x = (ch - '0') * 2 + carry;
+      ch = static_cast<char>('0' + x % 10);
+      carry = x / 10;
+    }
+    if (carry) p.push_back(static_cast<char>('0' + carry));
+    if (p.size() > v.size() + 1) return true;
+  }
+  std::string q(p.rbegin(), p.rend());
+  return v.size() != q.size() ? v.size() < q.size() : v < q;
+}
+}  // namespace
+
 // Floating point numeral from sign, unbiased exponent and significand (the
-// fraction bits, without the hidden bit), exactly.
+// fraction bits, without the hidden bit), exactly. The exponent must fit the
+// sort (-bias for zeros and subnormals, bias + 1 for infinities and NaNs)
+// and the fraction its sbits - 1 bits; Z3 would otherwise truncate.
 // [[Rcpp::export(rng = false)]]
 SEXP cpp_fp_from_parts(SEXP sort_, bool negative, std::string exponent, std::string significand) {
   const Ast& s = get_sort(sort_);
+  Z3_context c = s.c();
+  if (Z3_get_sort_kind(c, as_sort(s)) != Z3_FLOATING_POINT_SORT) fail("sort must be a floating point sort");
+  unsigned ebits = Z3_fpa_get_ebits(c, as_sort(s)), sbits = Z3_fpa_get_sbits(c, as_sort(s));
+  check(s.ctx());
   char* end = nullptr;
+  errno = 0;
   long long e = std::strtoll(exponent.c_str(), &end, 10);
   if (exponent.empty() || *end) fail("exponent must be a whole number");
-  unsigned long long m = std::strtoull(significand.c_str(), &end, 10);
-  if (significand.empty() || *end || significand[0] == '-') fail("significand must be a non-negative whole number");
-  return wrap_expr(own_ast(s.ctx(), Z3_mk_fpa_numeral_int64_uint64(s.c(), negative, e, m, as_sort(s))));
+  long long bias = static_cast<long long>((1ULL << (ebits - 1)) - 1);
+  if (errno == ERANGE || e < -bias || e > bias + 1) {
+    fail("the exponent must be between " + std::to_string(-bias) + " and " + std::to_string(bias + 1) +
+         " for this sort");
+  }
+  if (significand.empty() || significand.find_first_not_of("0123456789") != std::string::npos) {
+    fail("the fraction must be a non-negative whole number");
+  }
+  unsigned fbits = sbits - 1;
+  if (!decimal_below_pow2(significand, fbits)) {
+    fail("the fraction must be below 2^" + std::to_string(fbits) + " for this sort");
+  }
+  if (fbits <= 64) {
+    unsigned long long m = std::strtoull(significand.c_str(), &end, 10);
+    return wrap_expr(own_ast(s.ctx(), Z3_mk_fpa_numeral_int64_uint64(c, negative, e, m, as_sort(s))));
+  }
+  // Fractions wider than 64 bits: assemble the IEEE fields as bit-vectors.
+  Ast sgn = own_ast(s.ctx(), Z3_mk_numeral(c, negative ? "1" : "0", Z3_mk_bv_sort(c, 1)));
+  std::string biased = std::to_string(static_cast<unsigned long long>(e + bias));
+  Ast ex = own_ast(s.ctx(), Z3_mk_numeral(c, biased.c_str(), Z3_mk_bv_sort(c, ebits)));
+  Ast fr = own_ast(s.ctx(), Z3_mk_numeral(c, significand.c_str(), Z3_mk_bv_sort(c, fbits)));
+  Ast fp = own_ast(s.ctx(), Z3_mk_fpa_fp(c, sgn, ex, fr));
+  return wrap_expr(own_ast(s.ctx(), Z3_simplify(c, fp)));
 }
 
 // [[Rcpp::export(rng = false)]]

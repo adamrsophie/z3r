@@ -90,8 +90,10 @@ Math.z3_expr <- function(x, ...) {
 #' Symbolic versions of R's logical operators. Arguments are `z3_expr`
 #' Booleans, R `TRUE`/`FALSE`, or lists of them.
 #'
-#' `z3_and()` of no arguments is `TRUE` and `z3_or()` of no arguments is
-#' `FALSE`. `z3_ite(cond, a, b)` is "if `cond` then `a` else `b`" as an
+#' `z3_and()` and `z3_or()` need at least one argument, from which they
+#' take the context; to combine a list that may be empty, include the
+#' identity, as in `z3_and(z3_bool_val(ctx, TRUE), constraints)`.
+#' `z3_ite(cond, a, b)` is "if `cond` then `a` else `b`" as an
 #' expression; `a` and `b` must have compatible sorts. `z3_distinct()`
 #' states that all its arguments are pairwise different.
 #'

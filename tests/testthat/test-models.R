@@ -64,3 +64,17 @@ test_that("models of uninterpreted functions", {
   expect_true(all(c("decl", "entries", "else") %in% names(fs$f)))
   expect_output(print(m), "f\\(")
 })
+
+test_that("partial models without default values can be printed", {
+  z3_global_param_set("model.partial", TRUE)
+  on.exit(z3_global_param_set("model.partial", FALSE), add = TRUE)
+  ctx <- z3_context()
+  f <- z3_function(ctx, "f", z3_int_sort(ctx), z3_int_sort(ctx))
+  s <- z3_solver(ctx)
+  z3_add(s, f(1) == 5)
+  expect_identical(z3_check(s), "sat")
+  m <- z3_model(s)
+  expect_no_error(format(m))
+  fi <- z3_model_functions(m)$f
+  expect_length(fi$entries, 1L)
+})

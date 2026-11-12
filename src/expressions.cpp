@@ -1,6 +1,8 @@
 // Constants, numerals, literal conversion, sort checking and operators.
 #include "z3r.h"
 
+#include <set>
+
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -44,13 +46,88 @@ Ast to_real(const Ast& e) {
   return own_ast(e.ctx(), Z3_mk_int2real(e.c(), e));
 }
 
+// Complex numbers (Z3 5.3.2): Int and Real embed exactly.
+static bool is_complex(const Ast& e) {
+#if Z3R_AT_LEAST(5, 3, 2)
+  return sort_kind(e) == Z3_COMPLEX_SORT;
+#else
+  (void)e;
+  return false;
+#endif
+}
+static bool is_numeric(const Ast& e) { return is_arith(e) || is_complex(e); }
+static Ast to_complex(const Ast& e) {
+#if Z3R_AT_LEAST(5, 3, 2)
+  if (is_complex(e)) return e;
+  Ast re = to_real(e);
+  Ast zero = own_ast(e.ctx(), Z3_mk_numeral(e.c(), "0", Z3_mk_real_sort(e.c())));
+  return own_ast(e.ctx(), Z3_mk_complex(e.c(), re, zero));
+#else
+  return e;
+#endif
+}
+
+Ast coerce_sort(const Ast& v, Z3_sort sort, const std::string& what) {
+  Z3_context c = v.c();
+  Ast out = v;
+  if (Z3_get_sort_kind(c, sort) == Z3_REAL_SORT && sort_kind(out) == Z3_INT_SORT) out = to_real(out);
+  if (!Z3_is_eq_sort(c, sort, Z3_get_sort(c, out))) {
+    fail(what + " has the wrong sort: " + sort_name(v.ctx(), Z3_get_sort(c, out)) + " where " +
+         sort_name(v.ctx(), sort) + " is needed");
+  }
+  return out;
+}
+
+namespace {
+void collect_free_vars(Z3_context c, Z3_ast a, unsigned depth, std::vector<Z3_sort>& out,
+                       std::set<std::pair<unsigned, unsigned>>& seen) {
+  if (!seen.insert(std::make_pair(Z3_get_ast_id(c, a), depth)).second) return;
+  switch (Z3_get_ast_kind(c, a)) {
+    case Z3_VAR_AST: {
+      unsigned i = Z3_get_index_value(c, a);
+      if (i >= depth) {
+        unsigned k = i - depth;
+        if (out.size() <= k) out.resize(k + 1, nullptr);
+        out[k] = Z3_get_sort(c, a);
+      }
+      break;
+    }
+    case Z3_APP_AST: {
+      Z3_app app = Z3_to_app(c, a);
+      unsigned n = Z3_get_app_num_args(c, app);
+      for (unsigned k = 0; k < n; ++k) collect_free_vars(c, Z3_get_app_arg(c, app, k), depth, out, seen);
+      break;
+    }
+    case Z3_QUANTIFIER_AST:
+      collect_free_vars(c, Z3_get_quantifier_body(c, a), depth + Z3_get_quantifier_num_bound(c, a), out, seen);
+      break;
+    default:
+      break;
+  }
+}
+}  // namespace
+
+std::vector<Z3_sort> free_var_sorts(Z3_context c, Z3_ast a) {
+  std::vector<Z3_sort> out;
+  std::set<std::pair<unsigned, unsigned>> seen;
+  collect_free_vars(c, a, 0, out, seen);
+  return out;
+}
+
+// Context of the expressions in an argument list. All of them must share it:
+// callers take sort hints for R literals from any of them before lifting.
 CtxPtr ctx_from_list(SEXP args) {
   R_xlen_t n = Rf_xlength(args);
+  CtxPtr ctx;
   for (R_xlen_t i = 0; i < n; ++i) {
     SEXP a = VECTOR_ELT(args, i);
-    if (is_kind(a, Kind::Expr)) return get_expr(a).ctx();
+    if (!is_kind(a, Kind::Expr)) continue;
+    const CtxPtr& c = get_expr(a).ctx();
+    if (!ctx) ctx = c;
+    else same_ctx(ctx, c);
   }
-  fail("at least one argument must be a Z3 expression (z3_expr)");
+  if (!ctx) fail("at least one argument must be a Z3 expression (z3_expr)");
+  return ctx;
 }
 
 // ---------------------------------------------------------------------------
@@ -226,6 +303,26 @@ Ast lift(const CtxPtr& ctx, SEXP x, Z3_sort hint) {
       }
       return mk_numeral(ctx, shortest_decimal(v), Z3_mk_real_sort(ctx->c));
     }
+    case CPLXSXP: {
+#if Z3R_AT_LEAST(5, 3, 2)
+      Rcomplex v = COMPLEX(x)[0];
+      Z3_sort real = Z3_mk_real_sort(ctx->c);
+      SEXP re_r = PROTECT(Rf_ScalarReal(v.r));
+      SEXP im_r = PROTECT(Rf_ScalarReal(v.i));
+      Ast re, im;
+      try {
+        re = to_real(lift(ctx, re_r, real));
+        im = to_real(lift(ctx, im_r, real));
+      } catch (...) {
+        UNPROTECT(2);
+        throw;
+      }
+      UNPROTECT(2);
+      return own_ast(ctx, Z3_mk_complex(ctx->c, re, im));
+#else
+      needs_version("R complex numbers in Z3 expressions", "5.3.2");
+#endif
+    }
     case STRSXP: {
       SEXP chr = STRING_ELT(x, 0);
       if (chr == NA_STRING) fail("NA cannot be used in a Z3 expression");
@@ -300,6 +397,11 @@ static void unify_arith(Ast& a, Ast& b, const std::string& op) {
 
 // Makes two operands of an equality or ite comparable.
 static void unify_any(Ast& a, Ast& b, const std::string& op) {
+  if ((is_complex(a) || is_complex(b)) && is_numeric(a) && is_numeric(b)) {
+    a = to_complex(a);
+    b = to_complex(b);
+    return;
+  }
   if (is_arith(a) && is_arith(b)) {
     unify_arith(a, b, op);
     return;
@@ -437,6 +539,19 @@ static Ast binary(const CtxPtr& ctx, const std::string& op, SEXP x, SEXP y) {
          "unsigned semantics differ; use z3_bvult(), z3_bvslt(), z3_bvudiv(), "
          "z3_bvsdiv() and related functions");
   }
+  if (is_complex(a) || is_complex(b)) {
+    if (!is_numeric(a) || !is_numeric(b)) {
+      fail(op_label(op) + " needs Int, Real or Complex arguments, got " + describe(a) + " and " + describe(b));
+    }
+    a = to_complex(a);
+    b = to_complex(b);
+    Z3_ast r[2] = {a, b};
+    if (op == "+") return own_ast(ctx, Z3_mk_add(c, 2, r));
+    if (op == "-") return own_ast(ctx, Z3_mk_sub(c, 2, r));
+    if (op == "*") return own_ast(ctx, Z3_mk_mul(c, 2, r));
+    if (op == "/") return own_ast(ctx, Z3_mk_div(c, a, b));
+    fail(op_label(op) + " is not defined for complex numbers (only +, -, *, / and equality are)");
+  }
   if (op == "^") return power(ctx, a, y, b);
   if (op == "%/%" || op == "%%") {
     need_arith(a, op);
@@ -471,11 +586,11 @@ static Ast unary(const CtxPtr& ctx, const std::string& op, const Ast& a) {
   if (op == "-") {
     if (is_bv(a)) return own_ast(ctx, Z3_mk_bvneg(c, a));
     if (is_fp(a)) return own_ast(ctx, Z3_mk_fpa_neg(c, a));
-    need_arith(a, op);
+    if (!is_complex(a)) need_arith(a, op);
     return own_ast(ctx, Z3_mk_unary_minus(c, a));
   }
   if (op == "+") {
-    if (!is_bv(a) && !is_fp(a)) need_arith(a, op);
+    if (!is_bv(a) && !is_fp(a) && !is_complex(a)) need_arith(a, op);
     return a;
   }
   fail("unary operator " + op_label(op) + " is not supported for Z3 expressions");
@@ -631,7 +746,16 @@ SEXP cpp_op(std::string op, SEXP args, Rcpp::IntegerVector params) {
       }
       return wrap_expr(acc);
     }
-    unify_all_arith(v, op);
+    bool any_complex = false;
+    for (const Ast& e : v) any_complex = any_complex || is_complex(e);
+    if (any_complex) {
+      for (Ast& e : v) {
+        if (!is_numeric(e)) fail("'" + op + "' needs Int, Real or Complex arguments, got " + describe(e));
+        e = to_complex(e);
+      }
+    } else {
+      unify_all_arith(v, op);
+    }
     if (v.size() == 1) return wrap_expr(v[0]);
     return wrap_expr(nary(ctx, op == "sum" ? Z3_mk_add : Z3_mk_mul, v));
   }
@@ -922,6 +1046,23 @@ bool cpp_is_const(SEXP x) {
 
 // Description of a value expression for conversion to R. Returns a list
 // with `kind` and exact representations; R code decides the R type.
+// Code points as an R string (UTF-8). R strings cannot hold U+0000, so a
+// value containing it gets its own kind and stays a Z3 expression.
+static SEXP code_points_value(const std::vector<unsigned>& cps, const char* kind) {
+  using Rcpp::Named;
+  std::string out;
+  for (unsigned cp : cps) {
+    if (cp == 0) return Rcpp::List::create(Named("kind") = "nul_string");
+    if (cp < 0x80) out += static_cast<char>(cp);
+    else if (cp < 0x800) { out += static_cast<char>(0xC0 | (cp >> 6)); out += static_cast<char>(0x80 | (cp & 0x3F)); }
+    else if (cp < 0x10000) { out += static_cast<char>(0xE0 | (cp >> 12)); out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F)); out += static_cast<char>(0x80 | (cp & 0x3F)); }
+    else { out += static_cast<char>(0xF0 | (cp >> 18)); out += static_cast<char>(0x80 | ((cp >> 12) & 0x3F)); out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F)); out += static_cast<char>(0x80 | (cp & 0x3F)); }
+  }
+  Rcpp::CharacterVector s(1);
+  s[0] = Rcpp::String(out, CE_UTF8);
+  return Rcpp::List::create(Named("kind") = kind, Named("value") = s);
+}
+
 // [[Rcpp::export(rng = false)]]
 SEXP cpp_value_info(SEXP x, int digits) {
   const Ast& a = get_expr(x);
@@ -954,7 +1095,6 @@ SEXP cpp_value_info(SEXP x, int digits) {
     Ast num = k == Z3_REAL_SORT ? own_ast(ctx, Z3_get_numerator(c, a)) : a;
     Ast den = k == Z3_REAL_SORT ? own_ast(ctx, Z3_get_denominator(c, a)) : Ast();
     int64_t n64 = 0;
-    uint64_t d64 = 1;
     bool fits = Z3_get_numeral_int64(c, num, &n64);
     if (!fits && k == Z3_BV_SORT) {
       uint64_t u = 0;
@@ -962,12 +1102,24 @@ SEXP cpp_value_info(SEXP x, int digits) {
       n64 = static_cast<int64_t>(u);
     }
     check(ctx);
+    // The denominator must be a power of two, 2^dexp; dexp up to 1023 is
+    // checked through the exact decimal digits of the power.
+    int dexp = 0;
     if (fits && den.get()) {
-      fits = Z3_get_numeral_uint64(c, den, &d64) && d64 != 0 && (d64 & (d64 - 1)) == 0;
+      double dv = Z3_get_numeral_double(c, den);
+      std::string ds = str(Z3_get_numeral_string(c, den));
       check(ctx);
+      int e = 0;
+      fits = std::isfinite(dv) && std::frexp(dv, &e) == 0.5;
+      if (fits) {
+        char buf[400];
+        std::snprintf(buf, sizeof(buf), "%.0f", dv);
+        fits = ds == buf;
+        dexp = e - 1;
+      }
     }
     bool exact_double = fits && n64 <= (1LL << 53) && n64 >= -(1LL << 53);
-    double value = exact_double ? static_cast<double>(n64) / static_cast<double>(d64) : NA_REAL;
+    double value = exact_double ? std::ldexp(static_cast<double>(n64), -dexp) : NA_REAL;
     // Z3_get_numeral_double only accepts Int and Real numerals.
     double approx = exact_double ? value
                     : k == Z3_BV_SORT ? std::strtod(exact.c_str(), nullptr)
@@ -998,17 +1150,47 @@ SEXP cpp_value_info(SEXP x, int digits) {
     std::vector<unsigned> cps(len);
     if (len) Z3_get_string_contents(c, a, len, cps.data());
     check(ctx);
-    std::string out;
-    for (unsigned cp : cps) {
-      if (cp < 0x80) out += static_cast<char>(cp);
-      else if (cp < 0x800) { out += static_cast<char>(0xC0 | (cp >> 6)); out += static_cast<char>(0x80 | (cp & 0x3F)); }
-      else if (cp < 0x10000) { out += static_cast<char>(0xE0 | (cp >> 12)); out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F)); out += static_cast<char>(0x80 | (cp & 0x3F)); }
-      else { out += static_cast<char>(0xF0 | (cp >> 18)); out += static_cast<char>(0x80 | ((cp >> 12) & 0x3F)); out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F)); out += static_cast<char>(0x80 | (cp & 0x3F)); }
-    }
-    Rcpp::CharacterVector s(1);
-    s[0] = Rcpp::String(out, CE_UTF8);
-    return Rcpp::List::create(Named("kind") = "string", Named("value") = s);
+    return code_points_value(cps, "string");
   }
+  if (k == Z3_CHAR_SORT) {
+    // A character literal is an application of the char decl with the code
+    // point as its integer parameter.
+    if (!Z3_is_app(c, a) || Z3_get_app_num_args(c, Z3_to_app(c, a)) != 0) {
+      return Rcpp::List::create(Named("kind") = "symbolic");
+    }
+    Z3_func_decl d = Z3_get_app_decl(c, Z3_to_app(c, a));
+    if (Z3_get_decl_kind(c, d) == Z3_OP_UNINTERPRETED || Z3_get_decl_num_parameters(c, d) != 1 ||
+        Z3_get_decl_parameter_kind(c, d, 0) != Z3_PARAMETER_INT) {
+      check(ctx);
+      return Rcpp::List::create(Named("kind") = "symbolic");
+    }
+    int cp = Z3_get_decl_int_parameter(c, d, 0);
+    check(ctx);
+    return code_points_value(std::vector<unsigned>(1, static_cast<unsigned>(cp)), "char");
+  }
+#if Z3R_AT_LEAST(5, 3, 0)
+  if (k == Z3_FINITE_FIELD_SORT) {
+    if (!Z3_is_numeral_ast(c, a)) return Rcpp::List::create(Named("kind") = "symbolic");
+    std::string exact = str(Z3_get_numeral_string(c, a));
+    check(ctx);
+    double v = std::strtod(exact.c_str(), nullptr);
+    bool exact_double = exact.size() < 16 || (exact.size() == 16 && exact <= "9007199254740992");
+    return Rcpp::List::create(Named("kind") = "ff", Named("exact") = exact, Named("exact_double") = exact_double,
+                              Named("value") = exact_double ? v : NA_REAL, Named("approx") = v);
+  }
+#endif
+#if Z3R_AT_LEAST(5, 3, 2)
+  if (k == Z3_COMPLEX_SORT) {
+    // A value is (complex.make re im) with numeral parts.
+    Ast re = own_ast(ctx, Z3_simplify(c, own_ast(ctx, Z3_mk_real_part(c, a))));
+    Ast im = own_ast(ctx, Z3_simplify(c, own_ast(ctx, Z3_mk_imag_part(c, a))));
+    if (!Z3_is_numeral_ast(c, re) || !Z3_is_numeral_ast(c, im)) {
+      check(ctx);
+      return Rcpp::List::create(Named("kind") = "symbolic");
+    }
+    return Rcpp::List::create(Named("kind") = "complex", Named("re") = wrap_expr(re), Named("im") = wrap_expr(im));
+  }
+#endif
   return Rcpp::List::create(Named("kind") = "other");
 }
 

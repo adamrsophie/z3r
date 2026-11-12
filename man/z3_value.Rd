@@ -28,14 +28,17 @@ closest R type that represents it exactly.
    Bool \tab \code{TRUE} or \code{FALSE} \cr
    Int, Real, bit-vector \tab a double when exactly representable; otherwise a \code{gmp::bigz} or \code{gmp::bigq} if gmp is installed, or else a character string holding the exact value (\code{"1/3"}) \cr
    algebraic number \tab error when \code{exact = TRUE}; a nearby double when \code{exact = FALSE} \cr
-   String \tab a UTF-8 character string \cr
+   String, character \tab a UTF-8 character string (an error for a string containing U+0000, which R cannot hold) \cr
+   finite field element \tab its representative in \verb{[0, p)}, as for Int \cr
+   Complex \tab an R complex number when both parts are exactly representable doubles (rounded when \code{exact = FALSE}) \cr
    floating point \tab a double (\code{NaN}, \code{Inf}, \code{-0} included); formats wider than double precision only when the value fits exactly, or rounded when \code{exact = FALSE} \cr
    rounding mode \tab its name, such as \code{"roundNearestTiesToEven"} \cr
 }
 
 
 A double is "exactly representable" when its numerator has absolute
-value at most 2^53 and its denominator is a power of two; for example
+value at most 2^53 and its denominator is a power of two up to 2^1023
+(subnormal values, with larger denominators, give a \code{bigq}); for example
 \code{1/4} converts to \code{0.25}, but \code{1/3} does not convert to \verb{0.3333...}
 unless \code{exact = FALSE}.
 

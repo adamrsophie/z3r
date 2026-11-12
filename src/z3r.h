@@ -88,6 +88,7 @@ Z3R_REFOPS(Z3_goal, Z3_goal_inc_ref, Z3_goal_dec_ref)
 Z3R_REFOPS(Z3_tactic, Z3_tactic_inc_ref, Z3_tactic_dec_ref)
 Z3R_REFOPS(Z3_apply_result, Z3_apply_result_inc_ref, Z3_apply_result_dec_ref)
 Z3R_REFOPS(Z3_func_interp, Z3_func_interp_inc_ref, Z3_func_interp_dec_ref)
+Z3R_REFOPS(Z3_func_entry, Z3_func_entry_inc_ref, Z3_func_entry_dec_ref)
 Z3R_REFOPS(Z3_probe, Z3_probe_inc_ref, Z3_probe_dec_ref)
 Z3R_REFOPS(Z3_fixedpoint, Z3_fixedpoint_inc_ref, Z3_fixedpoint_dec_ref)
 #if Z3R_AT_LEAST(4, 12, 2)
@@ -200,6 +201,15 @@ struct OptimizeHolder {
   bool checked = false;
   Z3_lbool status = Z3_L_UNDEF;
   void touch() { ++generation; }
+  // Z3 reuses objective indices after a pop, so each objective also gets a
+  // serial number; handles carry both and are refused once popped.
+  std::vector<uint64_t> objectives;  // serial of the objective at each index
+  std::vector<size_t> scopes;        // number of objectives at each push
+  uint64_t next_objective = 0;
+  uint64_t note_objective(unsigned idx) {
+    while (objectives.size() <= idx) objectives.push_back(++next_objective);
+    return objectives[idx];
+  }
 };
 
 enum class Kind { Context, Sort, Expr, FuncDecl, Solver, Model, Optimize, Goal, Tactic, Probe,
@@ -301,6 +311,11 @@ Ast fp_binary(const CtxPtr& ctx, const std::string& op, const Ast& a, const Ast&
 bool is_bool(const Ast& e);
 bool is_arith(const Ast& e);
 Ast to_real(const Ast& e);
+// Converts an Int to Real when `sort` is Real; fails on any other mismatch.
+Ast coerce_sort(const Ast& v, Z3_sort sort, const std::string& what);
+// Sorts of the free de Bruijn variables of an expression, by index (null for
+// indices that do not occur).
+std::vector<Z3_sort> free_var_sorts(Z3_context c, Z3_ast a);
 
 }  // namespace z3r
 

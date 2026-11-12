@@ -129,16 +129,25 @@ new_datatype <- function(sort) {
   parts <- cpp_datatype_parts(sort)
   out <- list(sort = sort)
   cons_names <- character()
+  # Constructors, recognizers and accessors share one list with `sort`, so
+  # their names must all differ.
+  add <- function(name, value) {
+    if (!is.null(out[[name]])) {
+      stop(sprintf("the name '%s' is used twice in datatype %s; constructor, recognizer (is_<constructor>) and accessor names must all differ, and 'sort' is reserved",
+                   name, format(sort)), call. = FALSE)
+    }
+    out[[name]] <<- value
+  }
   for (p in parts) {
     cname <- cpp_decl_info(p$constructor)$name
     cons_names <- c(cons_names, cname)
-    out[[cname]] <- if (length(p$accessors) == 0L) {
+    add(cname, if (length(p$accessors) == 0L) {
       cpp_apply_decl(p$constructor, list())
     } else {
       decl_function(p$constructor)
-    }
-    out[[paste0("is_", cname)]] <- decl_function(p$recognizer)
-    for (a in p$accessors) out[[cpp_decl_info(a)$name]] <- decl_function(a)
+    })
+    add(paste0("is_", cname), decl_function(p$recognizer))
+    for (a in p$accessors) add(cpp_decl_info(a)$name, decl_function(a))
   }
   structure(out, class = "z3_datatype", constructors = cons_names)
 }

@@ -76,7 +76,8 @@ new array equal to \code{a} except that index \code{i} maps to \code{v}.
 \code{z3_const_array()} maps every index to the same value.
 }
 \details{
-Arrays may have several index sorts (give \code{domain} as a list); then
+Arrays may have several index sorts (give \code{domain} as a list; Z3
+4.8.15 or later); then
 \code{z3_select(a, i, j)} takes one index per sort and \code{z3_store(a, list(i, j), v)} takes the indices as a list.
 \itemize{
 \item \code{z3_array_map(f, a, b, ...)} applies a function pointwise.

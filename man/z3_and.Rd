@@ -45,8 +45,10 @@ Symbolic versions of R's logical operators. Arguments are \code{z3_expr}
 Booleans, R \code{TRUE}/\code{FALSE}, or lists of them.
 }
 \details{
-\code{z3_and()} of no arguments is \code{TRUE} and \code{z3_or()} of no arguments is
-\code{FALSE}. \code{z3_ite(cond, a, b)} is "if \code{cond} then \code{a} else \code{b}" as an
+\code{z3_and()} and \code{z3_or()} need at least one argument, from which they
+take the context; to combine a list that may be empty, include the
+identity, as in \code{z3_and(z3_bool_val(ctx, TRUE), constraints)}.
+\code{z3_ite(cond, a, b)} is "if \code{cond} then \code{a} else \code{b}" as an
 expression; \code{a} and \code{b} must have compatible sorts. \code{z3_distinct()}
 states that all its arguments are pairwise different.
 }

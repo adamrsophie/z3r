@@ -72,6 +72,7 @@ SEXP cpp_v5_op(std::string op, SEXP args) {
 #if Z3R_V5_COMPLEX
     if (op == "complex") {
       Ast re = arg(0, Z3_mk_real_sort(c)), im = arg(1, Z3_mk_real_sort(c));
+      if (!is_arith(re) || !is_arith(im)) fail("the parts of a complex number must be Int or Real");
       if (sort_kind(re) == Z3_INT_SORT) re = to_real(re);
       if (sort_kind(im) == Z3_INT_SORT) im = to_real(im);
       return wrap_expr(own_ast(ctx, Z3_mk_complex(c, re, im)));

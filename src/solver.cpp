@@ -127,8 +127,9 @@ using namespace z3r;
 static SolverHolder* solver(SEXP x) { return get_xptr<SolverHolder>(x, Kind::Solver); }
 
 static SEXP wrap_solver(const CtxPtr& ctx, Z3_solver s) {
+  Ref<Z3_solver> ref = own(ctx, s);  // checks for an error before allocating
   SolverHolder* h = new SolverHolder();
-  h->s = own(ctx, s);
+  h->s = std::move(ref);
   return make_xptr(h, Kind::Solver);
 }
 
@@ -512,7 +513,9 @@ SEXP cpp_solver_solve_for(SEXP s_, Rcpp::List variables) {
     for (unsigned i = 0; i < n; ++i) out.push_back(own_ast(ctx, Z3_ast_vector_get(ctx->c, v, i)));
     return wrap_expr_list(out);
   };
-  return Rcpp::List::create(Rcpp::Named("terms") = to_list(terms),
+  // Z3 rewrites `vv` to the variables it solved for, in the order of the
+  // terms.
+  return Rcpp::List::create(Rcpp::Named("vars") = to_list(vv), Rcpp::Named("terms") = to_list(terms),
                             Rcpp::Named("guards") = to_list(guards));
 #else
   (void)s_; (void)variables;

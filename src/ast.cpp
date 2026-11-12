@@ -190,6 +190,12 @@ SEXP cpp_substitute(SEXP x, Rcpp::List from, Rcpp::List to) {
 SEXP cpp_substitute_vars(SEXP x, Rcpp::List to) {
   const Ast& a = get_expr(x);
   AstVec t = expr_list(a.ctx(), to, "to");
+  // Z3 coerces ill-sorted replacements (a Boolean for an Int becomes an
+  // ite); check them against the variables they replace.
+  std::vector<Z3_sort> fv = free_var_sorts(a.c(), a);
+  for (size_t j = 0; j < t.size() && j < fv.size(); ++j) {
+    if (fv[j]) t[j] = coerce_sort(t[j], fv[j], "the replacement for bound variable " + std::to_string(j));
+  }
   std::vector<Z3_ast> rt = raw(t);
   return wrap_expr(own_ast(a.ctx(), Z3_substitute_vars(a.c(), a, static_cast<unsigned>(rt.size()),
                                                        rt.empty() ? nullptr : rt.data())));
@@ -210,6 +216,23 @@ SEXP cpp_substitute_funs(SEXP x, Rcpp::List from, Rcpp::List to) {
     f.push_back(as_decl(d));
   }
   AstVec t = expr_list(ctx, to, "to");
+  // Each body must have the range sort, and its bound variables must be
+  // arguments of the function with their sorts.
+  for (size_t i = 0; i < f.size(); ++i) {
+    std::string what = "the body for function " + std::to_string(i + 1);
+    t[i] = coerce_sort(t[i], Z3_get_range(ctx->c, f[i]), what);
+    std::vector<Z3_sort> fv = free_var_sorts(ctx->c, t[i]);
+    unsigned arity = Z3_get_arity(ctx->c, f[i]);
+    for (unsigned j = 0; j < fv.size(); ++j) {
+      if (!fv[j]) continue;
+      if (j >= arity) fail(what + " uses bound variable " + std::to_string(j) + " but the function has " +
+                           std::to_string(arity) + " arguments");
+      if (!Z3_is_eq_sort(ctx->c, fv[j], Z3_get_domain(ctx->c, f[i], j))) {
+        fail(what + ": bound variable " + std::to_string(j) + " has the wrong sort for argument " +
+             std::to_string(j + 1));
+      }
+    }
+  }
   std::vector<Z3_ast> rt = raw(t);
   return wrap_expr(own_ast(ctx, Z3_substitute_funs(ctx->c, a, static_cast<unsigned>(f.size()),
                                                    f.empty() ? nullptr : f.data(),

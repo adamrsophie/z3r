@@ -124,6 +124,19 @@ z3_int_val <- function(ctx, value) {
   cpp_lift(ctx, value, cpp_int_sort(ctx))
 }
 
+# Z3 reads the exponent of scientific notation into a 64-bit integer that
+# wraps silently, and rejects exponents above 2^32 - 1 only after wrapping.
+check_exponent <- function(value) {
+  m <- regmatches(value, regexec("[eE][+-]?0*([0-9]+)$", value))[[1]]
+  if (length(m) == 2L) {
+    digits <- m[[2]]
+    if (nchar(digits) > 10L || (nchar(digits) == 10L && digits > "4294967295")) {
+      stop("the exponent is too large: Z3 accepts exponents up to 4294967295", call. = FALSE)
+    }
+  }
+  invisible(value)
+}
+
 #' @rdname z3_int_val
 #' @export
 z3_real_val <- function(ctx, value) {
@@ -133,6 +146,7 @@ z3_real_val <- function(ctx, value) {
       "a decimal such as \"0.125\" or a fraction such as \"1/3\""
     )
     if (grepl("/0+$", value)) stop("the denominator must not be zero", call. = FALSE)
+    check_exponent(value)
     return(cpp_mk_numeral(ctx, value, cpp_real_sort(ctx)))
   }
   cpp_lift(ctx, value, cpp_real_sort(ctx))
@@ -211,12 +225,15 @@ as.character.z3_expr <- function(x, ...) format(x)
 #' | Bool | `TRUE` or `FALSE` |
 #' | Int, Real, bit-vector | a double when exactly representable; otherwise a `gmp::bigz` or `gmp::bigq` if gmp is installed, or else a character string holding the exact value (`"1/3"`) |
 #' | algebraic number | error when `exact = TRUE`; a nearby double when `exact = FALSE` |
-#' | String | a UTF-8 character string |
+#' | String, character | a UTF-8 character string (an error for a string containing U+0000, which R cannot hold) |
+#' | finite field element | its representative in `[0, p)`, as for Int |
+#' | Complex | an R complex number when both parts are exactly representable doubles (rounded when `exact = FALSE`) |
 #' | floating point | a double (`NaN`, `Inf`, `-0` included); formats wider than double precision only when the value fits exactly, or rounded when `exact = FALSE` |
 #' | rounding mode | its name, such as `"roundNearestTiesToEven"` |
 #'
 #' A double is "exactly representable" when its numerator has absolute
-#' value at most 2^53 and its denominator is a power of two; for example
+#' value at most 2^53 and its denominator is a power of two up to 2^1023
+#' (subnormal values, with larger denominators, give a `bigq`); for example
 #' `1/4` converts to `0.25`, but `1/3` does not convert to `0.3333...`
 #' unless `exact = FALSE`.
 #'
@@ -243,8 +260,13 @@ z3_value <- function(x, exact = TRUE, signed = FALSE) {
   info <- cpp_value_info(x, 20L)
   switch(info$kind,
     bool = info$value,
-    string = info$value,
-    int = , real = , bv = number_value(info, exact),
+    string = , char = info$value,
+    int = , real = , bv = , ff = number_value(info, exact),
+    complex = complex(real = z3_value(info$re, exact), imaginary = z3_value(info$im, exact)),
+    nul_string = stop(
+      "the string contains the character U+0000, which R strings cannot hold; use z3_str_to_code() or z3_seq_nth() on its characters",
+      call. = FALSE
+    ),
     fp = if (info$exact_double || !exact) info$value else stop(sprintf(
       "the floating point value %s is not exactly representable as a double; use exact = FALSE to round it",
       info$text
@@ -280,8 +302,9 @@ number_value <- function(info, exact) {
 #' Decimal digits of a number
 #'
 #' Returns a decimal string for an exact number or an algebraic number,
-#' rounded to `digits` digits after the decimal point. Z3 marks inexact
-#' results with a trailing `?`.
+#' truncated (not rounded) to `digits` digits after the decimal point. Z3
+#' marks results that are not exact with a trailing `?`: `2/3` with two
+#' digits is `"0.66?"`.
 #'
 #' @param x A numeric `z3_expr` value.
 #' @param digits Number of digits after the decimal point.

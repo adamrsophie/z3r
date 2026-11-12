@@ -130,3 +130,17 @@ test_that("tracked assertions and cores in the optimizer", {
   expect_identical(z3_check(opt), "unsat")
   expect_setequal(names(z3_unsat_core(opt)), c("a", "b"))
 })
+
+test_that("objective handles are refused after their scope is popped", {
+  ctx <- z3_context()
+  x <- z3_int(ctx, "x")
+  o <- z3_optimize(ctx)
+  z3_add(o, x <= 10, x >= 0)
+  z3_push(o)
+  h1 <- z3_maximize(o, x)
+  z3_pop(o)
+  h2 <- z3_minimize(o, x)
+  expect_identical(z3_check(o), "sat")
+  expect_error(z3_optimum(h1), "removed by z3_pop")
+  expect_identical(z3_value(z3_optimum(h2)$value), 0)
+})

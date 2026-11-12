@@ -56,11 +56,13 @@ int cpp_optimize_assert_soft(SEXP o_, SEXP constraint, std::string weight, std::
   unsigned idx = Z3_optimize_assert_soft(ctx->c, h->o, a, weight.c_str(), mk_symbol(ctx, id));
   check(ctx);
   h->touch();
+  h->note_objective(idx);
   return static_cast<int>(idx);
 }
 
+// Returns the objective's index and serial number.
 // [[Rcpp::export(rng = false)]]
-int cpp_optimize_objective(SEXP o_, SEXP term, bool maximize) {
+Rcpp::NumericVector cpp_optimize_objective(SEXP o_, SEXP term, bool maximize) {
   OptimizeHolder* h = optimizer(o_);
   const CtxPtr& ctx = h->o.ctx();
   Ast t = lift(ctx, term, nullptr);
@@ -72,7 +74,8 @@ int cpp_optimize_objective(SEXP o_, SEXP term, bool maximize) {
                           : Z3_optimize_minimize(ctx->c, h->o, t);
   check(ctx);
   h->touch();
-  return static_cast<int>(idx);
+  uint64_t serial = h->note_objective(idx);
+  return Rcpp::NumericVector::create(static_cast<double>(idx), static_cast<double>(serial));
 }
 
 // [[Rcpp::export(rng = false)]]
@@ -144,11 +147,14 @@ static SEXP bound_parts(const CtxPtr& ctx, Z3_ast_vector raw_v) {
 }
 
 // [[Rcpp::export(rng = false)]]
-SEXP cpp_optimize_bounds(SEXP o_, int idx) {
+SEXP cpp_optimize_bounds(SEXP o_, int idx, double serial) {
   OptimizeHolder* h = optimizer(o_);
+  if (idx < 0 || static_cast<size_t>(idx) >= h->objectives.size() ||
+      static_cast<double>(h->objectives[idx]) != serial) {
+    fail("this objective was removed by z3_pop()");
+  }
   require_status(h, Z3_L_TRUE, "objective values");
   const CtxPtr& ctx = h->o.ctx();
-  if (idx < 0) fail("invalid objective index");
   unsigned i = static_cast<unsigned>(idx);
   SEXP lower = PROTECT(bound_parts(ctx, Z3_optimize_get_lower_as_vector(ctx->c, h->o, i)));
   SEXP upper = PROTECT(bound_parts(ctx, Z3_optimize_get_upper_as_vector(ctx->c, h->o, i)));
@@ -166,9 +172,13 @@ SEXP cpp_optimize_objectives(SEXP o_) {
 // [[Rcpp::export(rng = false)]]
 void cpp_optimize_push(SEXP o_) {
   OptimizeHolder* h = optimizer(o_);
+  // Count the objectives Z3 has, including any added by parsing.
+  Ref<Z3_ast_vector> objs = own(h->o.ctx(), Z3_optimize_get_objectives(h->o.c(), h->o));
+  size_t n = Z3_ast_vector_size(h->o.c(), objs);
   Z3_optimize_push(h->o.c(), h->o);
   check(h->o.ctx());
   h->touch();
+  h->scopes.push_back(n);
 }
 
 // [[Rcpp::export(rng = false)]]
@@ -177,6 +187,10 @@ void cpp_optimize_pop(SEXP o_) {
   Z3_optimize_pop(h->o.c(), h->o);
   check(h->o.ctx());
   h->touch();
+  if (!h->scopes.empty()) {
+    if (h->objectives.size() > h->scopes.back()) h->objectives.resize(h->scopes.back());
+    h->scopes.pop_back();
+  }
 }
 
 // [[Rcpp::export(rng = false)]]

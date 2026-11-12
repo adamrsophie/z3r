@@ -281,6 +281,24 @@ z3_fp_numeral_parts <- function(x, biased = FALSE) cpp_fp_numeral_parts(x, isTRU
 #'   the hidden bit), a whole number or string.
 #' @export
 z3_fp_from_parts <- function(sort, negative, exponent_value, fraction) {
-  cpp_fp_from_parts(sort, isTRUE(negative), format(exponent_value, scientific = FALSE, trim = TRUE),
-                    format(fraction, scientific = FALSE, trim = TRUE))
+  cpp_fp_from_parts(sort, isTRUE(negative), whole_string(exponent_value, "exponent_value"),
+                    whole_string(fraction, "fraction"))
+}
+
+# A whole number as a decimal string: numbers must be exact doubles (at most
+# 2^53 in magnitude); larger values must be given as strings.
+whole_string <- function(x, what) {
+  if (is.character(x) && length(x) == 1L && !is.na(x)) {
+    x <- trimws(x)
+    if (!grepl("^[+-]?[0-9]+$", x)) stop(sprintf("%s must be a whole number", what), call. = FALSE)
+    return(sub("^[+]", "", x))
+  }
+  if (!is.numeric(x) || length(x) != 1L || !is.finite(x) || x != floor(x)) {
+    stop(sprintf("%s must be a single whole number or a string of digits", what), call. = FALSE)
+  }
+  if (abs(x) > 2^53) {
+    stop(sprintf("%s is beyond 2^53, where doubles are not exact; give it as a string", what),
+         call. = FALSE)
+  }
+  format(x, scientific = FALSE, trim = TRUE)
 }

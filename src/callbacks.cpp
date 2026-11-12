@@ -355,6 +355,7 @@ SEXP cpp_propagate_declare(SEXP ctx_, SEXP name_, Rcpp::List domain, SEXP range_
     d.push_back(as_sort(s));
   }
   const Ast& r = get_sort(range_);
+  same_ctx(ctx, r.ctx());
   Z3_func_decl f = Z3_solver_propagate_declare(ctx->c, mk_symbol(ctx, name), static_cast<unsigned>(d.size()),
                                                d.empty() ? nullptr : d.data(), as_sort(r));
   check(ctx);

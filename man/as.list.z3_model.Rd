@@ -29,7 +29,8 @@ have no exact R representation (algebraic numbers, arrays, values of
 uninterpreted sorts) are kept as \code{z3_expr} objects.
 \item \code{z3_model_functions()} returns the interpretations of uninterpreted
 functions: for each function, a list of \code{entries} (argument values and
-result) and an \verb{else} value for all other arguments.
+result) and an \verb{else} value for all other arguments (\code{NULL} in a
+partial model, which has none).
 }
 }
 \details{

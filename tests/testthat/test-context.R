@@ -70,3 +70,21 @@ test_that("wrong object kinds are rejected", {
   expect_error(z3_context_of(1), "expected a z3r object")
   expect_error(z3_eval(s, 1), "expected a Z3 model")
 })
+
+test_that("every argument is checked for its context", {
+  a <- z3_context()
+  b <- z3_context()
+  rb <- z3_const(b, "r", z3_rounding_sort(b))
+  expect_error(z3_fp_val(a, 0.1, z3_fp32_sort(a), rounding = rb), "different contexts")
+  # A literal takes its sort from another argument; that argument is
+  # checked before the literal is built.
+  fb <- z3_const(b, "f", z3_fp32_sort(b))
+  xa <- z3_int(a, "x")
+  expect_error(z3_fp_add(z3_rounding(a, "RNE"), 1, fb), "different contexts")
+  expect_error(z3_sum(1, xa, z3_int(b, "y")), "different contexts")
+  m <- z3_model(a)
+  expect_error(z3_model_has(m, z3_int(b, "y")), "different contexts")
+  if (z3_version_at_least("4.13.0")) {
+    expect_error(z3_propagator_function(a, "f", list(), z3_int_sort(b)), "different contexts")
+  }
+})

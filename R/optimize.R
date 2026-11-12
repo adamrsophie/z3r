@@ -122,8 +122,9 @@ z3_maximize <- function(opt, x) new_objective(opt, x, TRUE)
 
 new_objective <- function(opt, x, maximize) {
   if (!inherits(opt, "z3_optimize")) stop("opt must be a z3_optimize", call. = FALSE)
-  idx <- cpp_optimize_objective(opt, x, maximize)
-  structure(list(optimizer = opt, index = idx, expr = x, maximize = maximize),
+  id <- cpp_optimize_objective(opt, x, maximize)
+  structure(list(optimizer = opt, index = as.integer(id[[1]]), serial = id[[2]], expr = x,
+                 maximize = maximize),
             class = "z3_objective")
 }
 
@@ -204,7 +205,7 @@ z3_optimum <- function(objective) {
     stop("objective must be a z3_objective from z3_minimize() or z3_maximize()",
          call. = FALSE)
   }
-  b <- cpp_optimize_bounds(objective$optimizer, objective$index)
+  b <- cpp_optimize_bounds(objective$optimizer, objective$index, objective$serial)
   bound <- if (objective$maximize) b$upper else b$lower
   inf <- sign(z3_value(bound$infinity, exact = FALSE))
   eps <- sign(z3_value(bound$epsilon, exact = FALSE))

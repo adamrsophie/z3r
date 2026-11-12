@@ -12,11 +12,14 @@ z3_solve_for(x, vars)
 \item{vars}{A list of constants.}
 }
 \value{
-A list with elements \code{terms} and \code{guards}, lists of \code{z3_expr}.
+A list with elements \code{vars}, \code{terms} and \code{guards}, lists of
+\code{z3_expr}; \code{vars[[i]]} equals \code{terms[[i]]} under the guards.
 }
 \description{
-Asks the solver to express each variable as a term over the others,
-valid under the returned guards. Needs Z3 4.14.0 or later.
+Asks the solver to express variables as terms over the others, valid
+under the returned guards. Z3 may solve for only some of the variables;
+the result lists those it solved for (\code{vars}) with their \code{terms}, in the
+same order. Needs Z3 4.14.0 or later.
 }
 \examples{
 ctx <- z3_context()

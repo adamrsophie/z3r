@@ -40,7 +40,8 @@ z3_eval <- function(model, x, completion = FALSE) {
 #'   uninterpreted sorts) are kept as `z3_expr` objects.
 #' * `z3_model_functions()` returns the interpretations of uninterpreted
 #'   functions: for each function, a list of `entries` (argument values and
-#'   result) and an `else` value for all other arguments.
+#'   result) and an `else` value for all other arguments (`NULL` in a
+#'   partial model, which has none).
 #'
 #' The model only contains the constants that matter for the assertions;
 #' see [z3_eval()] with `completion = TRUE` for the others.
@@ -69,7 +70,7 @@ as.list.z3_model <- function(x, ...) {
 z3_model_values <- function(model) {
   lapply(as.list(model), function(v) {
     info <- cpp_value_info(v, 20L)
-    if (info$kind %in% c("bool", "int", "real", "bv", "string", "rm") ||
+    if (info$kind %in% c("bool", "int", "real", "bv", "string", "char", "ff", "rm") ||
         (info$kind == "fp" && info$exact_double)) z3_value(v) else v
   })
 }
@@ -93,8 +94,9 @@ format.z3_model <- function(x, ...) {
       args <- vapply(e$args, cpp_expr_to_string, character(1))
       sprintf("%s(%s) = %s", f, paste(args, collapse = ", "), cpp_expr_to_string(e$value))
     }, character(1))
+    els <- funcs[[f]]$`else`
     lines <- c(lines, entries,
-               sprintf("%s(...) = %s otherwise", f, cpp_expr_to_string(funcs[[f]]$`else`)))
+               if (!is.null(els)) sprintf("%s(...) = %s otherwise", f, cpp_expr_to_string(els)))
   }
   lines
 }

@@ -54,6 +54,10 @@ test_that("rational values are exact", {
   expect_identical(format(z3_real_val(ctx, "-1/3")), "(- (/ 1.0 3.0))")
   expect_identical(format(z3_real_val(ctx, "0.125")), "(/ 1.0 8.0)")
   expect_identical(format(z3_real_val(ctx, "1e-3")), "(/ 1.0 1000.0)")
+  # Exponents Z3 would read modulo 2^64 are refused.
+  expect_error(z3_real_val(ctx, "1e18446744073709551616"), "exponent is too large")
+  expect_error(z3_real_val(ctx, "1e-4294967296"), "exponent is too large")
+  expect_identical(format(z3_real_val(ctx, "1e0000000000000000002")), "100.0")
   expect_identical(format(z3_real_val(ctx, "1.5E3")), "1500.0")
   expect_identical(format(z3_real_val(ctx, 0.1)), "(/ 1.0 10.0)")
   expect_identical(format(z3_real_val(ctx, 3L)), "3.0")
@@ -149,4 +153,19 @@ test_that("printing shows sort and term", {
   expect_identical(as.character(x * 2), "(* x 2)")
   expect_true(z3_is_expr(x))
   expect_false(z3_is_expr(1))
+})
+
+test_that("values of more sorts convert to R", {
+  ctx <- z3_context()
+  # A power-of-two denominator beyond 2^64 is still an exact double.
+  expect_identical(z3_value(z3_real_val(ctx, "1/1180591620717411303424")), 2^-70)
+  skip_if_not(z3_version_at_least("4.8.15"))
+  expect_identical(z3_value(z3_char_val(ctx, 955)), "λ")
+  s <- z3_string(ctx, "s")
+  sol <- z3_solver(ctx)
+  z3_add(sol, s == z3_str_from_code(z3_int_val(ctx, 0)))
+  expect_identical(z3_check(sol), "sat")
+  v <- z3_eval(z3_model(sol), s)
+  expect_error(z3_value(v), "U\\+0000")
+  expect_s3_class(z3_model_values(z3_model(sol))$s, "z3_expr")
 })

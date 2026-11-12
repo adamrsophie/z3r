@@ -1743,7 +1743,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // cpp_optimize_objective
-int cpp_optimize_objective(SEXP o_, SEXP term, bool maximize);
+Rcpp::NumericVector cpp_optimize_objective(SEXP o_, SEXP term, bool maximize);
 RcppExport SEXP _z3r_cpp_optimize_objective(SEXP o_SEXP, SEXP termSEXP, SEXP maximizeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -1796,13 +1796,14 @@ BEGIN_RCPP
 END_RCPP
 }
 // cpp_optimize_bounds
-SEXP cpp_optimize_bounds(SEXP o_, int idx);
-RcppExport SEXP _z3r_cpp_optimize_bounds(SEXP o_SEXP, SEXP idxSEXP) {
+SEXP cpp_optimize_bounds(SEXP o_, int idx, double serial);
+RcppExport SEXP _z3r_cpp_optimize_bounds(SEXP o_SEXP, SEXP idxSEXP, SEXP serialSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::traits::input_parameter< SEXP >::type o_(o_SEXP);
     Rcpp::traits::input_parameter< int >::type idx(idxSEXP);
-    rcpp_result_gen = Rcpp::wrap(cpp_optimize_bounds(o_, idx));
+    Rcpp::traits::input_parameter< double >::type serial(serialSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_optimize_bounds(o_, idx, serial));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -3027,7 +3028,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_z3r_cpp_optimize_last_status", (DL_FUNC) &_z3r_cpp_optimize_last_status, 1},
     {"_z3r_cpp_optimize_model", (DL_FUNC) &_z3r_cpp_optimize_model, 1},
     {"_z3r_cpp_optimize_unsat_core", (DL_FUNC) &_z3r_cpp_optimize_unsat_core, 1},
-    {"_z3r_cpp_optimize_bounds", (DL_FUNC) &_z3r_cpp_optimize_bounds, 2},
+    {"_z3r_cpp_optimize_bounds", (DL_FUNC) &_z3r_cpp_optimize_bounds, 3},
     {"_z3r_cpp_optimize_objectives", (DL_FUNC) &_z3r_cpp_optimize_objectives, 1},
     {"_z3r_cpp_optimize_push", (DL_FUNC) &_z3r_cpp_optimize_push, 1},
     {"_z3r_cpp_optimize_pop", (DL_FUNC) &_z3r_cpp_optimize_pop, 1},

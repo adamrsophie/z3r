@@ -653,8 +653,8 @@ cpp_optimize_unsat_core <- function(o_) {
     .Call(`_z3r_cpp_optimize_unsat_core`, o_)
 }
 
-cpp_optimize_bounds <- function(o_, idx) {
-    .Call(`_z3r_cpp_optimize_bounds`, o_, idx)
+cpp_optimize_bounds <- function(o_, idx, serial) {
+    .Call(`_z3r_cpp_optimize_bounds`, o_, idx, serial)
 }
 
 cpp_optimize_objectives <- function(o_) {

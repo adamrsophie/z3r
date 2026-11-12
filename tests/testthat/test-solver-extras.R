@@ -82,7 +82,29 @@ test_that("congruence classes and solving for variables", {
   expect_s3_class(z3_congruence_next(s, a), "z3_expr")
   skip_if_not(z3_version_at_least("4.14.0"))
   res <- z3_solve_for(s, list(a))
-  expect_named(res, c("terms", "guards"))
+  expect_named(res, c("vars", "terms", "guards"))
+  expect_length(res$vars, length(res$terms))
+})
+
+test_that("z3_solve_for() reports which variables it solved", {
+  skip_if_not(z3_version_at_least("4.14.0"))
+  ctx <- z3_context()
+  x <- z3_int(ctx, "x")
+  y <- z3_int(ctx, "y")
+  z <- z3_int(ctx, "z")
+  s <- z3_solver(ctx, simple = TRUE)
+  z3_add(s, x == y + 1)
+  z3_check(s)
+  res <- z3_solve_for(s, list(z, x, y))
+  expect_length(res$vars, length(res$terms))
+  expect_true(length(res$vars) >= 1L)
+  # Each solved variable equals its term under the guards.
+  for (i in seq_along(res$vars)) {
+    chk <- z3_solver(ctx)
+    z3_add(chk, x == y + 1, res$vars[[i]] != res$terms[[i]])
+    for (g in res$guards) z3_add(chk, g)
+    expect_identical(z3_check(chk), "unsat")
+  }
 })
 
 test_that("models can be built by hand", {
@@ -135,5 +157,7 @@ test_that("function interpretations are sort checked before the model changes", 
   expect_identical(z3_value(z3_eval(m, f(1))), 10)
   z3_model_set_function(m, g, list(list(args = list(1), value = 2L)), 0L)
   expect_identical(z3_value(z3_eval(m, g(1))), 2)
+  k <- z3_function(ctx, "k", list(), I)
+  expect_error(z3_model_set_function(m, k, list(), 1), "no arguments")
   expect_identical(z3_value(z3_eval(m, g(1) / 4)), 0.5)
 })

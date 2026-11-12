@@ -4,7 +4,11 @@
 #' Z3 that has it; otherwise the functions report the version they need.
 #'
 #' * Complex numbers (Z3 5.3.2): `z3_complex_sort(ctx)`,
-#'   `z3_complex(re, im)`, `z3_real_part(z)`, `z3_imag_part(z)`.
+#'   `z3_complex(re, im)`, `z3_real_part(z)`, `z3_imag_part(z)`. `+`, `-`,
+#'   `*`, `/`, [z3_sum()], [z3_prod()] and equality accept complex
+#'   expressions, with Int and Real embedded exactly; R complex numbers
+#'   such as `1+2i` are literals under the usual double policy. Ordering
+#'   is not defined for complex numbers.
 #' * Finite fields (Z3 5.3.0): `z3_ff_sort(ctx, p)` is the field of integers
 #'   modulo the prime `p` (given as a string for large primes);
 #'   `z3_ff_add()`, `z3_ff_mul()`, `z3_ff_neg()` and `z3_ff_bitsum()`
