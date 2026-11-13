@@ -43,7 +43,7 @@ jobs:
     env:
       R_KEEP_PKG_SOURCE: yes
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Download pinned Z3 release
         shell: bash
@@ -98,7 +98,7 @@ jobs:
     timeout-minutes: 60
     container: rocker/r-base:latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install Z3 and R packages from Debian
         run: |
           apt-get update
