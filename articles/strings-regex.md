@@ -138,8 +138,10 @@ z3_value(z3_simplify(z3_char_to_int(lambda)))
 #> [1] 955
 z3_value(z3_simplify(z3_str_from_code(z3_int_val(ctx, 955))))
 #> [1] "λ"
-z3_value(z3_simplify(z3_char_is_digit(z3_char_val(ctx, 55))))
-#> [1] TRUE
+sol <- z3_solver(ctx)
+z3_add(sol, !z3_char_is_digit(z3_char_val(ctx, 55)))
+z3_check(sol)  # unsat: the character 7 is a digit
+#> [1] "unsat"
 ```
 
 ## Sequences of any sort

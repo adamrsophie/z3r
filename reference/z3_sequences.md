@@ -180,7 +180,10 @@ A `z3_expr` or `z3_sort`.
 - Characters: `z3_char_val(ctx, code)` (Z3 4.8.15), `z3_char_to_int()`,
   `z3_char_to_bv()`, `z3_char_from_bv()`, `z3_char_is_digit()`,
   `z3_char_le()`, and `z3_str_from_code()`, `z3_str_to_code()` (Z3
-  4.8.15) between one-character strings and code points.
+  4.8.15) between one-character strings and code points. The solver
+  decides `z3_char_is_digit()` and `z3_char_le()` on every release;
+  [`z3_simplify()`](https://adamrsophie.github.io/z3r/reference/z3_simplify.md)
+  folds them on constant characters from Z3 4.9.0.
 
 ## Examples
 

@@ -236,7 +236,9 @@ may answer <code>"unknown"</code>.</p></li>
 <li><p>Characters: <code>z3_char_val(ctx, code)</code> (Z3 4.8.15), <code>z3_char_to_int()</code>,
 <code>z3_char_to_bv()</code>, <code>z3_char_from_bv()</code>, <code>z3_char_is_digit()</code>,
 <code>z3_char_le()</code>, and <code>z3_str_from_code()</code>, <code>z3_str_to_code()</code> (Z3
-4.8.15) between one-character strings and code points.</p></li>
+4.8.15) between one-character strings and code points. The solver
+decides <code>z3_char_is_digit()</code> and <code>z3_char_le()</code> on every release;
+<code><a href="z3_simplify.html">z3_simplify()</a></code> folds them on constant characters from Z3 4.9.0.</p></li>
 </ul></div>
 
     <div class="section level2">
