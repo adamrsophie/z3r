@@ -215,7 +215,8 @@ counts for <code>z3_re_loop()</code>.</p></dd>
 <ul><li><p>Sorts: <code>z3_seq_sort(element)</code>, <code>z3_re_sort(seq_sort)</code>,
 <code>z3_char_sort(ctx)</code>, and <code>z3_sort_basis()</code> for the element sort.</p></li>
 <li><p>Sequences: <code>z3_seq_empty(sort)</code>, <code>z3_seq_unit(x)</code> (one element),
-<code>z3_seq_nth(s, i)</code> (element <code>i</code>, 0-based), <code>z3_last_indexof(s, t)</code>,
+<code>z3_seq_nth(s, i)</code> (element <code>i</code>, 0-based), <code>z3_last_indexof(s, t)</code>
+(Z3 before 4.8.15 misses a match at the last position),
 <code>z3_replace_all()</code> (Z3 4.15.5), <code>z3_seq_power(s, n)</code> (<code>s</code> repeated <code>n</code>
 times, Z3 5.3.0), and the higher-order <code>z3_seq_map()</code>,
 <code>z3_seq_mapi()</code>, <code>z3_seq_foldl()</code>, <code>z3_seq_foldli()</code> (Z3 4.13.2), whose
