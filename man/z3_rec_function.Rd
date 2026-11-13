@@ -32,19 +32,21 @@ returns \code{f} invisibly.
 \code{z3_rec_function()} declares a function whose definition may refer to
 itself. Define it with \code{z3_rec_define(f, args, body)}, where \code{args} are
 constants standing for the parameters. Z3 unfolds the definition on
-demand during solving. Unfolding need not terminate (Z3 4.8 releases
-search \code{fact(x) == 120} in the example without end), so give such checks
-a time limit.
+demand during solving. \code{z3_rec_define()} needs Z3 4.8.16 or later:
+earlier releases store a definition made through the API as a macro, so
+solving with it does not terminate.
 }
 \examples{
 ctx <- z3_context()
 I <- z3_int_sort(ctx)
 fact <- z3_rec_function(ctx, "fact", I, I)
 n <- z3_int(ctx, "n")
-z3_rec_define(fact, n, z3_ite(n <= 0, 1, n * fact(n - 1)))
-s <- z3_solver(ctx)
-x <- z3_int(ctx, "x")
-z3_add(s, fact(x) == 120)
-# Unfolding need not terminate, so the check gets a time limit.
-if (z3_check(s, timeout = 10000) == "sat") z3_eval(z3_model(s), x)
+if (z3_version_at_least("4.8.16")) {
+  z3_rec_define(fact, n, z3_ite(n <= 0, 1, n * fact(n - 1)))
+  s <- z3_solver(ctx)
+  x <- z3_int(ctx, "x")
+  z3_add(s, fact(x) == 120)
+  z3_check(s)
+  z3_eval(z3_model(s), x)
+}
 }

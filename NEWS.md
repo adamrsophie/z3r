@@ -81,7 +81,8 @@ which version they need.
 * Function interpretations with defaults set after creation
   (`z3_model_set_default()`); Datalog relation sorts
   (`z3_relation_columns()`).
-* Uninterpreted and recursive functions, quantifiers with patterns and
+* Uninterpreted and recursive functions (recursive definitions need Z3
+  4.8.16), quantifiers with patterns and
   weights, special relations, pseudo-Boolean constraints.
 * Tactics, probes, goals and simplifiers.
 * The fixedpoint engine for constrained Horn clauses (Spacer) and Datalog,

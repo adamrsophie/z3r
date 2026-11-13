@@ -186,11 +186,57 @@ SEXP cpp_goal_convert_model(SEXP g_, SEXP m_) {
 }
 
 // [[Rcpp::export(rng = false)]]
+#if Z3R_AT_LEAST(4, 12, 2) && !Z3R_AT_LEAST(4, 13, 2)
+// Z3's own test (goal::is_cnf): a possibly negated application whose
+// arguments are not Boolean when it is a Boolean connective.
+static bool cnf_literal(Z3_context c, Z3_ast f) {
+  if (!Z3_is_app(c, f)) return false;
+  Z3_app a = Z3_to_app(c, f);
+  if (Z3_get_decl_kind(c, Z3_get_app_decl(c, a)) == Z3_OP_NOT) {
+    f = Z3_get_app_arg(c, a, 0);
+    if (!Z3_is_app(c, f)) return false;
+    a = Z3_to_app(c, f);
+  }
+  Z3_decl_kind k = Z3_get_decl_kind(c, Z3_get_app_decl(c, a));
+  if (k < Z3_OP_TRUE || k >= Z3_OP_ANUM) return true;
+  for (unsigned i = 0, n = Z3_get_app_num_args(c, a); i < n; ++i) {
+    if (Z3_get_sort_kind(c, Z3_get_sort(c, Z3_get_app_arg(c, a, i))) == Z3_BOOL_SORT) return false;
+  }
+  return true;
+}
+#endif
+
 Rcpp::String cpp_goal_to_dimacs(SEXP g_, bool include_names) {
   const Ref<Z3_goal>& g = goal(g_);
+#if Z3R_AT_LEAST(4, 12, 2) && !Z3R_AT_LEAST(4, 13, 2)
+  // Z3 4.12.2 to 4.13.0 refuse every goal that has a clause (goal::is_cnf
+  // lacks an else). Check CNF here and print through a solver, which uses
+  // the same DIMACS printer.
+  Z3_context c = g.c();
+  const CtxPtr& ctx = g.ctx();
+  Ref<Z3_solver> s = own(ctx, Z3_mk_simple_solver(c));
+  for (unsigned i = 0, n = Z3_goal_size(c, g); i < n; ++i) {
+    Z3_ast f = Z3_goal_formula(c, g, i);
+    bool clause = Z3_is_app(c, f) && Z3_get_decl_kind(c, Z3_get_app_decl(c, Z3_to_app(c, f))) == Z3_OP_OR;
+    bool ok = true;
+    if (clause) {
+      Z3_app a = Z3_to_app(c, f);
+      for (unsigned j = 0, na = Z3_get_app_num_args(c, a); ok && j < na; ++j) ok = cnf_literal(c, Z3_get_app_arg(c, a, j));
+    } else {
+      ok = cnf_literal(c, f);
+    }
+    if (!ok) fail("the goal is not in CNF; apply the \"tseitin-cnf\" tactic (after \"bit-blast\" if needed) first");
+    Z3_solver_assert(c, s, f);
+  }
+  std::string out = str(Z3_solver_to_dimacs_string(c, s, include_names));
+  check(ctx);
+  if (!out.empty() && out.back() == '\n') out.pop_back();  // as Z3_goal_to_dimacs_string
+  return out;
+#else
   std::string out = str(Z3_goal_to_dimacs_string(g.c(), g, include_names));
   check(g.ctx());
   return out;
+#endif
 }
 
 // ---------------------------------------------------------------------------

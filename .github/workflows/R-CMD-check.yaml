@@ -34,6 +34,11 @@ jobs:
              sha: 7288c49a5bd6dbafd7b0b0d1f65956b91672da24b08f09242919af159be3418e}
           - {os: windows-latest, r: release, z3: "4.16.0", asset: z3-4.16.0-x64-win.zip,
              sha: de4d813e47202394a093547dbdb5699ee076529aa853463e007539775cd7e836}
+          # Releases between, on the oldest runner whose glibc they support
+          - {os: ubuntu-22.04, r: release, z3: "4.10.2", asset: z3-4.10.2-x64-glibc-2.31.zip,
+             sha: 364c1b756d27687ed8f8821f763ed52dca5007ff999fe0dc85bb3df954603352}
+          - {os: ubuntu-22.04, r: release, z3: "4.12.6", asset: z3-4.12.6-x64-glibc-2.35.zip,
+             sha: 6719feaa729c321a73db870d7f7ebc111c6e0919ba4e0b34942976e3788d4a6d}
           # Oldest supported release
           - {os: ubuntu-22.04, r: release, z3: "4.8.13", asset: z3-4.8.13-x64-glibc-2.31.zip,
              sha: 32d4b88604c04cd44f44335e9ce9fa309d29b5c766e98e7b32d630c7ed2f6021}

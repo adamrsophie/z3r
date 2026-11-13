@@ -261,6 +261,13 @@ SEXP cpp_mk_rec_func_decl(SEXP ctx_, SEXP name_, Rcpp::List domain, SEXP range_)
 // Defines f(args) = body; args are constants standing for the parameters.
 // [[Rcpp::export(rng = false)]]
 void cpp_add_rec_def(SEXP decl_, Rcpp::List args, SEXP body_) {
+#if !Z3R_AT_LEAST(4, 8, 16)
+  // Z3 4.8.13 to 4.8.15 store a definition made through Z3_add_rec_def as a
+  // macro, whose expansion never ends once a solver uses it.
+  (void)decl_; (void)args; (void)body_;
+  fail("z3_rec_define() needs Z3 4.8.16 or later: Z3 4.8.13 to 4.8.15 store a definition made "
+       "through the API as a macro, so solving with it does not terminate");
+#else
   const Ast& d = get_decl(decl_);
   const CtxPtr& ctx = d.ctx();
   Z3_context c = ctx->c;
@@ -274,6 +281,7 @@ void cpp_add_rec_def(SEXP decl_, Rcpp::List args, SEXP body_) {
   std::vector<Z3_ast> r = raw(a);
   Z3_add_rec_def(c, f, static_cast<unsigned>(r.size()), r.empty() ? nullptr : r.data(), body);
   check(ctx);
+#endif
 }
 
 // [[Rcpp::export(rng = false)]]

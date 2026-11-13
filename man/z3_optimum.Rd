@@ -28,7 +28,10 @@ An optimum is not always a finite, attained number:
 without limit; \code{value} is \code{NULL}.
 \item \code{"not attained"}: the objective approaches \code{value} but never reaches
 it, as when maximizing \code{x} subject to \code{x < 3} over the reals. Z3
-represents this as \code{value - epsilon} or \code{value + epsilon}.
+represents this as \code{value - epsilon} or \code{value + epsilon}. Z3 4.8.13
+gets this wrong: it reports such an objective as attained at a smaller
+value (2 for \code{x < 3}), as its own command line tool does; Z3 4.10.2 and
+later report the supremum.
 \item \code{"unknown"}: the check stopped early, for example at a timeout, and
 returned \code{"unknown"}. \code{value} is the objective's value in the best
 model Z3 had found, which is not proven optimal; it is \code{NULL} when Z3

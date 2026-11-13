@@ -46,9 +46,9 @@ test_that("unbounded and unattained optima are reported", {
   h2 <- z3_maximize(o2, r)
   expect_identical(z3_check(o2), "sat")
   res <- z3_optimum(h2)
-  # Z3 4.8.13 reports the strict bound r < 3 as attained at 2. CI shows the
-  # supremum from Z3 4.13.3.
-  if (z3_version_at_least("4.13.0")) {
+  # Z3 4.8.13 (its own command line tool too) reports the strict bound
+  # r < 3 as attained at 2; Z3 4.10.2 and later report the supremum.
+  if (z3_version_at_least("4.10.0")) {
     expect_identical(res$status, "not attained")
     expect_identical(z3_value(res$value), 3)
     expect_match(res$upper, "^3(\\.0)? - epsilon$")

@@ -19,8 +19,9 @@ test_that("regular expressions", {
   expect_identical(check_status(ctx, z3_in_re(s, z3_re_union(z3_re(z3_string_val(ctx, "a")), "b")), s == "b"), "sat")
   expect_error(z3_re_range("a", "z"), "needs ctx")
   expect_error(z3_re("abc"), "Z3 expression")
-  skip_if_not(z3_version_at_least("4.8.15"))
+  skip_if_not(z3_version_at_least("4.8.14"))
   expect_identical(check_status(ctx, z3_in_re(s, z3_re_diff(digits, z3_re_star(z3_re_range("0", "9", ctx))))), "unsat")
+  skip_if_not(z3_version_at_least("4.8.15"))
   expect_identical(solve_values(ctx, z3_in_re(s, z3_re_power(z3_re_range("x", "x", ctx), 4)), vars = list(s))[[1]], "xxxx")
 })
 

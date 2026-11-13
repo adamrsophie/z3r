@@ -16,27 +16,26 @@ test_that("recursive functions unfold", {
   I <- z3_int_sort(ctx)
   fact <- z3_rec_function(ctx, "fact", I, I)
   n <- z3_int(ctx, "n")
-  z3_rec_define(fact, n, z3_ite(n <= 0, 1, n * fact(n - 1)))
-  # Unfolding need not terminate: Z3 4.8.13 runs fact(x) == 120 without
-  # end. CI shows termination from Z3 4.13.3, so older releases may give up.
-  unfolded <- function(goal, var) {
-    s <- z3_solver(ctx)
-    z3_add(s, goal)
-    status <- z3_check(s, timeout = 20000)
-    if (status == "unknown" && !z3_version_at_least("4.13.0")) {
-      skip(paste("Z3", z3_version()$runtime, "does not unfold this definition in time"))
-    }
-    expect_identical(status, "sat")
-    z3_value(z3_eval(z3_model(s), var))
-  }
-  x <- z3_int(ctx, "x")
-  expect_identical(unfolded(fact(x) == 120, x), 5)
-  fib <- z3_rec_function(ctx, "fib", I, I)
-  z3_rec_define(fib, n, z3_ite(n <= 1, n, fib(n - 1) + fib(n - 2)))
-  y <- z3_int(ctx, "y")
-  expect_identical(unfolded(y == fib(10), y), 55)
-  expect_error(z3_rec_define(fib, list(n, x), n), "one parameter")
   expect_s3_class(z3_fresh_function(ctx, "g", I, I), "z3_function")
+  if (!z3_version_at_least("4.8.16")) {
+    expect_error(z3_rec_define(fact, n, n), "4.8.16")
+    skip("z3_rec_define() needs Z3 4.8.16")
+  }
+  z3_rec_define(fact, n, z3_ite(n <= 0, 1, n * fact(n - 1)))
+  fib <- z3_rec_function(ctx, "fib", I, I)
+  expect_error(z3_rec_define(fib, list(n, z3_int(ctx, "m")), n), "one parameter")
+  z3_rec_define(fib, n, z3_ite(n <= 1, n, fib(n - 1) + fib(n - 2)))
+  # A time limit keeps a regression from holding CI; the answer must be sat.
+  x <- z3_int(ctx, "x")
+  s <- z3_solver(ctx, timeout = 60000)
+  z3_add(s, fact(x) == 120)
+  expect_identical(z3_check(s), "sat")
+  expect_identical(z3_value(z3_eval(z3_model(s), x)), 5)
+  y <- z3_int(ctx, "y")
+  s <- z3_solver(ctx, timeout = 60000)
+  z3_add(s, y == fib(10))
+  expect_identical(z3_check(s), "sat")
+  expect_identical(z3_value(z3_eval(z3_model(s), y)), 55)
 })
 
 test_that("special relations", {
