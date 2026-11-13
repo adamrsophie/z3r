@@ -51,6 +51,8 @@ first objective is optimized first. Use
 independently, or `priority = "pareto"` to enumerate Pareto-optimal
 points with repeated calls to
 [`z3_check()`](https://adamrsophie.github.io/z3r/reference/z3_check.md).
+With box priority, Z3 4.16.0 can report an unbounded objective (`+oo`)
+when objectives of different kinds are mixed; this is Z3's behavior.
 
 ## Examples
 

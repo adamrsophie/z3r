@@ -245,13 +245,13 @@ gmp is not installed):</p>
 <span><span class="fu"><a href="../reference/z3_check.html">z3_check</a></span><span class="op">(</span><span class="va">s</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "sat"</span></span>
 <span><span class="fu"><a href="../reference/as.list.z3_model.html">z3_model_values</a></span><span class="op">(</span><span class="fu"><a href="../reference/z3_model.html">z3_model</a></span><span class="op">(</span><span class="va">s</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; $x</span></span>
-<span><span class="co">#&gt; Big Integer ('bigz') :</span></span>
-<span><span class="co">#&gt; [1] 1180591620717411303424</span></span>
-<span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $r</span></span>
 <span><span class="co">#&gt; Big Rational ('bigq') :</span></span>
-<span><span class="co">#&gt; [1] 1/3</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 1/3</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; $x</span></span>
+<span><span class="co">#&gt; Big Integer ('bigz') :</span></span>
+<span><span class="co">#&gt; [1] 1180591620717411303424</span></span></code></pre></div>
 <p>Division follows R: <code>/</code> is real division even for
 integers. <code>%/%</code> and <code>%%</code> are Z3’s integer
 <code>div</code> and <code>mod</code>, which use the SMT-LIB (Euclidean)
@@ -404,8 +404,8 @@ minimizes the total weight of the preferences it has to give up:</p>
 <span><span class="fu"><a href="../reference/z3_check.html">z3_check</a></span><span class="op">(</span><span class="va">opt</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "sat"</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/unlist.html" class="external-link">unlist</a></span><span class="op">(</span><span class="fu"><a href="../reference/as.list.z3_model.html">z3_model_values</a></span><span class="op">(</span><span class="fu"><a href="../reference/z3_model.html">z3_model</a></span><span class="op">(</span><span class="va">opt</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; coffee    tea  juice </span></span>
-<span><span class="co">#&gt;   TRUE  FALSE   TRUE</span></span></code></pre></div>
+<span><span class="co">#&gt;  juice coffee    tea </span></span>
+<span><span class="co">#&gt;   TRUE   TRUE  FALSE</span></span></code></pre></div>
 <p>Optimal values are not always attained or finite;
 <code><a href="../reference/z3_optimum.html">z3_optimum()</a></code> reports <code>"unbounded"</code> and
 <code>"not attained"</code> (an infimum or supremum approached with an

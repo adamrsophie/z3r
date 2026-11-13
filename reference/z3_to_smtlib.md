@@ -83,7 +83,9 @@ z3_eval_smtlib(ctx, text)
 
 - `z3_eval_smtlib()` runs SMT-LIB2 commands in Z3's interpreter and
   returns its output text, exactly as the `z3` command-line tool would
-  print it. Its declarations are kept in the context.
+  print it. Its declarations are kept in the context. Its `set-option`
+  commands change Z3's parameters beyond this call (some of them for
+  every context), and they stay changed.
 
 Parse errors are reported as R errors.
 

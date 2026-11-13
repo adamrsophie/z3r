@@ -73,10 +73,12 @@ the one z3r was built with say which version they need.
   [`z3_with_scope()`](https://adamrsophie.github.io/z3r/reference/z3_with_scope.md),
   model enumeration
   ([`z3_all_models()`](https://adamrsophie.github.io/z3r/reference/z3_with_scope.md)),
-  models with staleness protection, hand-built models, unsatisfiable
-  cores, proofs, consequences, cubes, units and trails, congruence
-  classes, solving for variables, initial values, typed parameters,
-  statistics (also as Z3’s text,
+  models with staleness protection (each
+  [`z3_model()`](https://adamrsophie.github.io/z3r/reference/z3_model.md)
+  is a separate copy), hand-built models, unsatisfiable cores, proofs,
+  consequences, cubes, units and trails, congruence classes, solving for
+  variables, initial values, typed parameters, statistics (also as Z3’s
+  text,
   [`z3_statistics_text()`](https://adamrsophie.github.io/z3r/reference/z3_statistics.md))
   and DIMACS export.
 - Timeouts for a single check (`z3_check(timeout = )`), which keep the
@@ -88,11 +90,15 @@ the one z3r was built with say which version they need.
 - Optimization with hard and soft constraints, objectives (including the
   cost of soft constraint groups) and priorities, unbounded and
   non-attained optima, model callbacks, and, when a check returns
-  `"unknown"`, the bounds and the value of the best model found so far.
+  `"unknown"`, the bounds and the value of the best model found so far
+  (which must satisfy tracked constraints too).
+  [`z3_objectives()`](https://adamrsophie.github.io/z3r/reference/z3_objectives.md)
+  lists every objective, also those parsed from SMT-LIB.
 - User propagators, clause callbacks and the proof checker callback. R
   errors and interrupts are raised safely after the check, callbacks
   cannot reenter their own solver, and callback closures do not keep
-  their solver or context alive.
+  their solver or context alive. Callbacks never run R code on Z3’s
+  worker threads; a `"sat"` found there is refused.
 
 ### Theories and engines
 
@@ -102,9 +108,13 @@ the one z3r was built with say which version they need.
 - Algebraic datatypes: recursive, mutually recursive, enumerations,
   tuples
   ([`z3_tuple_fields()`](https://adamrsophie.github.io/z3r/reference/z3_datatype.md)),
-  lists and polymorphic datatypes.
+  lists and polymorphic datatypes. Declaring a datatype name twice in
+  one context is refused, since Z3 would free the sorts of the first
+  declaration.
 - Floating point formats by name or width (`z3_fp_sort(ctx, "half")`),
-  SMT-LIB rounding mode names, and numeric parts of numerals.
+  SMT-LIB rounding mode names, numeric parts of numerals, and rounding
+  of a symbolic `significand * 2^exponent`
+  ([`z3_fp_from_real_exp()`](https://adamrsophie.github.io/z3r/reference/z3_fp.md)).
 - Function interpretations with defaults set after creation
   ([`z3_model_set_default()`](https://adamrsophie.github.io/z3r/reference/z3_model_set.md));
   Datalog relation sorts
@@ -124,5 +134,7 @@ the one z3r was built with say which version they need.
   [`z3_qe_lite()`](https://adamrsophie.github.io/z3r/reference/z3_model_project.md).
 - Real closed fields, algebraic number arithmetic and polynomial
   subresultants.
-- SMT-LIB2 export, parsing and the SMT-LIB2 command interpreter.
+- SMT-LIB2 export (tracked constraints keep their labels asserted, so
+  the text has the solver’s answer), parsing and the SMT-LIB2 command
+  interpreter.
 - Translation to and from the symcompR computer algebra package.

@@ -103,7 +103,11 @@ often beyond Z3's decision procedures and may return <code>"unknown"</code>.</p>
 the sort of the other operand; see <code><a href="z3_int_val.html">z3_int_val()</a></code> for the conversion
 rules for doubles. Only length-one R values are accepted: z3r
 expressions are scalars, and R's recycling rules have no meaning for a
-single formula. Build several constraints with <code><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply()</a></code> or <code><a href="https://rdrr.io/r/base/funprog.html" class="external-link">Map()</a></code>.</p>
+single formula. Build several constraints with <code><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply()</a></code> or <code><a href="https://rdrr.io/r/base/funprog.html" class="external-link">Map()</a></code>.
+Classed values such as dates are refused; convert them first. A
+<code><a href="https://bit64.r-lib.org/reference/bit64-package.html" class="external-link">bit64::integer64</a></code> works on the right of an operator (<code>x == i64</code>); on
+the left, bit64's own operator method runs instead and fails, so write
+<code>z3_int_val(ctx, i64)</code> there.</p>
 <p><strong>R's own logic.</strong> <code>&amp;&amp;</code> and <code>||</code> cannot be overloaded; use <code><a href="z3_and.html">z3_and()</a></code>
 and <code><a href="z3_and.html">z3_or()</a></code>. A Z3 expression is never converted to <code>TRUE</code> or <code>FALSE</code>,
 so <code>if (x &gt; 0)</code> is an error rather than a silent mistake. Note that

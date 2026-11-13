@@ -58,19 +58,19 @@ z3_check(s)
 #> [1] "sat"
 m <- z3_model(s)
 as.list(m)
-#> $x
-#> <z3_expr Int> 1180591620717411303424
-#> 
 #> $r
 #> <z3_expr Real> (/ 1.0 3.0)
 #> 
-z3_model_values(m)
 #> $x
-#> Big Integer ('bigz') :
-#> [1] 1180591620717411303424
+#> <z3_expr Int> 1180591620717411303424
 #> 
+z3_model_values(m)
 #> $r
 #> Big Rational ('bigq') :
 #> [1] 1/3
+#> 
+#> $x
+#> Big Integer ('bigz') :
+#> [1] 1180591620717411303424
 #> 
 ```

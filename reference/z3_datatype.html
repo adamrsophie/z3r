@@ -164,9 +164,14 @@ constructor;</p></li>
 <li><p>one element per field: accessor functions.</p></li>
 </ul><p><code>z3_enum_sort()</code>, <code>z3_tuple_sort()</code> and <code>z3_list_sort()</code> are shortcuts
 for the common shapes. <code>z3_enum_sort()</code> and <code>z3_list_sort()</code> use Z3's
-dedicated constructors. Z3 4.12.0 and later refuse an enumeration
-whose name is already declared in the context, also when a script runs
-again: keep the earlier object, or use another name or a new context.
+dedicated constructors.</p>
+<p>A datatype name can be declared once per context: Z3 would replace the
+earlier datatype and free sorts and functions that R objects still use,
+so z3r refuses a second declaration, also when a script runs again. Keep
+the earlier object, or use another name or a new context. z3r cannot see
+datatypes declared by SMT-LIB text (<code><a href="z3_to_smtlib.html">z3_from_smtlib()</a></code>,
+<code><a href="z3_to_smtlib.html">z3_eval_smtlib()</a></code>) or copied in by <code><a href="z3_translate.html">z3_translate()</a></code>; do not declare
+such a name again in that context.
 <code>z3_tuple_sort()</code>
 names its constructor <code>mk_&lt;name&gt;</code>. A datatype with a single constructor
 that has the datatype's own name and no recursive fields, as in

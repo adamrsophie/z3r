@@ -140,13 +140,13 @@ z3_add(s, x == z3_int_val(ctx, "1180591620717411303424"), 3 * r == 1)
 z3_check(s)
 #> [1] "sat"
 z3_model_values(z3_model(s))
-#> $x
-#> Big Integer ('bigz') :
-#> [1] 1180591620717411303424
-#> 
 #> $r
 #> Big Rational ('bigq') :
 #> [1] 1/3
+#> 
+#> $x
+#> Big Integer ('bigz') :
+#> [1] 1180591620717411303424
 ```
 
 Division follows R: `/` is real division even for integers. `%/%` and
@@ -331,8 +331,8 @@ z3_add_soft(opt, want$juice, 2)
 z3_check(opt)
 #> [1] "sat"
 unlist(z3_model_values(z3_model(opt)))
-#> coffee    tea  juice 
-#>   TRUE  FALSE   TRUE
+#>  juice coffee    tea 
+#>   TRUE   TRUE  FALSE
 ```
 
 Optimal values are not always attained or finite;

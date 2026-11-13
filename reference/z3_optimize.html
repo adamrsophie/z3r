@@ -106,7 +106,9 @@ constraints, <code><a href="z3_minimize.html">z3_minimize()</a></code> and <code
 first objective is optimized first. Use
 <code>z3_set_params(opt, priority = "box")</code> to optimize each objective
 independently, or <code>priority = "pareto"</code> to enumerate Pareto-optimal
-points with repeated calls to <code><a href="z3_check.html">z3_check()</a></code>.</p>
+points with repeated calls to <code><a href="z3_check.html">z3_check()</a></code>. With box priority, Z3 4.16.0
+can report an unbounded objective (<code>+oo</code>) when objectives of different
+kinds are mixed; this is Z3's behavior.</p>
     </div>
 
     <div class="section level2">

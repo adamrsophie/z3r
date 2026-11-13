@@ -190,6 +190,8 @@
   : Soft constraints
 - [`z3_optimum()`](https://adamrsophie.github.io/z3r/reference/z3_optimum.md)
   : Optimal value of an objective
+- [`z3_objectives()`](https://adamrsophie.github.io/z3r/reference/z3_objectives.md)
+  : Objectives of an optimizer
 
 ## Bit-vectors and floating point
 
@@ -290,6 +292,7 @@
   [`z3_fp_from_bv()`](https://adamrsophie.github.io/z3r/reference/z3_fp.md)
   [`z3_fp_from_signed()`](https://adamrsophie.github.io/z3r/reference/z3_fp.md)
   [`z3_fp_from_unsigned()`](https://adamrsophie.github.io/z3r/reference/z3_fp.md)
+  [`z3_fp_from_real_exp()`](https://adamrsophie.github.io/z3r/reference/z3_fp.md)
   [`z3_fp_numeral_parts()`](https://adamrsophie.github.io/z3r/reference/z3_fp.md)
   [`z3_fp_from_parts()`](https://adamrsophie.github.io/z3r/reference/z3_fp.md)
   : IEEE 754 floating point

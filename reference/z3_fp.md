@@ -110,6 +110,8 @@ z3_fp_from_signed(rounding, bv, sort)
 
 z3_fp_from_unsigned(rounding, bv, sort)
 
+z3_fp_from_real_exp(rounding, exponent, significand, sort)
+
 z3_fp_numeral_parts(x, biased = FALSE, numeric = FALSE)
 
 z3_fp_from_parts(sort, negative, exponent_value, fraction)
@@ -160,7 +162,8 @@ z3_fp_from_parts(sort, negative, exponent_value, fraction)
 
 - bv, sign, exponent, significand:
 
-  Bit-vector expressions.
+  Bit-vector expressions; for `z3_fp_from_real_exp()`, an Int exponent
+  and a Real significand.
 
 - biased:
 
@@ -231,11 +234,14 @@ their first argument.
 **Conversions.** `z3_fp_to_fp(rounding, x, sort)` converts another
 format, a Real or an Int; `z3_fp_from_bv(bv, sort)` reinterprets IEEE
 bits; `z3_fp_from_signed()`/`z3_fp_from_unsigned()` convert a bit-vector
-integer; `z3_fp_from_bits(sign, exponent, significand)` assembles the
-fields; `z3_fp_from_parts()` builds a numeral exactly from its sign,
-unbiased exponent and fraction bits; `z3_fp_to_ubv()`/`z3_fp_to_sbv()`
-round to a bit-vector integer of width `size`; `z3_fp_to_real()` gives
-the exact Real value; `z3_fp_to_ieee_bv()` the bit pattern.
+integer; `z3_fp_from_real_exp(rounding, exponent, significand, sort)`
+rounds `significand * 2^exponent` from an Int exponent and a Real
+significand, which may be symbolic;
+`z3_fp_from_bits(sign, exponent, significand)` assembles the fields;
+`z3_fp_from_parts()` builds a numeral exactly from its sign, unbiased
+exponent and fraction bits; `z3_fp_to_ubv()`/`z3_fp_to_sbv()` round to a
+bit-vector integer of width `size`; `z3_fp_to_real()` gives the exact
+Real value; `z3_fp_to_ieee_bv()` the bit pattern.
 `z3_fp_numeral_parts()` describes a numeral (class, sign, exponent and
 significand).
 

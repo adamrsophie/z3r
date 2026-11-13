@@ -114,8 +114,8 @@ z3_add_soft(opt, staff$ben, 1)
 z3_check(opt)
 #> [1] "sat"
 unlist(z3_model_values(z3_model(opt)))
-#>   dee   ana   ben   cai 
-#> FALSE FALSE  TRUE  TRUE
+#>   ana   ben   dee   cai 
+#> FALSE  TRUE FALSE  TRUE
 ```
 
 ## Scheduling with disjunctions

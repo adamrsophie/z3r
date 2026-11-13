@@ -181,6 +181,8 @@ numbers. The standard formats also have names: <code>z3_fp_sort(ctx, "half")</co
 <span></span>
 <span><span class="fu">z3_fp_from_unsigned</span><span class="op">(</span><span class="va">rounding</span>, <span class="va">bv</span>, <span class="va">sort</span><span class="op">)</span></span>
 <span></span>
+<span><span class="fu">z3_fp_from_real_exp</span><span class="op">(</span><span class="va">rounding</span>, <span class="va">exponent</span>, <span class="va">significand</span>, <span class="va">sort</span><span class="op">)</span></span>
+<span></span>
 <span><span class="fu">z3_fp_numeral_parts</span><span class="op">(</span><span class="va">x</span>, biased <span class="op">=</span> <span class="cn">FALSE</span>, numeric <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">z3_fp_from_parts</span><span class="op">(</span><span class="va">sort</span>, <span class="va">negative</span>, <span class="va">exponent_value</span>, <span class="va">fraction</span><span class="op">)</span></span></code></pre></div>
@@ -231,7 +233,8 @@ numbers. The standard formats also have names: <code>z3_fp_sort(ctx, "half")</co
 
 
 <dt id="arg-bv-sign-exponent-significand">bv, sign, exponent, significand<a class="anchor" aria-label="anchor" href="#arg-bv-sign-exponent-significand"></a></dt>
-<dd><p>Bit-vector expressions.</p></dd>
+<dd><p>Bit-vector expressions; for
+<code>z3_fp_from_real_exp()</code>, an Int exponent and a Real significand.</p></dd>
 
 
 <dt id="arg-biased">biased<a class="anchor" aria-label="anchor" href="#arg-biased"></a></dt>
@@ -298,7 +301,10 @@ comparisons <code>z3_fp_lt()</code>, <code>z3_fp_leq()</code>, <code>z3_fp_gt()<
 <p><strong>Conversions.</strong> <code>z3_fp_to_fp(rounding, x, sort)</code> converts another
 format, a Real or an Int; <code>z3_fp_from_bv(bv, sort)</code> reinterprets IEEE
 bits; <code>z3_fp_from_signed()</code>/<code>z3_fp_from_unsigned()</code> convert a bit-vector
-integer; <code>z3_fp_from_bits(sign, exponent, significand)</code> assembles the
+integer; <code>z3_fp_from_real_exp(rounding, exponent, significand, sort)</code>
+rounds <code>significand * 2^exponent</code> from an Int exponent and a Real
+significand, which may be symbolic;
+<code>z3_fp_from_bits(sign, exponent, significand)</code> assembles the
 fields; <code>z3_fp_from_parts()</code> builds a numeral exactly from its sign,
 unbiased exponent and fraction bits; <code>z3_fp_to_ubv()</code>/<code>z3_fp_to_sbv()</code> round to a bit-vector integer
 of width <code>size</code>; <code>z3_fp_to_real()</code> gives the exact Real value;

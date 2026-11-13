@@ -48,13 +48,13 @@ z3_add_soft(opt, p$c, 2)
 z3_check(opt)
 #> [1] "sat"
 z3_model_values(z3_model(opt))
-#> $a
-#> [1] TRUE
-#> 
 #> $b
 #> [1] FALSE
 #> 
 #> $c
+#> [1] TRUE
+#> 
+#> $a
 #> [1] TRUE
 #> 
 ```

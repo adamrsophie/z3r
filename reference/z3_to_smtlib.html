@@ -142,7 +142,9 @@ uses without declaring them, under names of your choice.</p></li>
 optimizer or fixedpoint engine.</p></li>
 <li><p><code>z3_eval_smtlib()</code> runs SMT-LIB2 commands in Z3's interpreter and
 returns its output text, exactly as the <code>z3</code> command-line tool would
-print it. Its declarations are kept in the context.</p></li>
+print it. Its declarations are kept in the context. Its <code>set-option</code>
+commands change Z3's parameters beyond this call (some of them for
+every context), and they stay changed.</p></li>
 </ul><p>Parse errors are reported as R errors.</p>
     </div>
 

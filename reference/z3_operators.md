@@ -57,7 +57,12 @@ for the conversion rules for doubles. Only length-one R values are
 accepted: z3r expressions are scalars, and R's recycling rules have no
 meaning for a single formula. Build several constraints with
 [`lapply()`](https://rdrr.io/r/base/lapply.html) or
-[`Map()`](https://rdrr.io/r/base/funprog.html).
+[`Map()`](https://rdrr.io/r/base/funprog.html). Classed values such as
+dates are refused; convert them first. A
+[`bit64::integer64`](https://bit64.r-lib.org/reference/bit64-package.html)
+works on the right of an operator (`x == i64`); on the left, bit64's own
+operator method runs instead and fails, so write `z3_int_val(ctx, i64)`
+there.
 
 **R's own logic.** `&&` and `||` cannot be overloaded; use
 [`z3_and()`](https://adamrsophie.github.io/z3r/reference/z3_and.md) and

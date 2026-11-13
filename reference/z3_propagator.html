@@ -197,7 +197,11 @@ inside a callback with <code>z3_propagate_register_cb()</code>. Inside a callbac
 that <code>consequence</code> follows from the values of the <code>fixed</code> terms and the
 equalities <code>lhs[[i]] == rhs[[i]]</code>. With <code>consequence = FALSE</code> it is a
 conflict, and Z3 backtracks.</p></li>
-<li><p><code>z3_propagate_conflict(cb, fixed)</code> is the same with <code>FALSE</code>.</p></li>
+<li><p><code>z3_propagate_conflict(cb, fixed)</code> is the same with <code>FALSE</code>.</p>
+<p>A justification may cite only terms that Z3 has reported as fixed and
+equalities that Z3 has reported to <code>eq</code>, both in the current scope.
+Z3 does not check this: citing anything else makes the result unsound,
+and an equality it never reported can crash R.</p></li>
 <li><p><code>z3_next_split(cb, term, index, phase)</code> suggests the next decision.</p></li>
 </ul><p>An error in a callback interrupts the check and is raised as an R error
 (an interrupt with Ctrl-C is raised as an interrupt). While a check runs,
