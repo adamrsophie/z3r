@@ -108,8 +108,9 @@ say which version they need.
   ([`z3_model_set_default()`](https://adamrsophie.github.io/z3r/reference/z3_model_set.md));
   Datalog relation sorts
   ([`z3_relation_columns()`](https://adamrsophie.github.io/z3r/reference/z3_relation_columns.md)).
-- Uninterpreted and recursive functions, quantifiers with patterns and
-  weights, special relations, pseudo-Boolean constraints.
+- Uninterpreted and recursive functions (recursive definitions need Z3
+  4.8.16), quantifiers with patterns and weights, special relations,
+  pseudo-Boolean constraints.
 - Tactics, probes, goals and simplifiers.
 - The fixedpoint engine for constrained Horn clauses (Spacer) and
   Datalog, Spacer lemma callbacks

@@ -199,19 +199,17 @@ so <code>"unknown"</code> answers are possible.</p>
 <div class="section level2">
 <h2 id="recursive-functions">Recursive functions<a class="anchor" aria-label="anchor" href="#recursive-functions"></a>
 </h2>
-<p>Recursive definitions are unfolded on demand. Unfolding need not
-terminate (Z3 4.8 releases search this example without end), so the
-check gets a time limit:</p>
+<p>Recursive definitions (Z3 4.8.16 and later) are unfolded on
+demand:</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fact</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/z3_rec_function.html">z3_rec_function</a></span><span class="op">(</span><span class="va">ctx</span>, <span class="st">"fact"</span>, <span class="va">I</span>, <span class="va">I</span><span class="op">)</span></span>
 <span><span class="va">n</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/z3_const.html">z3_int</a></span><span class="op">(</span><span class="va">ctx</span>, <span class="st">"n"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/z3_rec_function.html">z3_rec_define</a></span><span class="op">(</span><span class="va">fact</span>, <span class="va">n</span>, <span class="fu"><a href="../reference/z3_and.html">z3_ite</a></span><span class="op">(</span><span class="va">n</span> <span class="op">&lt;=</span> <span class="fl">0</span>, <span class="fl">1</span>, <span class="va">n</span> <span class="op">*</span> <span class="fu">fact</span><span class="op">(</span><span class="va">n</span> <span class="op">-</span> <span class="fl">1</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">s</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/z3_solver.html">z3_solver</a></span><span class="op">(</span><span class="va">ctx</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/z3_add.html">z3_add</a></span><span class="op">(</span><span class="va">s</span>, <span class="fu">fact</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="op">==</span> <span class="fl">720</span><span class="op">)</span></span>
-<span><span class="va">status</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/z3_check.html">z3_check</a></span><span class="op">(</span><span class="va">s</span>, timeout <span class="op">=</span> <span class="fl">10000</span><span class="op">)</span></span>
-<span><span class="va">status</span></span>
+<span><span class="fu"><a href="../reference/z3_check.html">z3_check</a></span><span class="op">(</span><span class="va">s</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "sat"</span></span>
-<span><span class="kw">if</span> <span class="op">(</span><span class="va">status</span> <span class="op">==</span> <span class="st">"sat"</span><span class="op">)</span> <span class="fu"><a href="../reference/z3_eval.html">z3_eval</a></span><span class="op">(</span><span class="fu"><a href="../reference/z3_model.html">z3_model</a></span><span class="op">(</span><span class="va">s</span><span class="op">)</span>, <span class="va">x</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/z3_eval.html">z3_eval</a></span><span class="op">(</span><span class="fu"><a href="../reference/z3_model.html">z3_model</a></span><span class="op">(</span><span class="va">s</span><span class="op">)</span>, <span class="va">x</span><span class="op">)</span></span>
 <span><span class="co">#&gt; &lt;z3_expr Int&gt; 6</span></span></code></pre></div>
 <p>They combine with datatypes. The length of a list:</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
@@ -222,10 +220,9 @@ check gets a time limit:</p>
 <span><span class="va">ys</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/z3_const.html">z3_const</a></span><span class="op">(</span><span class="va">ctx</span>, <span class="st">"ys"</span>, <span class="va">L</span><span class="op">$</span><span class="va">sort</span><span class="op">)</span></span>
 <span><span class="va">s</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/z3_solver.html">z3_solver</a></span><span class="op">(</span><span class="va">ctx</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/z3_add.html">z3_add</a></span><span class="op">(</span><span class="va">s</span>, <span class="fu">len</span><span class="op">(</span><span class="va">ys</span><span class="op">)</span> <span class="op">==</span> <span class="fl">3</span>, <span class="va">L</span><span class="op">$</span><span class="fu">head</span><span class="op">(</span><span class="va">ys</span><span class="op">)</span> <span class="op">==</span> <span class="fl">5</span><span class="op">)</span></span>
-<span><span class="va">status</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/z3_check.html">z3_check</a></span><span class="op">(</span><span class="va">s</span>, timeout <span class="op">=</span> <span class="fl">10000</span><span class="op">)</span></span>
-<span><span class="va">status</span></span>
+<span><span class="fu"><a href="../reference/z3_check.html">z3_check</a></span><span class="op">(</span><span class="va">s</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "sat"</span></span>
-<span><span class="kw">if</span> <span class="op">(</span><span class="va">status</span> <span class="op">==</span> <span class="st">"sat"</span><span class="op">)</span> <span class="fu"><a href="../reference/z3_eval.html">z3_eval</a></span><span class="op">(</span><span class="fu"><a href="../reference/z3_model.html">z3_model</a></span><span class="op">(</span><span class="va">s</span><span class="op">)</span>, <span class="va">ys</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/z3_eval.html">z3_eval</a></span><span class="op">(</span><span class="fu"><a href="../reference/z3_model.html">z3_model</a></span><span class="op">(</span><span class="va">s</span><span class="op">)</span>, <span class="va">ys</span><span class="op">)</span></span>
 <span><span class="co">#&gt; &lt;z3_expr IntList&gt; (cons 5 (cons 4 (cons 8 nil)))</span></span></code></pre></div>
 </div>
 <div class="section level2">

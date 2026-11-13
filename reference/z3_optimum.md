@@ -37,7 +37,10 @@ An optimum is not always a finite, attained number:
 
 - `"not attained"`: the objective approaches `value` but never reaches
   it, as when maximizing `x` subject to `x < 3` over the reals. Z3
-  represents this as `value - epsilon` or `value + epsilon`.
+  represents this as `value - epsilon` or `value + epsilon`. Z3 4.8.13
+  gets this wrong: it reports such an objective as attained at a smaller
+  value (2 for `x < 3`), as its own command line tool does; Z3 4.10.2
+  and later report the supremum.
 
 - `"unknown"`: the check stopped early, for example at a timeout, and
   returned `"unknown"`. `value` is the objective's value in the best

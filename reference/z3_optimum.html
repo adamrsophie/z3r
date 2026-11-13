@@ -94,7 +94,10 @@ that returned <code>"unknown"</code>.</p>
 without limit; <code>value</code> is <code>NULL</code>.</p></li>
 <li><p><code>"not attained"</code>: the objective approaches <code>value</code> but never reaches
 it, as when maximizing <code>x</code> subject to <code>x &lt; 3</code> over the reals. Z3
-represents this as <code>value - epsilon</code> or <code>value + epsilon</code>.</p></li>
+represents this as <code>value - epsilon</code> or <code>value + epsilon</code>. Z3 4.8.13
+gets this wrong: it reports such an objective as attained at a smaller
+value (2 for <code>x &lt; 3</code>), as its own command line tool does; Z3 4.10.2 and
+later report the supremum.</p></li>
 <li><p><code>"unknown"</code>: the check stopped early, for example at a timeout, and
 returned <code>"unknown"</code>. <code>value</code> is the objective's value in the best
 model Z3 had found, which is not proven optimal; it is <code>NULL</code> when Z3
