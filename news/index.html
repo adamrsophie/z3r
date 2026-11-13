@@ -58,7 +58,7 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.0" id="z3r-010">z3r 0.1.0<a class="anchor" aria-label="anchor" href="#z3r-010"></a></h2>
-<p>First release. z3r targets Z3 5.4.1 and builds against every Z3 release from 4.8.13; CI runs the tests on one release from each series (see the README). Features that need a newer Z3 than the one z3r was built with say which version they need.</p>
+<p>First release. z3r targets Z3 5.4.1 and builds against every Z3 release from 4.8.13; CI runs the tests on one release from each series on every push and on all 43 releases monthly. Features that need a newer Z3 than the one z3r was built with say which version they need.</p>
 <div class="section level3">
 <h3 id="native-foundation-0-1-0">Native foundation<a class="anchor" aria-label="anchor" href="#native-foundation-0-1-0"></a></h3>
 <ul><li>Contexts created with <code>Z3_mk_context_rc</code>; every Z3 object is reference counted and keeps its context alive, so objects can be garbage collected in any order. Context configuration (<code>z3_context(proof = TRUE, ...)</code>) is validated.</li>
