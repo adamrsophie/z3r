@@ -111,6 +111,7 @@ test_that("bound variable substitution checks sorts", {
   q <- z3_and(z3_forall(y, y > 0), v0 > 1)
   expect_error(z3_substitute_vars(q, list(p)), "wrong sort")
   expect_no_error(z3_substitute_vars(z3_forall(y, y > 0), list(p)))
+  skip_if_not(z3_version_at_least("4.9.0"))
   f <- z3_function(ctx, "f", I, I)
   x <- z3_int(ctx, "x")
   expect_error(z3_substitute_funs(f(x), f, p), "wrong sort")

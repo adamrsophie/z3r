@@ -15,6 +15,9 @@ jobs:
   check:
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.os }} (Z3 ${{ matrix.z3 }}, R ${{ matrix.r }})
+    # A solver that does not terminate fails the job instead of holding a
+    # runner for six hours.
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -92,6 +95,7 @@ jobs:
   system-z3:
     runs-on: ubuntu-24.04
     name: Debian testing (distribution Z3)
+    timeout-minutes: 60
     container: rocker/r-base:latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
