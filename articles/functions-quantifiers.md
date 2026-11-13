@@ -131,7 +131,9 @@ Quantified formulas are outside the fragments Z3 decides completely, so
 
 ## Recursive functions
 
-Recursive definitions are unfolded on demand:
+Recursive definitions are unfolded on demand. Unfolding need not
+terminate (Z3 4.8 releases search this example without end), so the
+check gets a time limit:
 
 ``` r
 
@@ -140,9 +142,10 @@ n <- z3_int(ctx, "n")
 z3_rec_define(fact, n, z3_ite(n <= 0, 1, n * fact(n - 1)))
 s <- z3_solver(ctx)
 z3_add(s, fact(x) == 720)
-z3_check(s)
+status <- z3_check(s, timeout = 10000)
+status
 #> [1] "sat"
-z3_eval(z3_model(s), x)
+if (status == "sat") z3_eval(z3_model(s), x)
 #> <z3_expr Int> 6
 ```
 
@@ -157,9 +160,10 @@ z3_rec_define(len, xs, z3_ite(L$is_nil(xs), 0, 1 + len(L$tail(xs))))
 ys <- z3_const(ctx, "ys", L$sort)
 s <- z3_solver(ctx)
 z3_add(s, len(ys) == 3, L$head(ys) == 5)
-z3_check(s)
+status <- z3_check(s, timeout = 10000)
+status
 #> [1] "sat"
-z3_eval(z3_model(s), ys)
+if (status == "sat") z3_eval(z3_model(s), ys)
 #> <z3_expr IntList> (cons 5 (cons 4 (cons 8 nil)))
 ```
 
