@@ -9,7 +9,8 @@
 #' * Sorts: `z3_seq_sort(element)`, `z3_re_sort(seq_sort)`,
 #'   `z3_char_sort(ctx)`, and `z3_sort_basis()` for the element sort.
 #' * Sequences: `z3_seq_empty(sort)`, `z3_seq_unit(x)` (one element),
-#'   `z3_seq_nth(s, i)` (element `i`, 0-based), `z3_last_indexof(s, t)`,
+#'   `z3_seq_nth(s, i)` (element `i`, 0-based), `z3_last_indexof(s, t)`
+#'   (Z3 before 4.8.15 misses a match at the last position),
 #'   `z3_replace_all()` (Z3 4.15.5), `z3_seq_power(s, n)` (`s` repeated `n`
 #'   times, Z3 5.3.0), and the higher-order `z3_seq_map()`,
 #'   `z3_seq_mapi()`, `z3_seq_foldl()`, `z3_seq_foldli()` (Z3 4.13.2), whose

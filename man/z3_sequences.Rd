@@ -163,7 +163,8 @@ sequence.
 \item Sorts: \code{z3_seq_sort(element)}, \code{z3_re_sort(seq_sort)},
 \code{z3_char_sort(ctx)}, and \code{z3_sort_basis()} for the element sort.
 \item Sequences: \code{z3_seq_empty(sort)}, \code{z3_seq_unit(x)} (one element),
-\code{z3_seq_nth(s, i)} (element \code{i}, 0-based), \code{z3_last_indexof(s, t)},
+\code{z3_seq_nth(s, i)} (element \code{i}, 0-based), \code{z3_last_indexof(s, t)}
+(Z3 before 4.8.15 misses a match at the last position),
 \code{z3_replace_all()} (Z3 4.15.5), \code{z3_seq_power(s, n)} (\code{s} repeated \code{n}
 times, Z3 5.3.0), and the higher-order \code{z3_seq_map()},
 \code{z3_seq_mapi()}, \code{z3_seq_foldl()}, \code{z3_seq_foldli()} (Z3 4.13.2), whose

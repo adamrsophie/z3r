@@ -91,7 +91,8 @@ test_that("tactics and goals", {
   sub <- z3_apply_tactic(t, g)
   expect_length(sub, 1L)
   fs <- vapply(z3_goal_formulas(sub[[1]]), format, "")
-  expect_false(any(grepl("y", fs)))
+  # solve-eqs eliminates one of x and y; which one depends on the release.
+  expect_true(!any(grepl("x", fs)) || !any(grepl("y", fs)))
   g2 <- z3_goal(ctx)
   z3_add(g2, x > 0, x < 0)
   res <- z3_apply_tactic(z3_tactic(ctx, "smt"), g2)

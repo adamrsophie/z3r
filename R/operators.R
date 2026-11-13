@@ -258,8 +258,10 @@ pb_int <- function(x, what) {
 
 #' Divisibility
 #'
-#' `z3_divides(a, b)` states that the integer `a` divides `b`. `a` is
-#' usually a numeral.
+#' `z3_divides(a, b)` states that the integer `a` divides `b`. `a` must be
+#' a positive integer numeral (Z3's divisibility predicate has a fixed
+#' divisor). Before Z3 4.12.0 the result is `b mod a == 0`, because those
+#' releases do not build the predicate correctly.
 #'
 #' @param a,b Int expressions or R whole numbers.
 #' @return A Boolean `z3_expr`.

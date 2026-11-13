@@ -326,7 +326,20 @@ SEXP cpp_misc_op(std::string op, SEXP args, Rcpp::IntegerVector params) {
     Ast a = lift(ctx, VECTOR_ELT(args, 0), Z3_mk_int_sort(c));
     Ast b = lift(ctx, VECTOR_ELT(args, 1), Z3_mk_int_sort(c));
     if (sort_kind(a) != Z3_INT_SORT || sort_kind(b) != Z3_INT_SORT) fail("z3_divides() needs Int arguments");
+    unsigned k = 0;
+    if (!Z3_is_numeral_ast(c, a) || !Z3_get_numeral_uint(c, a, &k) || k == 0) {
+      Z3_set_error(c, Z3_OK);
+      fail("the divisor of z3_divides() must be a positive integer numeral");
+    }
+#if Z3R_AT_LEAST(4, 12, 0)
     return wrap_expr(own_ast(ctx, Z3_mk_divides(c, a, b)));
+#else
+    // Z3_mk_divides makes an invalid term before Z3 4.12.0 (Z3 issue 6326);
+    // b mod k == 0 states the same.
+    Ast m = own_ast(ctx, Z3_mk_mod(c, b, a));
+    check(ctx);
+    return wrap_expr(own_ast(ctx, Z3_mk_eq(c, m, Z3_mk_int(c, 0, Z3_mk_int_sort(c)))));
+#endif
   }
   if (op == "bvneg_no_overflow") {
     Ast a = lift(ctx, VECTOR_ELT(args, 0), nullptr);

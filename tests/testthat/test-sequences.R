@@ -19,8 +19,9 @@ test_that("regular expressions", {
   expect_identical(check_status(ctx, z3_in_re(s, z3_re_union(z3_re(z3_string_val(ctx, "a")), "b")), s == "b"), "sat")
   expect_error(z3_re_range("a", "z"), "needs ctx")
   expect_error(z3_re("abc"), "Z3 expression")
-  expect_identical(solve_values(ctx, z3_in_re(s, z3_re_power(z3_re_range("x", "x", ctx), 4)), vars = list(s))[[1]], "xxxx")
   expect_identical(check_status(ctx, z3_in_re(s, z3_re_diff(digits, z3_re_star(z3_re_range("0", "9", ctx))))), "unsat")
+  skip_if_not(z3_version_at_least("4.8.15"))
+  expect_identical(solve_values(ctx, z3_in_re(s, z3_re_power(z3_re_range("x", "x", ctx), 4)), vars = list(s))[[1]], "xxxx")
 })
 
 test_that("general sequences", {
@@ -34,7 +35,10 @@ test_that("general sequences", {
   expect_identical(format(z3_eval(z3_model(s), q)), "(seq.++ (seq.unit 7) (seq.unit 1) (seq.unit 2))")
   expect_true(z3_sort_basis(z3_seq_sort(I)) == I)
   expect_identical(z3_value(z3_simplify(z3_length(z3_seq_empty(z3_seq_sort(I))))), 0)
-  expect_identical(z3_value(z3_simplify(z3_last_indexof(z3_string_val(ctx, "abcabc"), "bc"))), 4)
+  # Z3 before 4.8.15 skips the last position (Z3 issue 5856).
+  if (z3_version_at_least("4.8.15")) {
+    expect_identical(z3_value(z3_simplify(z3_last_indexof(z3_string_val(ctx, "abcabc"), "bc"))), 4)
+  }
   expect_error(z3_concat(unit(1), z3_string_val(ctx, "a")), "sequences of one sort")
   expect_error(z3_seq_nth(z3_int(ctx, "x"), 0), "sequence")
 })

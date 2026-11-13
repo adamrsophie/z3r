@@ -13,8 +13,10 @@ z3_divides(a, b)
 A Boolean \code{z3_expr}.
 }
 \description{
-\code{z3_divides(a, b)} states that the integer \code{a} divides \code{b}. \code{a} is
-usually a numeral.
+\code{z3_divides(a, b)} states that the integer \code{a} divides \code{b}. \code{a} must be
+a positive integer numeral (Z3's divisibility predicate has a fixed
+divisor). Before Z3 4.12.0 the result is \verb{b mod a == 0}, because those
+releases do not build the predicate correctly.
 }
 \examples{
 ctx <- z3_context()
