@@ -36,8 +36,8 @@ supported by Microsoft or by the Z3 team.
 z3r targets Z3 5.4.1 and builds against every release from 4.8.13. CI
 runs the full test suite on one release from each series: Z3 4.8.13,
 4.8.17, 4.9.1, 4.10.2, 4.11.2, 4.12.6, 4.13.3, 4.14.1, 4.15.8, 4.16.0,
-5.0.0, 5.1.0, 5.3.3 and 5.4.1. The other releases are checked to compile,
-not run.
+5.0.0, 5.1.0, 5.3.3 and 5.4.1. A monthly workflow runs it on all 43
+releases from 4.8.13 to 5.4.1.
 
 * **Theories:** unbounded integers, exact reals and algebraic numbers,
   Booleans, bit-vectors, IEEE floating point, arrays, sets, strings,
