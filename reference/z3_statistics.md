@@ -38,9 +38,9 @@ names(z3_statistics(s))
 #> [7] "memory"             
 cat(z3_statistics_text(s), "\n")
 #> (:elim-unconstrained  2
-#>  :max-memory          82.22
-#>  :memory              51.66
-#>  :num-allocs          385088455
+#>  :max-memory          87.27
+#>  :memory              35.21
+#>  :num-allocs          386547623
 #>  :rlimit-count        84
 #>  :solve-eqs-elim-vars 1
 #>  :solve-eqs-steps     1) 

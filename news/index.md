@@ -2,8 +2,9 @@
 
 ## z3r 0.1.0
 
-First release. z3r targets Z3 5.4.1 and supports every Z3 release from
-4.8.13; features that need a newer Z3 than the one z3r was built with
+First release. z3r targets Z3 5.4.1 and builds against every Z3 release
+from 4.8.13; CI runs the tests on one release from each series (see the
+README). Features that need a newer Z3 than the one z3r was built with
 say which version they need.
 
 ### Native foundation
