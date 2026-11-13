@@ -1,0 +1,160 @@
+# Runs R CMD check against every supported Z3 release (4.8.13 to 5.4.1),
+# on Linux, on demand and once a month. The push workflow tests one release
+# from each series; this one covers the releases between.
+name: all-z3-releases
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 4 3 * *"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ${{ matrix.os }}
+    name: Z3 ${{ matrix.z3 }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: ubuntu-22.04, r: release, z3: "4.8.13", asset: z3-4.8.13-x64-glibc-2.31.zip,
+             sha: 32d4b88604c04cd44f44335e9ce9fa309d29b5c766e98e7b32d630c7ed2f6021}
+          - {os: ubuntu-22.04, r: release, z3: "4.8.14", asset: z3-4.8.14-x64-glibc-2.31.zip,
+             sha: 5ffa4b8b2e04309560d78ef88779bd8353f64248129ca24f6d9e7eb9fdb0af6c}
+          - {os: ubuntu-22.04, r: release, z3: "4.8.15", asset: z3-4.8.15-x64-glibc-2.31.zip,
+             sha: 6328a206a086ea91abcfa086e800afd6fdc832450d610b3bd0e4245b6681292c}
+          - {os: ubuntu-22.04, r: release, z3: "4.8.16", asset: z3-4.8.16-x64-glibc-2.31.zip,
+             sha: f792de3bc629f6531234eec9887aae352c614ed183d7a4dcf160a9d32757d750}
+          - {os: ubuntu-22.04, r: release, z3: "4.8.17", asset: z3-4.8.17-x64-glibc-2.31.zip,
+             sha: 0dd9b3057a17ad3a951fca7634fd59e15dd33524e31bda527c1baf4dbc72570c}
+          - {os: ubuntu-22.04, r: release, z3: "4.9.0", asset: z3-4.9.0-x64-glibc-2.31.zip,
+             sha: aa10926264ee0bf1944c271f39c6c47e9246f4d07be8f6de06b7e5b2432e79a6}
+          - {os: ubuntu-22.04, r: release, z3: "4.9.1", asset: z3-4.9.1-x64-glibc-2.31.zip,
+             sha: b811e5f2e1f1ecd73579cbc388b8a4d9904953d0df236a937feefd168bdf3ff3}
+          - {os: ubuntu-22.04, r: release, z3: "4.10.0", asset: z3-4.10.0-x64-glibc-2.31.zip,
+             sha: 4470a320872b7876c5194045a85b987bbb01dd15a4a7f931fb53eff8aefad81e}
+          - {os: ubuntu-22.04, r: release, z3: "4.10.1", asset: z3-4.10.1-x64-glibc-2.31.zip,
+             sha: 5cc3d5741e8ab3813bda4a831859314c254c67a715668ec919801e505b0bcf02}
+          - {os: ubuntu-22.04, r: release, z3: "4.10.2", asset: z3-4.10.2-x64-glibc-2.31.zip,
+             sha: 364c1b756d27687ed8f8821f763ed52dca5007ff999fe0dc85bb3df954603352}
+          - {os: ubuntu-22.04, r: release, z3: "4.11.0", asset: z3-4.11.0-x64-glibc-2.31.zip,
+             sha: 1972f3abf9d5d6ab8e936d2988cbbbc0e785b532d55e6ba97bdbd30262229aed}
+          - {os: ubuntu-22.04, r: release, z3: "4.11.2", asset: z3-4.11.2-x64-glibc-2.31.zip,
+             sha: 9d0f70e61e82b321f35e6cad1343615d2dead6f2c54337a24293725de2900fb6}
+          - {os: ubuntu-22.04, r: release, z3: "4.12.0", asset: z3-4.12.0-x64-glibc-2.35.zip,
+             sha: 1dfce75de2f23846e4884a08faaeeb76c0aa9b30c4dd07c4ccc66ac305fbb36b}
+          - {os: ubuntu-22.04, r: release, z3: "4.12.1", asset: z3-4.12.1-x64-glibc-2.35.zip,
+             sha: c5360fd157b0f861ec8780ba3e51e2197e9486798dc93cd878df69a4b0c2b7c5}
+          - {os: ubuntu-22.04, r: release, z3: "4.12.2", asset: z3-4.12.2-x64-glibc-2.31.zip,
+             sha: a198851a7403d8b25bab920bd4a4792efe1af5c28a5a932d840af0472d3a83eb}
+          - {os: ubuntu-22.04, r: release, z3: "4.12.3", asset: z3-4.12.3-x64-glibc-2.31.zip,
+             sha: be6e8231df29aca7dd79f8bd4c2db2f0b99675a91c2acef8b6b1c5a93e3b095a}
+          - {os: ubuntu-22.04, r: release, z3: "4.12.4", asset: z3-4.12.4-x64-glibc-2.31.zip,
+             sha: 16f9abd30db901a01d8f2f93501594e671849db4e2dc05215b5ed36cb75db4ac}
+          - {os: ubuntu-22.04, r: release, z3: "4.12.5", asset: z3-4.12.5-x64-glibc-2.31.zip,
+             sha: dc83a4a19eb9647abff15f37b60b0d0f02e77dd2dc8238a86b0eca35f0ac8c74}
+          - {os: ubuntu-22.04, r: release, z3: "4.12.6", asset: z3-4.12.6-x64-glibc-2.31.zip,
+             sha: 55e2cc2afd82be700c651dbc0f39602b71563d160c9d9a04f05a23488ea0b44d}
+          - {os: ubuntu-22.04, r: release, z3: "4.13.0", asset: z3-4.13.0-x64-glibc-2.31.zip,
+             sha: bc31ad12446d7db1bd9d0ac82dec9d7b5129b8b8dd6e44b571a83ac6010d2f9b}
+          - {os: ubuntu-22.04, r: release, z3: "4.13.2", asset: z3-4.13.2-x64-glibc-2.35.zip,
+             sha: 642f569aa40ef3d1727ad3cdb8c7f5145ed1a58e0b49e89b46878326fe111b61}
+          - {os: ubuntu-22.04, r: release, z3: "4.13.3", asset: z3-4.13.3-x64-glibc-2.35.zip,
+             sha: 32c7377026733c9d7b33c21cd77a68f50ba682367207b031a6bfd80140a8722f}
+          - {os: ubuntu-22.04, r: release, z3: "4.13.4", asset: z3-4.13.4-x64-glibc-2.35.zip,
+             sha: 93f91f9c6f4a00a041c19fc7a74adc1f441c8244ce70d486e19abcd89c6a014b}
+          - {os: ubuntu-22.04, r: release, z3: "4.14.0", asset: z3-4.14.0-x64-glibc-2.35.zip,
+             sha: d83e50e3cc9fcf86efa55f8a4d43f37ddc5af4214acfa26066bb340e2047b582}
+          - {os: ubuntu-22.04, r: release, z3: "4.14.1", asset: z3-4.14.1-x64-glibc-2.35.zip,
+             sha: 76f797c849ae1487ce08840321d3334720434e0eb1a23e1bd755c3818ffb7265}
+          - {os: ubuntu-24.04, r: release, z3: "4.15.0", asset: z3-4.15.0-x64-glibc-2.39.zip,
+             sha: 6376629b4374fb81f4515b03cff71f5242b42c80c72571ce4ec9d090913a23ae}
+          - {os: ubuntu-24.04, r: release, z3: "4.15.1", asset: z3-4.15.1-x64-glibc-2.39.zip,
+             sha: 48ebc3b1d436bf64bc4893ebbbd0a5ccb505b9af8388ff8df89ac299f63bbcf3}
+          - {os: ubuntu-24.04, r: release, z3: "4.15.2", asset: z3-4.15.2-x64-glibc-2.39.zip,
+             sha: 85d2da1bf440fca3288874c2a06e23f96d09befcc21b5a7489fe0fa40444e685}
+          - {os: ubuntu-24.04, r: release, z3: "4.15.3", asset: z3-4.15.3-x64-glibc-2.39.zip,
+             sha: 94549c5e31a75b9c543fe6eea8f32927054765c2e92e696d2d6dde0eedf348a1}
+          - {os: ubuntu-24.04, r: release, z3: "4.15.4", asset: z3-4.15.4-x64-glibc-2.39.zip,
+             sha: a41b690e89c343931471506cdc6d957b6044a200fd2d240cc017432afdff7d3e}
+          - {os: ubuntu-24.04, r: release, z3: "4.15.5", asset: z3-4.15.5-x64-glibc-2.39.zip,
+             sha: f3bb1b9d3c33f5ff8a3e85a1b09d605857f5c46c9c7a6c80131abf855e461ad1}
+          - {os: ubuntu-24.04, r: release, z3: "4.15.6", asset: z3-4.15.6-x64-glibc-2.39.zip,
+             sha: bbcc407b8295170089a4194556451114ce98ce9b65b0f1a7e2ff10670898307f}
+          - {os: ubuntu-24.04, r: release, z3: "4.15.7", asset: z3-4.15.7-x64-glibc-2.39.zip,
+             sha: 4436ab6381f0b9c68075a267ab13a5f3ad25f7c25f7626dec959c76805c9f2cb}
+          - {os: ubuntu-24.04, r: release, z3: "4.15.8", asset: z3-4.15.8-x64-glibc-2.39.zip,
+             sha: 08a3312ef3a632c6e203c07ebdf19ef42f4975c1bd077e25501d204f674542fd}
+          - {os: ubuntu-24.04, r: release, z3: "4.16.0", asset: z3-4.16.0-x64-glibc-2.39.zip,
+             sha: 7288c49a5bd6dbafd7b0b0d1f65956b91672da24b08f09242919af159be3418e}
+          - {os: ubuntu-24.04, r: release, z3: "5.0.0", asset: z3-5.0.0-x64-glibc-2.39.zip,
+             sha: d4922cebc9f0a55629231ec0c62f0bbedf8006eddaed4e68199ad19626b697f6}
+          - {os: ubuntu-24.04, r: release, z3: "5.1.0", asset: z3-5.1.0-x64-glibc-2.39.zip,
+             sha: f47be8d27d3230e823bf1eeede2fe0abaca55bb78d0b59974370e6689a92284a}
+          - {os: ubuntu-24.04, r: release, z3: "5.3.0", asset: z3-5.3.0-x64-glibc-2.39.zip,
+             sha: 7c31da42c8600efa1897cd5f855e2b21eed1015288eef59818bbc261a50d80c4}
+          - {os: ubuntu-24.04, r: release, z3: "5.3.1", asset: z3-5.3.1-x64-glibc-2.39.zip,
+             sha: acca9625e8cc8edeb9647b653a1bd696544ddeb5d1c2970a4576734a0c175b40}
+          - {os: ubuntu-24.04, r: release, z3: "5.3.2", asset: z3-5.3.2-x64-glibc-2.39.zip,
+             sha: 26d463cddad3901cbf86e3868c784914539f4e3f9b4de1a0b8dc2969806d60e2}
+          - {os: ubuntu-24.04, r: release, z3: "5.3.3", asset: z3-5.3.3-x64-glibc-2.39.zip,
+             sha: d56f60b06f432f33de5810f7f1a384a339131f361e2d54d08ea83eea14326880}
+          - {os: ubuntu-24.04, r: release, z3: "5.4.0", asset: z3-5.4.0-x64-glibc-2.39.zip,
+             sha: 708d4c296e01aab4554dd567e46f803efd229140fb646fb51aabb8e2388a2929}
+          - {os: ubuntu-24.04, r: release, z3: "5.4.1", asset: z3-5.4.1-x64-glibc-2.39.zip,
+             sha: b548bac48ef2452b4e09ea2945cf4b011d5f43fcf39e4799df268ee7e0769d85}
+    env:
+      R_KEEP_PKG_SOURCE: yes
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Download pinned Z3 release
+        shell: bash
+        run: |
+          if command -v sha256sum > /dev/null; then sum="sha256sum"; else sum="shasum -a 256"; fi
+          # Outside the checkout, so R CMD check does not see the archive.
+          (
+            cd "$RUNNER_TEMP"
+            curl -sSL -o z3.zip "https://github.com/Z3Prover/z3/releases/download/z3-${{ matrix.z3 }}/${{ matrix.asset }}"
+            echo "${{ matrix.sha }}  z3.zip" | $sum -c -
+            unzip -q z3.zip
+          )
+          Z3_DIR="$RUNNER_TEMP/${{ matrix.asset }}"
+          Z3_DIR="${Z3_DIR%.zip}"
+          if command -v cygpath > /dev/null; then Z3_DIR=$(cygpath -m "$Z3_DIR"); fi
+          echo "Z3_DIR=$Z3_DIR" >> "$GITHUB_ENV"
+          echo "Z3_INCLUDE_DIR=$Z3_DIR/include" >> "$GITHUB_ENV"
+          echo "Z3_LIB_DIR=$Z3_DIR/bin" >> "$GITHUB_ENV"
+          echo "$Z3_DIR/bin" >> "$GITHUB_PATH"
+
+      - uses: r-lib/actions/setup-pandoc@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2
+
+      - uses: r-lib/actions/setup-r@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2
+        with:
+          r-version: ${{ matrix.r }}
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2
+        env:
+          GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          extra-packages: any::rcmdcheck
+          needs: check
+
+      - uses: r-lib/actions/check-r-package@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2
+        with:
+          upload-snapshots: true
+          build_args: 'c("--no-manual", "--compact-vignettes=gs+qpdf")'
+          error-on: '"warning"'
+
+      - name: Show the Z3 version z3r was built with
+        if: always()
+        shell: Rscript {0}
+        run: |
+          if (requireNamespace("z3r", quietly = TRUE)) print(z3r::z3_version())
+
+  # The distribution's Z3 (libz3-dev). Ubuntu 24.04 ships 4.8.12, below the
+  # minimum, so this runs in Debian testing, which ships a supported Z3.
