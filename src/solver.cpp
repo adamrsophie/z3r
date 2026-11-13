@@ -777,16 +777,20 @@ SEXP cpp_solver_solve_for(SEXP s_, Rcpp::List variables) {
   }
   raise_callback_errors(h->callbacks);
   check(ctx);
-  auto to_list = [&](const Ref<Z3_ast_vector>& v) {
-    unsigned n = Z3_ast_vector_size(ctx->c, v);
-    AstVec out;
-    for (unsigned i = 0; i < n; ++i) out.push_back(own_ast(ctx, Z3_ast_vector_get(ctx->c, v, i)));
-    return wrap_expr_list(out);
-  };
   // Z3 rewrites `vv` to the variables it solved for, in the order of the
-  // terms.
-  return Rcpp::List::create(Rcpp::Named("vars") = to_list(vv), Rcpp::Named("terms") = to_list(terms),
-                            Rcpp::Named("guards") = to_list(guards));
+  // terms. Z3 4.14.x also keeps unsolved variables with an empty term and
+  // leaves unconditional guards empty; drop and fill them as 4.15.0 does.
+  AstVec ov, ot, og;
+  for (unsigned i = 0, n = Z3_ast_vector_size(ctx->c, terms); i < n; ++i) {
+    Z3_ast t = Z3_ast_vector_get(ctx->c, terms, i);
+    if (!t) continue;
+    Z3_ast g = Z3_ast_vector_get(ctx->c, guards, i);
+    ov.push_back(own_ast(ctx, Z3_ast_vector_get(ctx->c, vv, i)));
+    ot.push_back(own_ast(ctx, t));
+    og.push_back(own_ast(ctx, g ? g : Z3_mk_true(ctx->c)));
+  }
+  return Rcpp::List::create(Rcpp::Named("vars") = wrap_expr_list(ov), Rcpp::Named("terms") = wrap_expr_list(ot),
+                            Rcpp::Named("guards") = wrap_expr_list(og));
 #else
   (void)s_; (void)variables;
   needs_version("z3_solve_for()", "4.14.0");

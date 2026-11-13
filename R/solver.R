@@ -539,7 +539,9 @@ z3_congruence_explain <- function(x, a, b) cpp_solver_congruence(x, "explain", a
 #' Asks the solver to express variables as terms over the others, valid
 #' under the returned guards. Z3 may solve for only some of the variables;
 #' the result lists those it solved for (`vars`) with their `terms`, in the
-#' same order. Needs Z3 4.14.0 or later.
+#' same order. Needs Z3 4.14.0 or later. Only the plain SMT solver
+#' (`z3_solver(ctx, simple = TRUE)`) solves for variables; the default
+#' solver returns empty lists.
 #'
 #' @param x A `z3_solver`.
 #' @param vars A list of constants.
@@ -549,8 +551,9 @@ z3_congruence_explain <- function(x, a, b) cpp_solver_congruence(x, "explain", a
 #' ctx <- z3_context()
 #' x <- z3_int(ctx, "x")
 #' y <- z3_int(ctx, "y")
-#' s <- z3_solver(ctx)
+#' s <- z3_solver(ctx, simple = TRUE)
 #' z3_add(s, x + 2 * y == 10)
+#' z3_check(s)
 #' if (z3_version_at_least("4.14.0")) z3_solve_for(s, list(x))
 #' @export
 z3_solve_for <- function(x, vars) cpp_solver_solve_for(x, as_list(vars))

@@ -184,7 +184,9 @@ may answer \code{"unknown"}.
 \item Characters: \code{z3_char_val(ctx, code)} (Z3 4.8.15), \code{z3_char_to_int()},
 \code{z3_char_to_bv()}, \code{z3_char_from_bv()}, \code{z3_char_is_digit()},
 \code{z3_char_le()}, and \code{z3_str_from_code()}, \code{z3_str_to_code()} (Z3
-4.8.15) between one-character strings and code points.
+4.8.15) between one-character strings and code points. The solver
+decides \code{z3_char_is_digit()} and \code{z3_char_le()} on every release;
+\code{z3_simplify()} folds them on constant characters from Z3 4.9.0.
 }
 }
 \examples{

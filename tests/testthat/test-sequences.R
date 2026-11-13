@@ -55,10 +55,15 @@ test_that("characters and code points", {
   expect_identical(z3_value(z3_simplify(z3_char_to_int(a))), 65)
   expect_identical(z3_value(z3_simplify(z3_str_to_code(z3_string_val(ctx, "A")))), 65)
   expect_identical(z3_value(z3_simplify(z3_str_from_code(z3_int_val(ctx, 955)))), "\u03bb")
-  expect_true(z3_value(z3_simplify(z3_char_le(a, z3_char_val(ctx, 66)))))
-  expect_false(z3_value(z3_simplify(z3_char_is_digit(a))))
+  expect_identical(check_status(ctx, !z3_char_le(a, z3_char_val(ctx, 66))), "unsat")
+  expect_identical(check_status(ctx, z3_char_is_digit(a)), "unsat")
+  expect_identical(check_status(ctx, !z3_char_is_digit(z3_char_val(ctx, 55))), "unsat")
   expect_identical(check_status(ctx, z3_bv2int(z3_char_to_bv(a)) != 65), "unsat")
   expect_error(z3_char_val(ctx, -1), "code")
+  # Z3 4.9.0 and later also fold these predicates on constants.
+  skip_if_not(z3_version_at_least("4.9.0"))
+  expect_true(z3_value(z3_simplify(z3_char_le(a, z3_char_val(ctx, 66)))))
+  expect_false(z3_value(z3_simplify(z3_char_is_digit(a))))
 })
 
 test_that("newer sequence operations", {
