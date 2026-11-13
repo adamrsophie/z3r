@@ -109,7 +109,8 @@ for (bi in 0:2) for (bj in 0:2) {
 z3_check(s)
 #> [1] "sat"
 m <- z3_model(s)
-t(sapply(1:9, function(i) sapply(1:9, function(j) z3_value(z3_eval(m, cell[[i]][[j]])))))
+solution <- t(sapply(1:9, function(i) sapply(1:9, function(j) z3_value(z3_eval(m, cell[[i]][[j]])))))
+solution
 #>       [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8] [,9]
 #>  [1,]    5    3    4    6    7    8    9    1    2
 #>  [2,]    6    7    2    1    9    5    3    4    8
@@ -120,6 +121,41 @@ t(sapply(1:9, function(i) sapply(1:9, function(j) z3_value(z3_eval(m, cell[[i]][
 #>  [7,]    9    6    1    5    3    7    2    8    4
 #>  [8,]    2    8    7    4    1    9    6    3    5
 #>  [9,]    3    4    5    2    8    6    1    7    9
+```
+
+A well-posed puzzle has exactly one solution. Rule out the one found and
+ask again; `"unsat"` proves there is no other:
+
+``` r
+
+z3_add(s, z3_or(unlist(lapply(1:9, function(i) lapply(1:9, function(j)
+  cell[[i]][[j]] != solution[i, j]))), recursive = FALSE))
+z3_check(s)
+#> [1] "unsat"
+```
+
+When a puzzle has no solution, tracked clues show which ones clash. Give
+each clue a name, add a second 5 to the first row, and read the unsat
+core:
+
+``` r
+
+s <- z3_solver(ctx)
+for (i in 1:9) for (j in 1:9) z3_add(s, cell[[i]][[j]] >= 1, cell[[i]][[j]] <= 9)
+for (i in 1:9) z3_add(s, z3_distinct(cell[[i]]))
+for (j in 1:9) z3_add(s, z3_distinct(lapply(1:9, function(i) cell[[i]][[j]])))
+for (bi in 0:2) for (bj in 0:2) {
+  z3_add(s, z3_distinct(unlist(lapply(1:3, function(a) lapply(1:3, function(b) cell[[3 * bi + a]][[3 * bj + b]])), recursive = FALSE)))
+}
+bad <- puzzle
+bad[1, 3] <- 5
+for (i in 1:9) for (j in 1:9) if (bad[i, j] > 0) {
+  z3_assert_and_track(s, cell[[i]][[j]] == bad[i, j], sprintf("r%dc%d", i, j))
+}
+z3_check(s)
+#> [1] "unsat"
+names(z3_unsat_core(s))
+#> [1] "r1c1" "r1c3"
 ```
 
 ### Eight queens
@@ -187,9 +223,9 @@ z3_check(s)
 chosen <- unlist(z3_model_values(z3_model(s)))[paste0("x", 1:6)]
 chosen
 #>    x1    x2    x3    x4    x5    x6 
-#> FALSE FALSE  TRUE FALSE FALSE  TRUE
+#> FALSE  TRUE  TRUE FALSE FALSE FALSE
 sum(c(4, 3, 3, 2, 2, 1)[chosen])
-#> [1] 4
+#> [1] 6
 ```
 
 A knapsack problem with
@@ -209,6 +245,6 @@ z3_check(opt)
 z3_optimum(best)
 #> <z3_optimum> 24
 which(unlist(z3_model_values(z3_model(opt)))[paste0("x", 1:6)])
-#> x2 x3 x5 
-#>  2  3  5
+#> x2 x4 x6 
+#>  2  4  6
 ```
