@@ -59,7 +59,7 @@ test_that("help, DIMACS and solver hints", {
   expect_false(grepl("\n$", z3_to_dimacs(g)))
   g2 <- z3_goal(ctx)
   z3_add(g2, p$a | (p$a == p$b))
-  expect_error(z3_to_dimacs(g2), "CNF")
+  expect_error(z3_to_dimacs(g2), "cnf", ignore.case = TRUE)
   expect_match(z3_help(z3_optimize(ctx)), "priority")
   expect_match(z3_help(z3_tactic(ctx, "simplify")), "som")
   skip_if_not(z3_version_at_least("4.13.2"))
