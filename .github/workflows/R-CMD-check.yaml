@@ -34,11 +34,28 @@ jobs:
              sha: 7288c49a5bd6dbafd7b0b0d1f65956b91672da24b08f09242919af159be3418e}
           - {os: windows-latest, r: release, z3: "4.16.0", asset: z3-4.16.0-x64-win.zip,
              sha: de4d813e47202394a093547dbdb5699ee076529aa853463e007539775cd7e836}
-          # Releases between, on the oldest runner whose glibc they support
-          - {os: ubuntu-22.04, r: release, z3: "4.10.2", asset: z3-4.10.2-x64-glibc-2.31.zip,
-             sha: 364c1b756d27687ed8f8821f763ed52dca5007ff999fe0dc85bb3df954603352}
+          # One release from each series between, on the oldest runner whose
+          # glibc it supports
+          - {os: ubuntu-24.04, r: release, z3: "5.3.3", asset: z3-5.3.3-x64-glibc-2.39.zip,
+             sha: d56f60b06f432f33de5810f7f1a384a339131f361e2d54d08ea83eea14326880}
+          - {os: ubuntu-24.04, r: release, z3: "5.1.0", asset: z3-5.1.0-x64-glibc-2.39.zip,
+             sha: f47be8d27d3230e823bf1eeede2fe0abaca55bb78d0b59974370e6689a92284a}
+          - {os: ubuntu-24.04, r: release, z3: "5.0.0", asset: z3-5.0.0-x64-glibc-2.39.zip,
+             sha: d4922cebc9f0a55629231ec0c62f0bbedf8006eddaed4e68199ad19626b697f6}
+          - {os: ubuntu-24.04, r: release, z3: "4.15.8", asset: z3-4.15.8-x64-glibc-2.39.zip,
+             sha: 08a3312ef3a632c6e203c07ebdf19ef42f4975c1bd077e25501d204f674542fd}
+          - {os: ubuntu-22.04, r: release, z3: "4.14.1", asset: z3-4.14.1-x64-glibc-2.35.zip,
+             sha: 76f797c849ae1487ce08840321d3334720434e0eb1a23e1bd755c3818ffb7265}
           - {os: ubuntu-22.04, r: release, z3: "4.12.6", asset: z3-4.12.6-x64-glibc-2.35.zip,
              sha: 6719feaa729c321a73db870d7f7ebc111c6e0919ba4e0b34942976e3788d4a6d}
+          - {os: ubuntu-22.04, r: release, z3: "4.11.2", asset: z3-4.11.2-x64-glibc-2.31.zip,
+             sha: 9d0f70e61e82b321f35e6cad1343615d2dead6f2c54337a24293725de2900fb6}
+          - {os: ubuntu-22.04, r: release, z3: "4.10.2", asset: z3-4.10.2-x64-glibc-2.31.zip,
+             sha: 364c1b756d27687ed8f8821f763ed52dca5007ff999fe0dc85bb3df954603352}
+          - {os: ubuntu-22.04, r: release, z3: "4.9.1", asset: z3-4.9.1-x64-glibc-2.31.zip,
+             sha: b811e5f2e1f1ecd73579cbc388b8a4d9904953d0df236a937feefd168bdf3ff3}
+          - {os: ubuntu-22.04, r: release, z3: "4.8.17", asset: z3-4.8.17-x64-glibc-2.31.zip,
+             sha: 0dd9b3057a17ad3a951fca7634fd59e15dd33524e31bda527c1baf4dbc72570c}
           # Oldest supported release
           - {os: ubuntu-22.04, r: release, z3: "4.8.13", asset: z3-4.8.13-x64-glibc-2.31.zip,
              sha: 32d4b88604c04cd44f44335e9ce9fa309d29b5c766e98e7b32d630c7ed2f6021}
