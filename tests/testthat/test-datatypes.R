@@ -84,12 +84,22 @@ test_that("member names that collide are refused", {
   expect_error(z3_enum_sort(ctx, "E2", c("sort", "b")), "reserved")
 })
 
-test_that("an enumeration declared again says why Z3 refuses it", {
-  skip_if_not(z3_version_at_least("4.12.0"))
+test_that("a datatype name declared again is refused", {
   ctx <- z3_context()
+  I <- z3_int_sort(ctx)
   Color <- z3_enum_sort(ctx, "Color", c("red", "green"))
   expect_error(z3_enum_sort(ctx, "Color", c("red", "green")), "already declared in this context")
   expect_identical(check_status(ctx, z3_const(ctx, "c1", Color$sort) != Color$red), "sat")
+  # Z3 would free the first L while l still uses it.
+  L <- z3_datatype(ctx, "L", nil = list(), cons = list(head = I, tail = "L"))
+  l <- z3_const(ctx, "l", L$sort)
+  expect_error(z3_datatype(ctx, "L", a = list(), b = list(v = z3_bool_sort(ctx))), "already declared")
+  expect_error(z3_tuple_sort(ctx, "L", a = I), "already declared")
+  expect_error(z3_list_sort(ctx, "L", I), "already declared")
+  expect_error(z3_datatypes(ctx, list(L = list(e = list()))), "already declared")
+  expect_error(z3_datatype(ctx, "Color", a = list()), "already declared")
+  expect_identical(check_status(ctx, L$is_cons(l), L$head(l) == 3), "sat")
+  expect_s3_class(z3_datatype(z3_context(), "L", a = list()), "z3_datatype")
 })
 
 test_that("a refused datatype leaves its name free for a corrected one", {

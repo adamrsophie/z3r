@@ -374,6 +374,13 @@ Ast lift(const CtxPtr& ctx, SEXP x, Z3_sort hint) {
     return int_literal(ctx, v, hint);
   }
   if (Rf_isFactor(x)) fail("factors cannot be used in Z3 expressions");
+  // A Date, difftime or other classed value would be read as its bare
+  // storage; make the user choose the number.
+  if (Rf_isObject(x) && !Rf_inherits(x, "AsIs")) {
+    SEXP cls = Rf_getAttrib(x, R_ClassSymbol);
+    fail(std::string("R values of class '") + CHAR(STRING_ELT(cls, 0)) +
+         "' cannot be used in Z3 expressions; convert them first, for example with as.numeric()");
+  }
   if (Rf_xlength(x) != 1) {
     fail("R values combined with Z3 expressions must have length 1 (got length " +
          std::to_string(static_cast<long long>(Rf_xlength(x))) +
@@ -614,7 +621,8 @@ static Ast power(const CtxPtr& ctx, Ast a, SEXP exponent_r, Ast b) {
   need_arith(b, "^");
   // A small non-negative integer literal exponent is expanded into a product
   // so that the result keeps the base's sort (Z3's power operator is Real).
-  bool literal = !is_kind(exponent_r, Kind::Expr) &&
+  // (An integer64 stores its value in the bits of a double: lift it instead.)
+  bool literal = !is_kind(exponent_r, Kind::Expr) && !Rf_inherits(exponent_r, "integer64") &&
                  (TYPEOF(exponent_r) == INTSXP || TYPEOF(exponent_r) == REALSXP);
   if (literal) {
     double k = Rf_asReal(exponent_r);

@@ -110,6 +110,7 @@ reference:
   - z3_minimize
   - z3_add_soft
   - z3_optimum
+  - z3_objectives
 - title: Bit-vectors and floating point
   contents:
   - z3_bitvectors

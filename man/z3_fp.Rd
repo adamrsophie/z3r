@@ -47,6 +47,7 @@
 \alias{z3_fp_from_bv}
 \alias{z3_fp_from_signed}
 \alias{z3_fp_from_unsigned}
+\alias{z3_fp_from_real_exp}
 \alias{z3_fp_numeral_parts}
 \alias{z3_fp_from_parts}
 \title{IEEE 754 floating point}
@@ -148,6 +149,8 @@ z3_fp_from_signed(rounding, bv, sort)
 
 z3_fp_from_unsigned(rounding, bv, sort)
 
+z3_fp_from_real_exp(rounding, exponent, significand, sort)
+
 z3_fp_numeral_parts(x, biased = FALSE, numeric = FALSE)
 
 z3_fp_from_parts(sort, negative, exponent_value, fraction)
@@ -175,7 +178,8 @@ z3_fp_from_parts(sort, negative, exponent_value, fraction)
 
 \item{size}{Width of the resulting bit-vector.}
 
-\item{bv, sign, exponent, significand}{Bit-vector expressions.}
+\item{bv, sign, exponent, significand}{Bit-vector expressions; for
+\code{z3_fp_from_real_exp()}, an Int exponent and a Real significand.}
 
 \item{biased}{For \code{z3_fp_numeral_parts()}: report the biased exponent.}
 
@@ -245,7 +249,10 @@ comparisons \code{z3_fp_lt()}, \code{z3_fp_leq()}, \code{z3_fp_gt()}, \code{z3_f
 \strong{Conversions.} \code{z3_fp_to_fp(rounding, x, sort)} converts another
 format, a Real or an Int; \code{z3_fp_from_bv(bv, sort)} reinterprets IEEE
 bits; \code{z3_fp_from_signed()}/\code{z3_fp_from_unsigned()} convert a bit-vector
-integer; \code{z3_fp_from_bits(sign, exponent, significand)} assembles the
+integer; \code{z3_fp_from_real_exp(rounding, exponent, significand, sort)}
+rounds \code{significand * 2^exponent} from an Int exponent and a Real
+significand, which may be symbolic;
+\code{z3_fp_from_bits(sign, exponent, significand)} assembles the
 fields; \code{z3_fp_from_parts()} builds a numeral exactly from its sign,
 unbiased exponent and fraction bits; \code{z3_fp_to_ubv()}/\code{z3_fp_to_sbv()} round to a bit-vector integer
 of width \code{size}; \code{z3_fp_to_real()} gives the exact Real value;

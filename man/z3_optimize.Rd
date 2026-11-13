@@ -31,7 +31,9 @@ With several objectives, the default priority is lexicographic: the
 first objective is optimized first. Use
 \code{z3_set_params(opt, priority = "box")} to optimize each objective
 independently, or \code{priority = "pareto"} to enumerate Pareto-optimal
-points with repeated calls to \code{\link[=z3_check]{z3_check()}}.
+points with repeated calls to \code{\link[=z3_check]{z3_check()}}. With box priority, Z3 4.16.0
+can report an unbounded objective (\code{+oo}) when objectives of different
+kinds are mixed; this is Z3's behavior.
 }
 \examples{
 ctx <- z3_context()

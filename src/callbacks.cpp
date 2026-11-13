@@ -116,6 +116,13 @@ void run_job(void* data) {
 // Runs the R-facing part of a trampoline. R_ToplevelExec stops any R
 // longjmp at this frame; run_job stops C++ exceptions.
 template <typename F> void guarded(CallbackState* st, F f) {
+  // A propagator Z3 copied for a worker thread has no state (fresh_eh), and
+  // R may be entered only on its main thread: skip both, before any R call.
+  if (!st) return;
+  if (std::this_thread::get_id() != st->thread) {
+    st->off_thread = true;
+    return;
+  }
   Job j{f, std::string()};
   Rboolean ok = R_ToplevelExec(run_job, &j);
   if (!ok && j.error.empty()) j.error = "an R error occurred while calling a callback";
@@ -157,10 +164,15 @@ void* fresh_eh(void* p, Z3_context) {
   return nullptr;
 }
 
+bool has(SEXP fns, const char* name);
+
+// Registered for every propagator: Z3 records the justification of a fixed
+// term only when a fixed callback exists, and a consequence or conflict that
+// cites a fixed term without one reads past the end of that record.
 void fixed_eh(void* p, Z3_solver_callback cb, Z3_ast t, Z3_ast value) {
   CallbackState* st = state(p);
   guarded(st, [&] {
-    if (!st) return;
+    if (!has(st->fns, "fixed")) return;
     ScopedHandle h(cb, st->ctx);
     SEXP a = PROTECT(expr_arg(st->ctx, t));
     SEXP v = PROTECT(expr_arg(st->ctx, value));
@@ -347,9 +359,10 @@ void cpp_propagate_init(SEXP s_, SEXP fns) {
   // The holder owns the state from now on, even if registration fails.
   CallbackPtr st = new_state(ctx, fns, s_, h);
   h->callbacks.push_back(st);
+  h->touch();  // the propagator constrains models: the last result is stale
   Z3_solver_propagate_init(c, h->s, st.get(), push_eh, pop_eh, fresh_eh);
   check(ctx);
-  if (has(fns, "fixed")) Z3_solver_propagate_fixed(c, h->s, fixed_eh);
+  Z3_solver_propagate_fixed(c, h->s, fixed_eh);
   if (has(fns, "eq")) Z3_solver_propagate_eq(c, h->s, eq_eh);
   if (has(fns, "diseq")) Z3_solver_propagate_diseq(c, h->s, diseq_eh);
   if (has(fns, "final")) Z3_solver_propagate_final(c, h->s, final_eh);
@@ -379,6 +392,7 @@ void cpp_propagate_register(SEXP s_, SEXP e_) {
     BusyGuard<SolverHolder> busy(h);
     Z3_solver_propagate_register(h->s.c(), h->s, e);
   }
+  h->touch();
   raise_callback_errors(h->callbacks);
   check(h->s.ctx());
 #else

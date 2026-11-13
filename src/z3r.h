@@ -40,9 +40,12 @@
 #endif
 #define Z3R_AT_LEAST(a, b, c) (Z3R_VERSION >= ((a) * 10000 + (b) * 100 + (c)))
 
+#include <atomic>
 #include <cstdint>
 #include <memory>
+#include <set>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -66,6 +69,8 @@ struct Context {
   // made, then as last set through z3r (4294967295: none); per-call
   // timeouts restore it on objects without their own.
   unsigned timeout = 4294967295u;
+  // Datatype names declared through z3r, which Z3 must not declare again.
+  std::set<std::string> datatype_names;
   void note_param(const std::string& name, const std::string& value);
   // config: pairs of Z3 configuration parameter names and values.
   explicit Context(const std::vector<std::pair<std::string, std::string>>& config = {});
@@ -148,6 +153,11 @@ template <typename T> inline Ref<T> own(const CtxPtr& ctx, T p) {
   return Ref<T>(ctx, p);
 }
 inline Ast own_ast(const CtxPtr& ctx, Z3_ast p) { return own<Z3_ast>(ctx, p); }
+// A copy of a solver's or optimizer's model, so that z3_model_set() on one
+// handle changes neither other handles nor the solver's own model.
+inline Ref<Z3_model> snapshot_model(const CtxPtr& ctx, const Ref<Z3_model>& m) {
+  return own(ctx, Z3_model_translate(ctx->c, m, ctx->c));
+}
 
 inline Z3_sort as_sort(Z3_ast a) { return reinterpret_cast<Z3_sort>(a); }
 inline Z3_func_decl as_decl(Z3_ast a) { return reinterpret_cast<Z3_func_decl>(a); }
@@ -184,6 +194,10 @@ struct CallbackState : std::enable_shared_from_this<CallbackState> {
   bool interrupted = false;  // the error was a user interrupt
   std::string report;        // storage for strings returned to Z3
   bool cloned = false;       // Z3 copied the solver; the copy has no callbacks
+  // R's main thread, and whether Z3 called a callback on another thread
+  // (where it must not touch R) during the current check.
+  std::thread::id thread = std::this_thread::get_id();
+  std::atomic<bool> off_thread{false};
   int running = 0;           // R callbacks of this state now running
   const void* owner = nullptr;  // holder of the owning R object
   Ref<Z3_model> model;       // model updated by Z3_optimize_register_model_eh
@@ -227,6 +241,10 @@ struct SolverHolder {
   Z3_lbool status = Z3_L_UNDEF;
   void touch() { ++generation; }
   KeptParams params;  // what z3r has set on the solver; see with_params()
+  // Labels of tracked constraints: Z3 lists the constraints only as
+  // label => constraint, so exported text must assert the labels too.
+  AstVec tracked;
+  std::vector<size_t> tracked_scopes;  // number of labels at each push
 };
 
 struct OptimizeHolder {
@@ -245,6 +263,10 @@ struct OptimizeHolder {
   // serial number; handles carry both and are refused once popped.
   std::vector<uint64_t> objectives;  // serial of the objective at each index
   std::vector<size_t> scopes;        // number of objectives at each push
+  // Labels of tracked constraints, which must hold in an incumbent model;
+  // Z3 lists the constraints only as label => constraint.
+  AstVec tracked;
+  std::vector<size_t> tracked_scopes;  // number of labels at each push
   uint64_t next_objective = 0;
   uint64_t note_objective(unsigned idx) {
     while (objectives.size() <= idx) objectives.push_back(++next_objective);

@@ -185,7 +185,6 @@ SEXP cpp_goal_convert_model(SEXP g_, SEXP m_) {
   return make_xptr(new Ref<Z3_model>(own(g.ctx(), r)), Kind::Model);
 }
 
-// [[Rcpp::export(rng = false)]]
 #if Z3R_AT_LEAST(4, 12, 2) && !Z3R_AT_LEAST(4, 13, 2)
 // Z3's own test (goal::is_cnf): a possibly negated application whose
 // arguments are not Boolean when it is a Boolean connective.
@@ -206,6 +205,7 @@ static bool cnf_literal(Z3_context c, Z3_ast f) {
 }
 #endif
 
+// [[Rcpp::export(rng = false)]]
 Rcpp::String cpp_goal_to_dimacs(SEXP g_, bool include_names) {
   const Ref<Z3_goal>& g = goal(g_);
 #if Z3R_AT_LEAST(4, 12, 2) && !Z3R_AT_LEAST(4, 13, 2)

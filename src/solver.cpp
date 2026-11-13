@@ -316,6 +316,7 @@ SEXP cpp_solver_assert_and_track(SEXP s_, SEXP constraint, SEXP label_) {
   }
   raise_callback_errors(h->callbacks);
   check(ctx);
+  h->tracked.push_back(label);
   return wrap_expr(label);
 }
 
@@ -332,7 +333,10 @@ std::string cpp_solver_check(SEXP s_, Rcpp::List assumptions, SEXP timeout) {
   std::vector<Z3_ast> r = raw(as);
   SolverTimeout once;
   once.apply(h, timeout);
-  for (CallbackPtr& cb : h->callbacks) cb->cloned = false;
+  for (CallbackPtr& cb : h->callbacks) {
+    cb->cloned = false;
+    cb->off_thread = false;
+  }
   Z3_lbool st;
   {
     BusyGuard<SolverHolder> busy(h);
@@ -349,7 +353,7 @@ std::string cpp_solver_check(SEXP s_, Rcpp::List assumptions, SEXP timeout) {
   // stays sound: the copy has fewer constraints.)
   if (st == Z3_L_TRUE) {
     for (CallbackPtr& cb : h->callbacks) {
-      if (cb->cloned && has_propagator(cb)) {
+      if ((cb->cloned || cb->off_thread) && has_propagator(cb)) {
         fail("Z3 copied the solver during this check (for example in parallel mode), and the copy "
              "does not run R callbacks; the \"sat\" result may violate constraints of the user "
              "propagator, so it is refused");
@@ -386,7 +390,8 @@ SEXP cpp_solver_model(SEXP s_) {
   SolverHolder* h = solver(s_);
   require_status(h, Z3_L_TRUE, "a model");
   const CtxPtr& ctx = h->s.ctx();
-  return make_xptr(new Ref<Z3_model>(own(ctx, Z3_solver_get_model(ctx->c, h->s))), Kind::Model);
+  Ref<Z3_model> m = own(ctx, Z3_solver_get_model(ctx->c, h->s));
+  return make_xptr(new Ref<Z3_model>(snapshot_model(ctx, m)), Kind::Model);
 }
 
 // [[Rcpp::export(rng = false)]]
@@ -423,6 +428,7 @@ void cpp_solver_push(SEXP s_) {
   h->touch();
   raise_callback_errors(h->callbacks);
   check(h->s.ctx());
+  h->tracked_scopes.push_back(h->tracked.size());
 }
 
 // [[Rcpp::export(rng = false)]]
@@ -439,6 +445,10 @@ void cpp_solver_pop(SEXP s_, int n) {
     Z3_solver_pop(h->s.c(), h->s, static_cast<unsigned>(n));
   }
   h->touch();
+  for (int i = 0; i < n && !h->tracked_scopes.empty(); ++i) {
+    h->tracked.resize(h->tracked_scopes.back());
+    h->tracked_scopes.pop_back();
+  }
   raise_callback_errors(h->callbacks);
   check(h->s.ctx());
 }
@@ -458,6 +468,8 @@ void cpp_solver_reset(SEXP s_) {
   check(h->s.ctx());
   h->touch();
   h->checked = false;
+  h->tracked.clear();
+  h->tracked_scopes.clear();
   // Resetting discards Z3's solver, including user propagators and clause
   // callbacks; drop their state so they can be installed again.
   h->callbacks.clear();
@@ -534,6 +546,15 @@ Rcpp::String cpp_kept_params(SEXP x) {
 SEXP cpp_solver_param_help(SEXP s_) {
   SolverHolder* h = solver(s_);
   return describe_params(h->s.ctx(), Z3_solver_get_param_descrs(h->s.c(), h->s));
+}
+
+// Labels of the tracked constraints in the open scopes.
+// [[Rcpp::export(rng = false)]]
+SEXP cpp_solver_tracked(SEXP s_) {
+  SolverHolder* h = solver(s_);
+  Rcpp::List out(h->tracked.size());
+  for (size_t i = 0; i < h->tracked.size(); ++i) out[i] = wrap_expr(h->tracked[i]);
+  return out;
 }
 
 // [[Rcpp::export(rng = false)]]
@@ -714,7 +735,12 @@ SEXP cpp_solver_translate(SEXP s_, SEXP target_ctx) {
   Z3_solver t = Z3_solver_translate(h->s.c(), h->s, target->c);
   check(h->s.ctx());
   SEXP out = PROTECT(wrap_solver(target, t));
-  get_xptr<SolverHolder>(out, Kind::Solver)->params = h->params;  // Z3 copies the parameters
+  SolverHolder* copy = get_xptr<SolverHolder>(out, Kind::Solver);
+  copy->params = h->params;  // Z3 copies the parameters
+  for (const Ast& l : h->tracked) {
+    copy->tracked.push_back(own_ast(target, Z3_translate(h->s.c(), l, target->c)));
+  }
+  copy->tracked_scopes = h->tracked_scopes;
   UNPROTECT(1);
   return out;
 }

@@ -44,7 +44,10 @@
 #' **Conversions.** `z3_fp_to_fp(rounding, x, sort)` converts another
 #' format, a Real or an Int; `z3_fp_from_bv(bv, sort)` reinterprets IEEE
 #' bits; `z3_fp_from_signed()`/`z3_fp_from_unsigned()` convert a bit-vector
-#' integer; `z3_fp_from_bits(sign, exponent, significand)` assembles the
+#' integer; `z3_fp_from_real_exp(rounding, exponent, significand, sort)`
+#' rounds `significand * 2^exponent` from an Int exponent and a Real
+#' significand, which may be symbolic;
+#' `z3_fp_from_bits(sign, exponent, significand)` assembles the
 #' fields; `z3_fp_from_parts()` builds a numeral exactly from its sign,
 #' unbiased exponent and fraction bits; `z3_fp_to_ubv()`/`z3_fp_to_sbv()` round to a bit-vector integer
 #' of width `size`; `z3_fp_to_real()` gives the exact Real value;
@@ -63,7 +66,8 @@
 #' @param mode Rounding mode name, short (`"RNE"`) or SMT-LIB
 #'   (`"roundNearestTiesToEven"`).
 #' @param negative Sign of an infinity or zero.
-#' @param bv,sign,exponent,significand Bit-vector expressions.
+#' @param bv,sign,exponent,significand Bit-vector expressions; for
+#'   `z3_fp_from_real_exp()`, an Int exponent and a Real significand.
 #' @param size Width of the resulting bit-vector.
 #' @param biased For `z3_fp_numeral_parts()`: report the biased exponent.
 #' @param numeric For `z3_fp_numeral_parts()`: also give the sign, exponent
@@ -303,6 +307,12 @@ z3_fp_from_signed <- function(rounding, bv, sort) fp_op("from_signed", rounding,
 #' @rdname z3_fp
 #' @export
 z3_fp_from_unsigned <- function(rounding, bv, sort) fp_op("from_unsigned", rounding, bv, sort = sort)
+
+#' @rdname z3_fp
+#' @export
+z3_fp_from_real_exp <- function(rounding, exponent, significand, sort) {
+  fp_op("from_int_real", rounding, exponent, significand, sort = sort)
+}
 
 #' @rdname z3_fp
 #' @export

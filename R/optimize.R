@@ -15,7 +15,9 @@
 #' first objective is optimized first. Use
 #' `z3_set_params(opt, priority = "box")` to optimize each objective
 #' independently, or `priority = "pareto"` to enumerate Pareto-optimal
-#' points with repeated calls to [z3_check()].
+#' points with repeated calls to [z3_check()]. With box priority, Z3 4.16.0
+#' can report an unbounded objective (`+oo`) when objectives of different
+#' kinds are mixed; this is Z3's behavior.
 #'
 #' @param ctx A [z3_context()].
 #' @param ... Optimizer parameters, passed to [z3_set_params()].
@@ -179,6 +181,9 @@ z3_add_soft <- function(opt, constraint, weight = 1, id = "soft") {
   }
   weight <- check_numeral(weight, "^([0-9]+[.]?[0-9]*|[.][0-9]+|[0-9]+/[0-9]+)$",
                           "a positive decimal or fraction")
+  if (grepl("^[0.]+(/.*)?$", weight) || grepl("/0+$", weight)) {
+    stop("weight must be positive (and a fraction's denominator nonzero)", call. = FALSE)
+  }
   if (!is.character(id) || length(id) != 1L || is.na(id)) {
     stop("id must be a single string", call. = FALSE)
   }
@@ -250,6 +255,22 @@ z3_optimum <- function(objective) {
   if (eps != 0) value <- bound$value  # the finite part of value +/- epsilon
   if (inf != 0) value <- NULL
   new_optimum(status, value, objective$maximize, eps, lower, upper)
+}
+
+#' Objectives of an optimizer
+#'
+#' Lists the objectives Z3 holds, including those added by
+#' [z3_add_smtlib()], in the order [z3_check()] optimizes them. Z3 lists
+#' each term in minimized form: a maximized term appears negated, and soft
+#' constraints appear as the weighted sum of their violations.
+#'
+#' @param opt A [z3_optimize()].
+#' @return A list of `z3_expr`.
+#' @inherit z3_optimize examples
+#' @export
+z3_objectives <- function(opt) {
+  if (!inherits(opt, "z3_optimize")) stop("opt must be a z3_optimize", call. = FALSE)
+  cpp_optimize_objectives(opt)
 }
 
 new_optimum <- function(status, value, maximize, epsilon, lower, upper) {

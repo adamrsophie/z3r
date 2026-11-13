@@ -114,6 +114,11 @@ that \code{consequence} follows from the values of the \code{fixed} terms and th
 equalities \code{lhs[[i]] == rhs[[i]]}. With \code{consequence = FALSE} it is a
 conflict, and Z3 backtracks.
 \item \code{z3_propagate_conflict(cb, fixed)} is the same with \code{FALSE}.
+
+A justification may cite only terms that Z3 has reported as fixed and
+equalities that Z3 has reported to \code{eq}, both in the current scope.
+Z3 does not check this: citing anything else makes the result unsound,
+and an equality it never reported can crash R.
 \item \code{z3_next_split(cb, term, index, phase)} suggests the next decision.
 }
 

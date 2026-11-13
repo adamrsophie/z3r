@@ -18,6 +18,10 @@ flatten_args <- function(...) {
   args <- list(...)
   out <- list()
   for (a in args) {
+    if (is.null(a)) {
+      stop("an argument is NULL; a misspelled list element (such as v$typo) gives NULL",
+           call. = FALSE)
+    }
     if (is.list(a)) out <- c(out, a) else out[[length(out) + 1L]] <- a
   }
   out

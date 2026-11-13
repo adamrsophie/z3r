@@ -993,6 +993,10 @@ cpp_solver_param_help <- function(s_) {
     .Call(`_z3r_cpp_solver_param_help`, s_)
 }
 
+cpp_solver_tracked <- function(s_) {
+    .Call(`_z3r_cpp_solver_tracked`, s_)
+}
+
 cpp_solver_to_string <- function(s_) {
     .Call(`_z3r_cpp_solver_to_string`, s_)
 }

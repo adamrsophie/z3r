@@ -93,3 +93,19 @@ test_that("parsing can refer to existing sorts and functions by name", {
   expect_match(format(z3_read_smtlib(ctx, path, decls = list(g = f))[[1]]), "f 3")
   expect_error(z3_from_smtlib(ctx, "(assert true)", sorts = list(U)), "named list")
 })
+
+test_that("exported text keeps tracked labels asserted", {
+  ctx <- z3_context()
+  s <- z3_solver(ctx)
+  z3_assert_and_track(s, FALSE, "t1")
+  expect_identical(z3_check(s), "unsat")
+  for (txt in list(z3_to_smtlib(s), z3_to_smtlib(s, state = TRUE))) {
+    s2 <- z3_solver(z3_context())
+    z3_add_smtlib(s2, txt)
+    expect_identical(z3_check(s2), "unsat")
+  }
+  z3_push(s)
+  z3_assert_and_track(s, FALSE, "t2")
+  z3_pop(s)
+  expect_false(grepl("t2", z3_to_smtlib(s)))
+})

@@ -96,6 +96,9 @@ z3_add_rule <- function(fp, rule, name = "", update = FALSE) {
 #' @rdname z3_fixedpoint
 #' @export
 z3_add_fact <- function(fp, relation, args) {
+  if (!is.numeric(args) && !is.logical(args)) {
+    stop("fact arguments must be numbers (or TRUE/FALSE for Boolean arguments)", call. = FALSE)
+  }
   cpp_fixedpoint_add_fact(fp, z3_decl(relation), as.numeric(args))
   invisible(fp)
 }

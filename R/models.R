@@ -90,12 +90,14 @@ format.z3_model <- function(x, ...) {
   vals <- vapply(k$values, cpp_expr_to_string, character(1))
   lines <- if (length(vals)) paste(k$names, "=", vals) else character()
   funcs <- cpp_model_funcs(x)
-  for (f in names(funcs)) {
-    entries <- vapply(funcs[[f]]$entries, function(e) {
+  # By position: overloaded functions share a name.
+  for (i in seq_along(funcs)) {
+    f <- names(funcs)[i]
+    entries <- vapply(funcs[[i]]$entries, function(e) {
       args <- vapply(e$args, cpp_expr_to_string, character(1))
       sprintf("%s(%s) = %s", f, paste(args, collapse = ", "), cpp_expr_to_string(e$value))
     }, character(1))
-    els <- funcs[[f]]$`else`
+    els <- funcs[[i]]$`else`
     lines <- c(lines, entries,
                if (!is.null(els)) sprintf("%s(...) = %s otherwise", f, cpp_expr_to_string(els)))
   }

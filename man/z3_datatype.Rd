@@ -93,9 +93,15 @@ constructor;
 
 \code{z3_enum_sort()}, \code{z3_tuple_sort()} and \code{z3_list_sort()} are shortcuts
 for the common shapes. \code{z3_enum_sort()} and \code{z3_list_sort()} use Z3's
-dedicated constructors. Z3 4.12.0 and later refuse an enumeration
-whose name is already declared in the context, also when a script runs
-again: keep the earlier object, or use another name or a new context.
+dedicated constructors.
+
+A datatype name can be declared once per context: Z3 would replace the
+earlier datatype and free sorts and functions that R objects still use,
+so z3r refuses a second declaration, also when a script runs again. Keep
+the earlier object, or use another name or a new context. z3r cannot see
+datatypes declared by SMT-LIB text (\code{z3_from_smtlib()},
+\code{z3_eval_smtlib()}) or copied in by \code{\link[=z3_translate]{z3_translate()}}; do not declare
+such a name again in that context.
 \code{z3_tuple_sort()}
 names its constructor \verb{mk_<name>}. A datatype with a single constructor
 that has the datatype's own name and no recursive fields, as in

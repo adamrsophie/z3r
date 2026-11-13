@@ -70,6 +70,7 @@ SEXP cpp_optimize_assert_and_track(SEXP o_, SEXP constraint, SEXP label_) {
   Z3_optimize_assert_and_track(ctx->c, h->o, a, label);
   check(ctx);
   h->touch();
+  h->tracked.push_back(label);
   return wrap_expr(label);
 }
 
@@ -155,7 +156,8 @@ SEXP cpp_optimize_model(SEXP o_) {
   OptimizeHolder* h = optimizer(o_);
   require_status(h, Z3_L_TRUE, "a model");
   const CtxPtr& ctx = h->o.ctx();
-  return make_xptr(new Ref<Z3_model>(own(ctx, Z3_optimize_get_model(ctx->c, h->o))), Kind::Model);
+  Ref<Z3_model> m = own(ctx, Z3_optimize_get_model(ctx->c, h->o));
+  return make_xptr(new Ref<Z3_model>(snapshot_model(ctx, m)), Kind::Model);
 }
 
 // [[Rcpp::export(rng = false)]]
@@ -193,6 +195,7 @@ static SEXP incumbent(OptimizeHolder* h, unsigned i, bool maximize) {
   }
   Ref<Z3_model> m = own(ctx, raw_model);
   AstVec need = h->assumptions;
+  need.insert(need.end(), h->tracked.begin(), h->tracked.end());
   Ref<Z3_ast_vector> hard = own(ctx, Z3_optimize_get_assertions(c, h->o));
   for (unsigned k = 0, n = Z3_ast_vector_size(c, hard); k < n; ++k) {
     need.push_back(own_ast(ctx, Z3_ast_vector_get(c, hard, k)));
@@ -268,6 +271,7 @@ void cpp_optimize_push(SEXP o_) {
   check(h->o.ctx());
   h->touch();
   h->scopes.push_back(n);
+  h->tracked_scopes.push_back(h->tracked.size());
 }
 
 // [[Rcpp::export(rng = false)]]
@@ -280,6 +284,8 @@ void cpp_optimize_pop(SEXP o_) {
   h->touch();
   if (h->objectives.size() > h->scopes.back()) h->objectives.resize(h->scopes.back());
   h->scopes.pop_back();
+  h->tracked.resize(h->tracked_scopes.back());
+  h->tracked_scopes.pop_back();
 }
 
 // [[Rcpp::export(rng = false)]]
@@ -396,6 +402,10 @@ SEXP cpp_optimize_translate(SEXP o_, SEXP target_) {
   nh->o = own(target, t);
   // Z3 copies the parameters; keep the record of them for later sets.
   nh->params = h->params;
+  for (const Ast& l : h->tracked) {
+    nh->tracked.push_back(own_ast(target, Z3_translate(h->o.c(), l, target->c)));
+  }
+  nh->tracked_scopes = h->tracked_scopes;
   guard.release();
   return make_xptr(nh, Kind::Optimize);
 #else

@@ -180,6 +180,12 @@ to_sym <- function(x) {
   args <- lapply(z3_args(x), to_sym)
   if (!info$interpreted) {
     if (length(args)) stop("uninterpreted functions have no symcompR counterpart", call. = FALSE)
+    # Z3 prints a numbered symbol as k!<n>, the same as a constant named
+    # "k!<n>": the two would become one symcompR symbol.
+    if (grepl("^k![0-9]+$", info$name)) {
+      stop(sprintf("the constant %s may be a numbered Z3 symbol, which has no unambiguous symcompR name",
+                   info$name), call. = FALSE)
+    }
     return(switch(sort,
       int = S("Symbol")(info$name, integer = TRUE),
       real = S("Symbol")(info$name, real = TRUE),

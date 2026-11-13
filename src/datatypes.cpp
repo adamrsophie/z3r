@@ -60,10 +60,22 @@ std::vector<Z3_constructor> make_constructors(const CtxPtr& ctx, Rcpp::List spec
   return out;
 }
 
-// Name of a new sort: a single non-empty string.
-Z3_symbol sort_symbol(const CtxPtr& ctx, SEXP name_) {
-  std::string name = as_string(name_, "name");
+// Z3 replaces an earlier datatype of the same name and frees its sorts and
+// functions, while R objects may still use them; refuse a second declaration
+// made through z3r in the same context.
+void refuse_redeclared(const CtxPtr& ctx, const std::string& name) {
+  if (ctx->datatype_names.count(name)) {
+    fail("a datatype named '" + name + "' is already declared in this context, and declaring it again "
+         "would free the sorts and functions still in use; keep the earlier object, or use another "
+         "name or a new context");
+  }
+}
+
+// Name of a new datatype sort: a single non-empty string not yet declared.
+Z3_symbol sort_symbol(const CtxPtr& ctx, SEXP name_, std::string& name) {
+  name = as_string(name_, "name");
   if (name.empty()) fail("name must not be empty");
+  refuse_redeclared(ctx, name);
   return mk_symbol(ctx, name);
 }
 
@@ -140,6 +152,7 @@ SEXP cpp_mk_datatypes(SEXP ctx_, Rcpp::CharacterVector names, Rcpp::List specs) 
   ConstructorGuard guard(c);
   AstVec keep;
   std::vector<Z3_symbol> sort_names(n);
+  for (unsigned i = 0; i < n; ++i) refuse_redeclared(ctx, Rcpp::as<std::string>(names[i]));
   for (unsigned i = 0; i < n; ++i) {
     sort_names[i] = mk_symbol(ctx, Rcpp::as<std::string>(names[i]));
     std::vector<Z3_constructor> cons = make_constructors(ctx, specs[i], guard, keep);
@@ -153,6 +166,7 @@ SEXP cpp_mk_datatypes(SEXP ctx_, Rcpp::CharacterVector names, Rcpp::List specs) 
   check(ctx);
   Rcpp::List out(n);
   for (unsigned i = 0; i < n; ++i) out[i] = wrap_sort(own_ast(ctx, sort_ast(sorts[i])));
+  for (unsigned i = 0; i < n; ++i) ctx->datatype_names.insert(Rcpp::as<std::string>(names[i]));
   return out;
 }
 
@@ -162,7 +176,8 @@ SEXP cpp_mk_datatypes(SEXP ctx_, Rcpp::CharacterVector names, Rcpp::List specs) 
 SEXP cpp_mk_datatype(SEXP ctx_, SEXP name_, Rcpp::List spec) {
   CtxPtr ctx = get_ctx(ctx_);
   Z3_context c = ctx->c;
-  Z3_symbol name = sort_symbol(ctx, name_);
+  std::string sort_name;
+  Z3_symbol name = sort_symbol(ctx, name_, sort_name);
   ConstructorGuard guard(c);
   AstVec keep;
   std::vector<Z3_constructor> cons = make_constructors(ctx, spec, guard, keep);
@@ -187,6 +202,7 @@ SEXP cpp_mk_datatype(SEXP ctx_, SEXP name_, Rcpp::List spec) {
     parts[k].rec = own_ast(ctx, decl_ast(tester));
     for (Z3_func_decl a : acc) parts[k].acc.push_back(own_ast(ctx, decl_ast(a)));
   }
+  ctx->datatype_names.insert(sort_name);
   return wrap_datatype(sort, parts);
 }
 
@@ -196,7 +212,8 @@ SEXP cpp_mk_datatype(SEXP ctx_, SEXP name_, Rcpp::List spec) {
 SEXP cpp_mk_tuple_sort(SEXP ctx_, SEXP name_, Rcpp::CharacterVector fields, Rcpp::List sorts) {
   CtxPtr ctx = get_ctx(ctx_);
   Z3_context c = ctx->c;
-  Z3_symbol name = sort_symbol(ctx, name_);
+  std::string sort_name;
+  Z3_symbol name = sort_symbol(ctx, name_, sort_name);
   unsigned n = static_cast<unsigned>(fields.size());
   if (static_cast<unsigned>(sorts.size()) != n) fail("internal error: bad tuple specification");
   std::vector<Z3_symbol> syms(n);
@@ -218,6 +235,7 @@ SEXP cpp_mk_tuple_sort(SEXP ctx_, SEXP name_, Rcpp::CharacterVector fields, Rcpp
   parts[0].cons = own_ast(ctx, decl_ast(mk));
   for (Z3_func_decl a : proj) parts[0].acc.push_back(own_ast(ctx, decl_ast(a)));
   parts[0].rec = own_ast(ctx, decl_ast(Z3_get_datatype_sort_recognizer(c, as_sort(sort), 0)));
+  ctx->datatype_names.insert(sort_name);
   return wrap_datatype(sort, parts);
 }
 
@@ -226,7 +244,8 @@ SEXP cpp_mk_tuple_sort(SEXP ctx_, SEXP name_, Rcpp::CharacterVector fields, Rcpp
 SEXP cpp_mk_enumeration_sort(SEXP ctx_, SEXP name_, Rcpp::CharacterVector values) {
   CtxPtr ctx = get_ctx(ctx_);
   Z3_context c = ctx->c;
-  Z3_symbol name = sort_symbol(ctx, name_);
+  std::string sort_name;
+  Z3_symbol name = sort_symbol(ctx, name_, sort_name);
   unsigned n = static_cast<unsigned>(values.size());
   if (n == 0) fail("an enumeration needs at least one value");
   std::vector<Z3_symbol> syms(n);
@@ -242,6 +261,7 @@ SEXP cpp_mk_enumeration_sort(SEXP ctx_, SEXP name_, Rcpp::CharacterVector values
     parts[i].cons = own_ast(ctx, decl_ast(consts[i]));
     parts[i].rec = own_ast(ctx, decl_ast(testers[i]));
   }
+  ctx->datatype_names.insert(sort_name);
   return wrap_datatype(sort, parts);
 }
 
@@ -250,7 +270,8 @@ SEXP cpp_mk_enumeration_sort(SEXP ctx_, SEXP name_, Rcpp::CharacterVector values
 SEXP cpp_mk_list_sort(SEXP ctx_, SEXP name_, SEXP element_) {
   CtxPtr ctx = get_ctx(ctx_);
   Z3_context c = ctx->c;
-  Z3_symbol name = sort_symbol(ctx, name_);
+  std::string sort_name;
+  Z3_symbol name = sort_symbol(ctx, name_, sort_name);
   const Ast& elem = get_sort(element_);
   same_ctx(ctx, elem.ctx());
   Z3_func_decl nil = nullptr, is_nil = nullptr, cons = nullptr, is_cons = nullptr, head = nullptr, tail = nullptr;
@@ -263,6 +284,7 @@ SEXP cpp_mk_list_sort(SEXP ctx_, SEXP name_, SEXP element_) {
   parts[1].rec = own_ast(ctx, decl_ast(is_cons));
   parts[1].acc.push_back(own_ast(ctx, decl_ast(head)));
   parts[1].acc.push_back(own_ast(ctx, decl_ast(tail)));
+  ctx->datatype_names.insert(sort_name);
   return wrap_datatype(sort, parts);
 }
 
@@ -317,6 +339,7 @@ SEXP cpp_mk_polymorphic_datatype(SEXP ctx_, SEXP name_, Rcpp::List params, Rcpp:
 #if Z3R_AT_LEAST(4, 15, 4)
   CtxPtr ctx = get_ctx(ctx_);
   std::string name = as_string(name_, "name");
+  refuse_redeclared(ctx, name);
   ConstructorGuard guard(ctx->c);
   AstVec keep;
   std::vector<Z3_sort> ps;
@@ -331,7 +354,9 @@ SEXP cpp_mk_polymorphic_datatype(SEXP ctx_, SEXP name_, Rcpp::List params, Rcpp:
   Z3_sort srt = Z3_mk_polymorphic_datatype(ctx->c, mk_symbol(ctx, name), static_cast<unsigned>(ps.size()),
                                            ps.empty() ? nullptr : ps.data(),
                                            static_cast<unsigned>(cons.size()), cons.data());
-  return wrap_sort(own_ast(ctx, sort_ast(srt)));
+  SEXP out = wrap_sort(own_ast(ctx, sort_ast(srt)));
+  ctx->datatype_names.insert(name);
+  return out;
 #else
   (void)ctx_; (void)name_; (void)params; (void)spec;
   needs_version("polymorphic datatypes", "4.15.4");

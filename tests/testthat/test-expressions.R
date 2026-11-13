@@ -196,3 +196,10 @@ test_that("integer64, malformed UTF-8 and algebraic approximations", {
   r <- z3_simplify(z3_real_val(ctx, 2)^z3_real_val(ctx, "1/2") / z3_real_val(ctx, paste0("1", strrep("0", 100))))
   expect_equal(z3_value(r, exact = FALSE), sqrt(2) * 1e-100, tolerance = 1e-15)
 })
+
+test_that("classed R values are refused, not read as bare numbers", {
+  ctx <- z3_context()
+  x <- z3_int(ctx, "x")
+  expect_error(x == as.Date("2020-01-01"), "class 'Date'")
+  expect_s3_class(x == I(3), "z3_expr")
+})

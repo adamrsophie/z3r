@@ -99,3 +99,15 @@ test_that("conversions", {
   expect_error(z3_value(third), "not exactly representable")
   expect_equal(z3_value(third, exact = FALSE), 1 / 3)
 })
+
+test_that("z3_fp_from_real_exp rounds significand * 2^exponent", {
+  ctx <- z3_context()
+  f <- z3_fp_sort(ctx, 8, 24)
+  rne <- z3_rounding(ctx, "RNE")
+  e <- z3_int(ctx, "e")
+  x <- z3_fp_from_real_exp(rne, e, 1.5, f)
+  s <- z3_solver(ctx)
+  z3_add(s, e == 3)
+  expect_identical(z3_check(s), "sat")
+  expect_equal(z3_value(z3_eval(z3_model(s), z3_fp_to_real(x))), 12)
+})

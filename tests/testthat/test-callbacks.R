@@ -249,3 +249,15 @@ test_that("callbacks run by assertions and registration are guarded too", {
   expect_gt(pops, 0)
   expect_identical(z3_check(s), "sat")
 })
+
+test_that("a conflict citing fixed terms works without a fixed callback", {
+  skip_if_not(z3_version_at_least("4.12.3"))
+  ctx <- z3_context()
+  bs <- z3_bools(ctx, c("a", "b", "c"))
+  s <- z3_solver(ctx, simple = TRUE)
+  z3_propagator(s, push = function(cb) NULL, pop = function(cb, n) NULL,
+                final = function(cb) z3_propagate_conflict(cb, fixed = bs))
+  for (b in bs) z3_propagate_register(s, b)
+  z3_add(s, z3_or(bs))
+  expect_true(z3_check(s) %in% c("unsat", "unknown"))
+})

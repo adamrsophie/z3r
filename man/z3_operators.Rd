@@ -52,6 +52,10 @@ the sort of the other operand; see \code{\link[=z3_int_val]{z3_int_val()}} for t
 rules for doubles. Only length-one R values are accepted: z3r
 expressions are scalars, and R's recycling rules have no meaning for a
 single formula. Build several constraints with \code{\link[=lapply]{lapply()}} or \code{\link[=Map]{Map()}}.
+Classed values such as dates are refused; convert them first. A
+\code{bit64::integer64} works on the right of an operator (\code{x == i64}); on
+the left, bit64's own operator method runs instead and fails, so write
+\code{z3_int_val(ctx, i64)} there.
 
 \strong{R's own logic.} \code{&&} and \code{||} cannot be overloaded; use \code{\link[=z3_and]{z3_and()}}
 and \code{\link[=z3_or]{z3_or()}}. A Z3 expression is never converted to \code{TRUE} or \code{FALSE},

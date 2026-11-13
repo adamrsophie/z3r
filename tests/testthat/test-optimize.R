@@ -170,3 +170,41 @@ test_that("soft constraint groups have objective handles", {
   # Keeping b violates a and c (weight 4); dropping b costs 3.
   expect_identical(z3_value(z3_optimum(h)$value), 3)
 })
+
+test_that("z3_objectives lists objectives, also parsed ones", {
+  ctx <- z3_context()
+  x <- z3_int(ctx, "x")
+  o <- z3_optimize(ctx)
+  z3_add(o, x < 10)
+  z3_maximize(o, x)
+  z3_add_smtlib(o, "(declare-const y Int) (assert (> y 2)) (minimize y)")
+  obj <- z3_objectives(o)
+  expect_length(obj, 2L)
+  expect_true(all(vapply(obj, inherits, logical(1), "z3_expr")))
+})
+
+test_that("a zero soft weight is refused", {
+  ctx <- z3_context()
+  o <- z3_optimize(ctx)
+  p <- z3_bool(ctx, "p")
+  expect_error(z3_add_soft(o, p, "0"), "positive")
+  expect_error(z3_add_soft(o, p, "0.00"), "positive")
+  expect_error(z3_add_soft(o, p, "1/0"), "positive")
+  expect_silent(z3_add_soft(o, p, "0.5"))
+})
+
+test_that("an incumbent must satisfy tracked constraints", {
+  ctx <- z3_context()
+  x <- z3_int(ctx, "x")
+  o <- z3_optimize(ctx)
+  z3_assert_and_track(o, x == 5, "t1")
+  h <- z3_maximize(o, x)
+  z3_set_params(o, rlimit = 1)
+  r <- z3_check(o)
+  if (identical(r, "unknown")) {
+    v <- z3_optimum(h)$value
+    expect_true(is.null(v) || identical(z3_value(v), 5L) || identical(z3_value(v), 5))
+  } else {
+    expect_identical(r, "sat")
+  }
+})

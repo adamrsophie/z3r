@@ -22,7 +22,9 @@
 #'   optimizer or fixedpoint engine.
 #' * `z3_eval_smtlib()` runs SMT-LIB2 commands in Z3's interpreter and
 #'   returns its output text, exactly as the `z3` command-line tool would
-#'   print it. Its declarations are kept in the context.
+#'   print it. Its declarations are kept in the context. Its `set-option`
+#'   commands change Z3's parameters beyond this call (some of them for
+#'   every context), and they stay changed.
 #'
 #' Parse errors are reported as R errors.
 #'
@@ -56,8 +58,15 @@
 #' @export
 z3_to_smtlib <- function(x, logic = "", state = FALSE) {
   if (inherits(x, "z3_solver")) {
-    if (isTRUE(state)) return(cpp_solver_to_string(x))
-    a <- cpp_solver_assertions(x)
+    # Z3 lists a tracked constraint as label => constraint; assert the
+    # labels, as a check does, so the text has the same answer.
+    tracked <- cpp_solver_tracked(x)
+    if (isTRUE(state)) {
+      return(paste0(cpp_solver_to_string(x),
+                    paste0("(assert ", vapply(tracked, cpp_expr_to_string, character(1)), ")\n",
+                           collapse = "")))
+    }
+    a <- c(cpp_solver_assertions(x), tracked)
     if (!length(a)) a <- list(cpp_lift(z3_context_of(x), TRUE, NULL))
     return(cpp_benchmark(a, logic))
   }

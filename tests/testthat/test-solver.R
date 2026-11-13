@@ -227,3 +227,14 @@ test_that("scopes and model enumeration", {
   expect_identical(z3_check(s), "sat")
   expect_length(z3_assertions(s), 3L)
 })
+
+test_that("a NULL argument is an error, not a dropped constraint", {
+  ctx <- z3_context()
+  v <- z3_ints(ctx, c("x", "y"))
+  s <- z3_solver(ctx)
+  expect_error(z3_add(s, v$typo), "NULL")
+  expect_error(z3_add(s, v$x > 0, NULL), "NULL")
+  expect_error(z3_check(s, v$typo), "NULL")
+  expect_error(z3_and(v$x > 0, NULL), "NULL")
+  expect_length(z3_assertions(s), 0L)
+})

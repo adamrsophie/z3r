@@ -2698,6 +2698,16 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cpp_solver_tracked
+SEXP cpp_solver_tracked(SEXP s_);
+RcppExport SEXP _z3r_cpp_solver_tracked(SEXP s_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type s_(s_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_solver_tracked(s_));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cpp_solver_to_string
 Rcpp::String cpp_solver_to_string(SEXP s_);
 RcppExport SEXP _z3r_cpp_solver_to_string(SEXP s_SEXP) {
@@ -3524,6 +3534,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_z3r_cpp_solver_set_params", (DL_FUNC) &_z3r_cpp_solver_set_params, 2},
     {"_z3r_cpp_kept_params", (DL_FUNC) &_z3r_cpp_kept_params, 1},
     {"_z3r_cpp_solver_param_help", (DL_FUNC) &_z3r_cpp_solver_param_help, 1},
+    {"_z3r_cpp_solver_tracked", (DL_FUNC) &_z3r_cpp_solver_tracked, 1},
     {"_z3r_cpp_solver_to_string", (DL_FUNC) &_z3r_cpp_solver_to_string, 1},
     {"_z3r_cpp_solver_from_string", (DL_FUNC) &_z3r_cpp_solver_from_string, 2},
     {"_z3r_cpp_solver_proof", (DL_FUNC) &_z3r_cpp_solver_proof, 1},

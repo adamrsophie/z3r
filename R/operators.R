@@ -35,6 +35,10 @@
 #' rules for doubles. Only length-one R values are accepted: z3r
 #' expressions are scalars, and R's recycling rules have no meaning for a
 #' single formula. Build several constraints with [lapply()] or [Map()].
+#' Classed values such as dates are refused; convert them first. A
+#' `bit64::integer64` works on the right of an operator (`x == i64`); on
+#' the left, bit64's own operator method runs instead and fails, so write
+#' `z3_int_val(ctx, i64)` there.
 #'
 #' **R's own logic.** `&&` and `||` cannot be overloaded; use [z3_and()]
 #' and [z3_or()]. A Z3 expression is never converted to `TRUE` or `FALSE`,

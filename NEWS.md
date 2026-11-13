@@ -51,7 +51,8 @@ which version they need.
 
 * Solvers with assertions, tracked assertions, assumptions,
   push/pop/reset, `z3_with_scope()`, model enumeration
-  (`z3_all_models()`), models with staleness protection, hand-built models,
+  (`z3_all_models()`), models with staleness protection (each
+  `z3_model()` is a separate copy), hand-built models,
   unsatisfiable cores, proofs, consequences, cubes, units and trails,
   congruence classes, solving for variables, initial values, typed
   parameters, statistics (also as Z3's text, `z3_statistics_text()`) and
@@ -64,11 +65,14 @@ which version they need.
 * Optimization with hard and soft constraints, objectives (including the
   cost of soft constraint groups) and priorities, unbounded and
   non-attained optima, model callbacks, and, when a check returns
-  `"unknown"`, the bounds and the value of the best model found so far.
+  `"unknown"`, the bounds and the value of the best model found so far
+  (which must satisfy tracked constraints too). `z3_objectives()` lists
+  every objective, also those parsed from SMT-LIB.
 * User propagators, clause callbacks and the proof checker callback. R
   errors and interrupts are raised safely after the check, callbacks
   cannot reenter their own solver, and callback closures do not keep
-  their solver or context alive.
+  their solver or context alive. Callbacks never run R code on Z3's
+  worker threads; a `"sat"` found there is refused.
 
 ## Theories and engines
 
@@ -76,9 +80,12 @@ which version they need.
   arrays (multi-index, map, default, lambdas), sets, strings, sequences,
   regular expressions and characters.
 * Algebraic datatypes: recursive, mutually recursive, enumerations, tuples
-  (`z3_tuple_fields()`), lists and polymorphic datatypes.
+  (`z3_tuple_fields()`), lists and polymorphic datatypes. Declaring a
+  datatype name twice in one context is refused, since Z3 would free the
+  sorts of the first declaration.
 * Floating point formats by name or width (`z3_fp_sort(ctx, "half")`),
-  SMT-LIB rounding mode names, and numeric parts of numerals.
+  SMT-LIB rounding mode names, numeric parts of numerals, and rounding of
+  a symbolic `significand * 2^exponent` (`z3_fp_from_real_exp()`).
 * Function interpretations with defaults set after creation
   (`z3_model_set_default()`); Datalog relation sorts
   (`z3_relation_columns()`).
@@ -92,5 +99,7 @@ which version they need.
   (`z3_model_project()`), model extrapolation and `z3_qe_lite()`.
 * Real closed fields, algebraic number arithmetic and polynomial
   subresultants.
-* SMT-LIB2 export, parsing and the SMT-LIB2 command interpreter.
+* SMT-LIB2 export (tracked constraints keep their labels asserted, so the
+  text has the solver's answer), parsing and the SMT-LIB2 command
+  interpreter.
 * Translation to and from the symcompR computer algebra package.

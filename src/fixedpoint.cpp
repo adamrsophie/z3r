@@ -72,6 +72,29 @@ void cpp_fixedpoint_add_fact(SEXP f_, SEXP decl_, Rcpp::NumericVector args) {
     }
     a[i] = static_cast<unsigned>(args[i]);
   }
+  // Z3 does not check the values against the relation's argument sorts.
+  Z3_context c = h->f.c();
+  Z3_func_decl f = as_decl(d);
+  if (Z3_get_domain_size(c, f) != a.size()) fail("a fact needs one argument per argument of the relation");
+  for (size_t i = 0; i < a.size(); ++i) {
+    Z3_sort s = Z3_get_domain(c, f, static_cast<unsigned>(i));
+    uint64_t limit = UINT64_MAX;  // Int and Real; Z3 refuses other sorts itself
+    switch (Z3_get_sort_kind(c, s)) {
+      case Z3_BOOL_SORT: limit = 2; break;
+      case Z3_BV_SORT: {
+        unsigned w = Z3_get_bv_sort_size(c, s);
+        limit = w >= 33 ? UINT64_MAX : (uint64_t(1) << w);
+        break;
+      }
+      case Z3_FINITE_DOMAIN_SORT: Z3_get_finite_domain_sort_size(c, s, &limit); break;
+      default: break;
+    }
+    check(h->f.ctx());
+    if (a[i] >= limit) {
+      fail("fact argument " + std::to_string(i + 1) + " is " + std::to_string(a[i]) +
+           ", too large for the relation's argument sort");
+    }
+  }
   Z3_fixedpoint_add_fact(h->f.c(), h->f, as_decl(d), static_cast<unsigned>(a.size()), a.empty() ? nullptr : a.data());
   check(h->f.ctx());
   ++h->generation;

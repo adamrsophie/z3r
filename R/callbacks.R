@@ -34,6 +34,11 @@ callback_invoke <- function(fn, ...) {
 #'   equalities `lhs[[i]] == rhs[[i]]`. With `consequence = FALSE` it is a
 #'   conflict, and Z3 backtracks.
 #' * `z3_propagate_conflict(cb, fixed)` is the same with `FALSE`.
+#'
+#'   A justification may cite only terms that Z3 has reported as fixed and
+#'   equalities that Z3 has reported to `eq`, both in the current scope.
+#'   Z3 does not check this: citing anything else makes the result unsound,
+#'   and an equality it never reported can crash R.
 #' * `z3_next_split(cb, term, index, phase)` suggests the next decision.
 #'
 #' An error in a callback interrupts the check and is raised as an R error
