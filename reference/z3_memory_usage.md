@@ -40,7 +40,7 @@ A number, or the input invisibly.
 
 ``` r
 z3_memory_usage()
-#> [1] 18282360
+#> [1] 18282536
 ctx <- z3_context()
 z3_update_param(ctx, "timeout", 5000)
 ```
