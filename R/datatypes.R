@@ -26,10 +26,12 @@
 #' A datatype name can be declared once per context: Z3 would replace the
 #' earlier datatype and free sorts and functions that R objects still use,
 #' so z3r refuses a second declaration, also when a script runs again. Keep
-#' the earlier object, or use another name or a new context. z3r cannot see
-#' datatypes declared by SMT-LIB text (`z3_from_smtlib()`,
-#' `z3_eval_smtlib()`) or copied in by [z3_translate()]; do not declare
-#' such a name again in that context.
+#' the earlier object, or use another name or a new context. The same holds
+#' for datatypes declared by SMT-LIB text (`z3_from_smtlib()`,
+#' `z3_add_smtlib()`, `z3_eval_smtlib()` and the other parsers): text that
+#' declares a name the context already has is refused. z3r cannot see
+#' datatypes copied in by [z3_translate()]; do not declare such a name again
+#' in that context.
 #' `z3_tuple_sort()`
 #' names its constructor `mk_<name>`. A datatype with a single constructor
 #' that has the datatype's own name and no recursive fields, as in
@@ -86,9 +88,16 @@
 #' tf <- z3_tuple_fields(Point)
 #' names(tf$fields)
 #' z3_simplify(tf$fields$y(tf$constructor(1, 2)))
+#' @usage z3_datatype(ctx, name, ..., parameters = NULL)
 #' @export
-z3_datatype <- function(ctx, name, ..., parameters = NULL) {
-  spec <- datatype_spec(list(...), name)
+z3_datatype <- function(...) {
+  # Taken apart by hand: with formals ctx and name, R's partial matching
+  # would give a constructor named c (or n, na, nam) to them.
+  args <- datatype_args(list(...))
+  ctx <- args$ctx
+  name <- args$name
+  parameters <- args$parameters
+  spec <- datatype_spec(args$constructors, name)
   if (!is.null(parameters)) {
     sort <- cpp_mk_polymorphic_datatype(ctx, name, as_list(parameters), spec)
     return(new_datatype(sort))
@@ -231,11 +240,39 @@ z3_enum_sort <- function(ctx, name, values) {
   new_datatype(built$sort, built$parts)
 }
 
+# ctx and name of z3_datatype(): named exactly, or the first two unnamed
+# arguments; `parameters` by its exact name; the rest are constructors.
+datatype_args <- function(a) {
+  nm <- names(a)
+  if (is.null(nm)) nm <- rep("", length(a))
+  take <- function(key) {
+    i <- which(nm == key)
+    if (!length(i)) i <- which(!nzchar(nm))
+    if (!length(i)) stop(sprintf("argument \"%s\" is missing", key), call. = FALSE)
+    v <- a[[i[1]]]
+    a[[i[1]]] <<- NULL
+    nm <<- nm[-i[1]]
+    v
+  }
+  ctx <- take("ctx")
+  name <- take("name")
+  parameters <- NULL
+  if (any(nm == "parameters")) {
+    i <- which(nm == "parameters")[1]
+    parameters <- a[[i]]
+    a[[i]] <- NULL
+  }
+  list(ctx = ctx, name = name, parameters = parameters, constructors = a)
+}
+
 #' @rdname z3_datatype
 #' @export
-z3_tuple_sort <- function(ctx, name, ...) {
-  fields <- list(...)
-  do.call(z3_datatype, c(list(ctx, name), stats::setNames(list(fields), paste0("mk_", name))))
+#' @usage z3_tuple_sort(ctx, name, ...)
+z3_tuple_sort <- function(...) {
+  a <- datatype_args(list(...))  # fields named c or n must stay fields
+  if (!is.null(a$parameters)) a$constructors$parameters <- a$parameters
+  do.call(z3_datatype, c(list(ctx = a$ctx, name = a$name),
+                         stats::setNames(list(a$constructors), paste0("mk_", a$name))))
 }
 
 #' @rdname z3_datatype

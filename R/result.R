@@ -14,7 +14,8 @@
 #' * `statistics`: Z3's statistics after the check.
 #' * `params`: the parameters set on the solver, as Z3's text.
 #' * `fingerprint`: a structural hash of the assertions, tracked labels
-#'   and assumptions. Two checks of the same formulas have the same
+#'   and assumptions, and for an optimizer its objectives and soft
+#'   constraints. Two checks of the same formulas have the same
 #'   fingerprint in one Z3 version; it is not a cryptographic hash. It is
 #'   `NA` when z3r cannot list the assertions (a solver with a simplifier
 #'   that SMT-LIB was parsed into).
@@ -54,9 +55,13 @@ z3_check_result <- function(x, ..., timeout = NULL) {
   status <- z3_check(x, assumptions, timeout = timeout)
   seconds <- proc.time()[["elapsed"]] - started
   maybe <- function(expr) tryCatch(expr, error = function(e) NULL)
+  ctx <- z3_context_of(x)
   formulas <- tryCatch(c(z3_assertions(x), if (opt) cpp_optimize_tracked(x) else cpp_solver_tracked(x),
-                         Filter(is_z3_expr, assumptions)),
+                         lapply(assumptions, function(a) cpp_lift(ctx, a, NULL))),
                        error = function(e) NULL)
+  # An optimizer's objectives and soft constraints, with their directions
+  # and weights, are in its text.
+  extra <- if (opt) cpp_optimize_to_string(x, FALSE) else ""
   structure(list(
     status = status,
     reason = if (status == "unknown") z3_reason_unknown(x) else NULL,
@@ -67,7 +72,7 @@ z3_check_result <- function(x, ..., timeout = NULL) {
     seconds = seconds,
     statistics = z3_statistics(x),
     params = cpp_kept_params(x),
-    fingerprint = if (is.null(formulas)) NA_character_ else cpp_fingerprint(formulas),
+    fingerprint = if (is.null(formulas)) NA_character_ else cpp_fingerprint(formulas, extra),
     build = z3_build_info()
   ), class = "z3_check_result")
 }

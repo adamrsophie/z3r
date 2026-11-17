@@ -1,6 +1,9 @@
 // Uninterpreted functions, quantifiers, tactics, goals and SMT-LIB2 text.
 #include "z3r.h"
 
+#include <cctype>
+#include <map>
+
 using namespace z3r;
 
 // ---------------------------------------------------------------------------
@@ -182,7 +185,7 @@ SEXP cpp_quantifier_db(std::string type, Rcpp::List sorts, Rcpp::CharacterVector
     ss.push_back(as_sort(s));
     SEXP nm = STRING_ELT(names, i);
     if (nm == NA_STRING) fail("names must not be missing");
-    labels.push_back(Rf_translateCharUTF8(nm));
+    labels.push_back(utf8_char(nm));
     syms.push_back(mk_symbol(ctx, labels.back()));
   }
   std::vector<Z3_pattern> pats = make_patterns(ctx, patterns, keep);
@@ -392,7 +395,7 @@ SEXP cpp_parse_smtlib2(SEXP ctx_, SEXP text_, bool is_file, Rcpp::List sorts, Rc
       if (nm == R_NilValue || STRING_ELT(nm, i) == NA_STRING || CHAR(STRING_ELT(nm, i))[0] == '\0') {
         fail(std::string(what) + " must be a named list");
       }
-      out.push_back(mk_symbol(ctx, Rf_translateCharUTF8(STRING_ELT(nm, i))));
+      out.push_back(mk_symbol(ctx, utf8_char(STRING_ELT(nm, i))));
     }
     return out;
   };
@@ -417,9 +420,14 @@ SEXP cpp_parse_smtlib2(SEXP ctx_, SEXP text_, bool is_file, Rcpp::List sorts, Rc
   Z3_sort* sp = ss.empty() ? nullptr : ss.data();
   Z3_symbol* dn = ds.empty() ? nullptr : decl_names.data();
   Z3_func_decl* dp = ds.empty() ? nullptr : ds.data();
+  std::string scanned = is_file ? smt_file_text(text) : text;
+  guard_smt_datatypes(ctx, scanned);
   Z3_ast_vector v = is_file ? Z3_parse_smtlib2_file(ctx->c, text.c_str(), ns, sn, sp, nd, dn, dp)
                             : Z3_parse_smtlib2_string(ctx->c, text.c_str(), ns, sn, sp, nd, dn, dp);
-  return wrap_ast_vector(ctx, v);
+  SEXP out = PROTECT(wrap_ast_vector(ctx, v));
+  register_smt_datatypes(ctx, scanned);
+  UNPROTECT(1);
+  return out;
 }
 
 // Runs SMT-LIB2 commands and returns Z3's textual output.
@@ -434,6 +442,7 @@ Rcpp::String cpp_eval_smtlib2(SEXP ctx_, SEXP text_) {
     ctx->proof_check->error.clear();
     ctx->proof_check->interrupted = false;
   }
+  guard_smt_datatypes(ctx, text);
   std::string out;
   {
     struct Flag {
@@ -445,7 +454,51 @@ Rcpp::String cpp_eval_smtlib2(SEXP ctx_, SEXP text_) {
   }
   raise_proof_check_error(ctx);
   check(ctx);
+  register_smt_datatypes(ctx, text);
   return out;
+}
+
+// Z3's printer writes a declaration's name as is: two declarations with one
+// name (another sort) are ambiguous in the text, and names such as 1.5, as
+// or _ do not read back as symbols. Refuses such formulas.
+static void check_exportable_names(Z3_context c, const AstVec& v) {
+  static const std::set<std::string> reserved = {"_", "!", "as", "let", "exists", "forall", "match", "par",
+                                                 "BINARY", "DECIMAL", "HEXADECIMAL", "NUMERAL", "STRING"};
+  std::set<unsigned> seen;
+  std::map<std::string, Z3_func_decl> by_name;
+  std::vector<Z3_ast> todo;
+  for (const Ast& a : v) todo.push_back(a);
+  while (!todo.empty()) {
+    Z3_ast a = todo.back();
+    todo.pop_back();
+    if (!seen.insert(Z3_get_ast_id(c, a)).second) continue;
+    Z3_ast_kind k = Z3_get_ast_kind(c, a);
+    if (k == Z3_QUANTIFIER_AST) {
+      todo.push_back(Z3_get_quantifier_body(c, a));
+      continue;
+    }
+    if (k != Z3_APP_AST) continue;
+    Z3_app app = Z3_to_app(c, a);
+    for (unsigned i = 0, n = Z3_get_app_num_args(c, app); i < n; ++i) todo.push_back(Z3_get_app_arg(c, app, i));
+    Z3_func_decl d = Z3_get_app_decl(c, app);
+    if (Z3_get_decl_kind(c, d) != Z3_OP_UNINTERPRETED) continue;
+    Z3_symbol sym = Z3_get_decl_name(c, d);
+    if (Z3_get_symbol_kind(c, sym) != Z3_STRING_SYMBOL) continue;
+    std::string name = Z3_get_symbol_string(c, sym);
+    bool numeric = !name.empty() && (std::isdigit(static_cast<unsigned char>(name[0])) ||
+                                     ((name[0] == '-' || name[0] == '+') && name.size() > 1 &&
+                                      std::isdigit(static_cast<unsigned char>(name[1]))));
+    if (numeric || reserved.count(name)) {
+      fail("the name '" + name + "' would be read back as a number or keyword, not a symbol; rename it to export");
+    }
+    auto it = by_name.find(name);
+    if (it == by_name.end()) {
+      by_name[name] = d;
+    } else if (!Z3_is_eq_func_decl(c, it->second, d)) {
+      fail("two different declarations are named '" + name + "' (for example with other sorts); "
+           "the exported text could not tell them apart, so rename one");
+    }
+  }
 }
 
 // SMT-LIB2 benchmark for a list of Boolean formulas.
@@ -458,6 +511,7 @@ Rcpp::String cpp_benchmark(Rcpp::List formulas, std::string logic) {
     if (!is_bool(a)) fail("only Boolean formulas can be exported as assertions");
     v.push_back(a);
   }
+  check_exportable_names(ctx->c, v);
   Ast last = v.back();
   v.pop_back();
   std::vector<Z3_ast> r = raw(v);

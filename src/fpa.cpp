@@ -112,9 +112,7 @@ Ast fp_literal(const CtxPtr& ctx, double v, bool is_na, Z3_sort sort) {
   double back = 0;
   bool exact = fp_to_double(a, &back) && back == v && std::signbit(back) == std::signbit(v);
   if (!exact) {
-    char buf[64];
-    std::snprintf(buf, sizeof(buf), "%.17g", v);
-    fail(std::string("the double ") + buf + " is not exactly representable in " + sort_name(ctx, sort) +
+    fail(std::string("the double ") + c_format(v, 17) + " is not exactly representable in " + sort_name(ctx, sort) +
          "; round it explicitly with z3_fp_val(ctx, value, sort, rounding)");
   }
   return a;

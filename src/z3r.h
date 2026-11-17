@@ -42,6 +42,9 @@
 
 #include <atomic>
 #include <cstdint>
+#include <clocale>
+#include <cstdio>
+#include <cstdlib>
 #include <memory>
 #include <set>
 #include <string>
@@ -50,9 +53,46 @@
 #include <utility>
 #include <vector>
 
+// Decimal text in and out with a period, whatever LC_NUMERIC says: Z3
+// reads and writes numerals that way.
+// (strtod and snprintf keep their handling of subnormals and rounding; only
+// the decimal point is swapped.)
+inline char locale_point() {
+  const char* p = std::localeconv()->decimal_point;
+  return p && p[0] ? p[0] : '.';
+}
+inline double c_strtod(std::string s) {
+  char point = locale_point();
+  if (point != '.') {
+    for (char& ch : s) if (ch == '.') ch = point;
+  }
+  return std::strtod(s.c_str(), nullptr);
+}
+inline std::string c_format(double v, int precision) {
+  char buf[64];
+  std::snprintf(buf, sizeof(buf), "%.*g", precision, v);
+  std::string s(buf);
+  char point = locale_point();
+  if (point != '.') {
+    for (char& ch : s) if (ch == point) ch = '.';
+  }
+  return s;
+}
+
 namespace z3r {
 
 [[noreturn]] void fail(const std::string& msg);
+
+// UTF-8 text of an R string. R signals an error (a long jump past C++
+// destructors) for strings marked "bytes", so those fail here first.
+inline const char* utf8_char(SEXP chr) {
+  if (Rf_getCharCE(chr) == CE_BYTES) {
+    fail("strings marked with the \"bytes\" encoding have no Unicode text; "
+         "mark their encoding with Encoding(), or give bytes as a raw vector");
+  }
+  return Rf_translateCharUTF8(chr);
+}
+
 // Error for a feature that needs a newer Z3 than the one z3r was built with.
 [[noreturn]] void needs_version(const char* feature, const char* version);
 
@@ -240,6 +280,7 @@ struct SolverHolder {
   uint64_t generation = 0;      // bumped whenever the assertion stack changes
   uint64_t checked_at = 0;      // generation of the last check
   bool checked = false;
+  bool searched = false;  // a search ran since creation or the last reset
   Z3_lbool status = Z3_L_UNDEF;
   void touch() { ++generation; }
   KeptParams params;  // what z3r has set on the solver; see with_params()
@@ -253,6 +294,7 @@ struct SolverHolder {
   bool inputs_partial = false;  // SMT-LIB text was parsed into it
   AstVec inputs;
   std::vector<size_t> input_scopes;
+  std::vector<bool> partial_scopes;  // inputs_partial at each push
 };
 
 struct OptimizeHolder {
@@ -275,6 +317,13 @@ struct OptimizeHolder {
   // Z3 lists the constraints only as label => constraint.
   AstVec tracked;
   std::vector<size_t> tracked_scopes;  // number of labels at each push
+  // Z3_optimize_translate keeps label => constraint but not the tracking,
+  // so a copy assumes its labels at every check.
+  bool assume_tracked = false;
+  // Z3 prints soft weights with three decimals; a weight it would print
+  // inexactly makes the optimizer's text refused.
+  std::string inexact_weight;
+  std::vector<std::string> weight_scopes;  // inexact_weight at each push
   uint64_t next_objective = 0;
   uint64_t note_objective(unsigned idx) {
     while (objectives.size() <= idx) objectives.push_back(++next_objective);
@@ -471,6 +520,18 @@ Ast coerce_sort(const Ast& v, Z3_sort sort, const std::string& what);
 std::vector<Z3_sort> free_var_sorts(Z3_context c, Z3_ast a);
 std::vector<Z3_sort> free_var_sorts(Z3_context c, const std::vector<Z3_ast>& terms);
 void refuse_free_vars(Z3_context c, const std::vector<Z3_ast>& terms, const char* what);
+
+void solver_parse(SolverHolder* h, const std::string& text, bool is_file);
+
+// SMT-LIB text scans (smtlib_scan.cpp).
+void refuse_redeclared(const CtxPtr& ctx, const std::string& name);
+std::string smt_file_text(const std::string& path);
+std::vector<std::string> smt_datatype_names(const std::string& text);
+std::set<std::string> smt_named_labels(const std::string& text);
+std::vector<std::string> smt_soft_weights(const std::string& text);
+bool smt_sets_option(const std::string& text, const std::string& option);
+void guard_smt_datatypes(const CtxPtr& ctx, const std::string& text);
+void register_smt_datatypes(const CtxPtr& ctx, const std::string& text);
 
 }  // namespace z3r
 

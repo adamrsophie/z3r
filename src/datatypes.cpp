@@ -60,17 +60,6 @@ std::vector<Z3_constructor> make_constructors(const CtxPtr& ctx, Rcpp::List spec
   return out;
 }
 
-// Z3 replaces an earlier datatype of the same name and frees its sorts and
-// functions, while R objects may still use them; refuse a second declaration
-// made through z3r in the same context.
-void refuse_redeclared(const CtxPtr& ctx, const std::string& name) {
-  if (ctx->datatype_names.count(name)) {
-    fail("a datatype named '" + name + "' is already declared in this context, and declaring it again "
-         "would free the sorts and functions still in use; keep the earlier object, or use another "
-         "name or a new context");
-  }
-}
-
 // Name of a new datatype sort: a single non-empty string not yet declared.
 Z3_symbol sort_symbol(const CtxPtr& ctx, SEXP name_, std::string& name) {
   name = as_string(name_, "name");
@@ -83,7 +72,7 @@ Z3_symbol sort_symbol(const CtxPtr& ctx, SEXP name_, std::string& name) {
 std::string utf8_elt(SEXP x, R_xlen_t i, const char* what) {
   SEXP s = STRING_ELT(x, i);
   if (s == NA_STRING) fail(std::string(what) + " must not be missing");
-  return std::string(Rf_translateCharUTF8(s));
+  return std::string(utf8_char(s));
 }
 
 // Declarations of one constructor of a new datatype.

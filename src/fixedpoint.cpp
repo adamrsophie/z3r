@@ -305,10 +305,15 @@ SEXP cpp_fixedpoint_from(SEXP f_, SEXP text_, bool is_file) {
   FixedpointHolder* h = fixedpoint(f_);
   const CtxPtr& ctx = h->f.ctx();
   std::string text = as_string(text_, is_file ? "file" : "text");
+  std::string scanned = is_file ? smt_file_text(text) : text;
+  guard_smt_datatypes(ctx, scanned);
   Z3_ast_vector v = is_file ? Z3_fixedpoint_from_file(ctx->c, h->f, text.c_str())
                             : Z3_fixedpoint_from_string(ctx->c, h->f, text.c_str());
   ++h->generation;
-  return wrap_ast_vector(ctx, v);
+  SEXP out = PROTECT(wrap_ast_vector(ctx, v));
+  register_smt_datatypes(ctx, scanned);
+  UNPROTECT(1);
+  return out;
 }
 
 // Column sorts of a relation sort: the sort of the relations that external

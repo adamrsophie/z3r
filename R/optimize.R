@@ -89,7 +89,11 @@ z3_push.z3_optimize <- function(x) {
 
 #' @export
 z3_pop.z3_optimize <- function(x, n = 1) {
-  for (i in seq_len(as_count(n, "n"))) cpp_optimize_pop(x)
+  n <- as_count(n, "n")
+  if (n > z3_num_scopes(x) && z3_num_scopes(x) > 0) {
+    stop(sprintf("cannot pop %d scopes: the optimizer has %d", n, z3_num_scopes(x)), call. = FALSE)
+  }
+  for (i in seq_len(n)) cpp_optimize_pop(x)
   invisible(x)
 }
 

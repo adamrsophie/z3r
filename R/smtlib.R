@@ -58,6 +58,7 @@
 #' @export
 z3_to_smtlib <- function(x, logic = "", state = FALSE) {
   if (inherits(x, "z3_solver")) {
+    cpp_solver_refuse_propagator_export(x)
     # Z3 lists a tracked constraint as label => constraint; assert the
     # labels, as a check does, so the text has the same answer.
     tracked <- cpp_solver_tracked(x)
@@ -71,7 +72,7 @@ z3_to_smtlib <- function(x, logic = "", state = FALSE) {
   }
   if (inherits(x, "z3_optimize")) {
     # Z3 ends the text with (check-sat); assert the labels before it.
-    txt <- cpp_optimize_to_string(x)
+    txt <- cpp_optimize_to_string(x, TRUE)
     labels <- assert_lines(cpp_optimize_tracked(x))
     if (!nzchar(labels)) return(txt)
     at <- regexpr("\\(check-sat\\)\\s*$", txt)

@@ -74,6 +74,23 @@ SEXP cpp_optimize_assert_and_track(SEXP o_, SEXP constraint, SEXP label_) {
   return wrap_expr(label);
 }
 
+// Whether Z3's three-decimal text of a rational weight n/d is exact: d must
+// divide 1000.
+static bool weight_prints_exactly(const CtxPtr& ctx, const std::string& weight) {
+  Z3_context c = ctx->c;
+  Z3_sort real = Z3_mk_real_sort(c);
+  Ast w = own_ast(ctx, Z3_mk_numeral(c, weight.c_str(), real));
+  check(ctx);
+  Ast k = own_ast(ctx, Z3_mk_numeral(c, "1000", real));
+  Z3_ast args[2] = {w, k};
+  Ast product = own_ast(ctx, Z3_mk_mul(c, 2, args));
+  Ast scaled = own_ast(ctx, Z3_simplify(c, product));
+  Ast den = own_ast(ctx, Z3_get_denominator(c, scaled));
+  std::string d = str(Z3_get_numeral_string(c, den));
+  check(ctx);
+  return d == "1";
+}
+
 // Soft constraint; weight is an exact decimal or rational string.
 // [[Rcpp::export(rng = false)]]
 Rcpp::NumericVector cpp_optimize_assert_soft(SEXP o_, SEXP constraint, std::string weight, std::string id) {
@@ -81,6 +98,8 @@ Rcpp::NumericVector cpp_optimize_assert_soft(SEXP o_, SEXP constraint, std::stri
   const CtxPtr& ctx = h->o.ctx();
   Ast a = bool_arg(ctx, constraint, "soft constraints");
   unsigned idx = Z3_optimize_assert_soft(ctx->c, h->o, a, weight.c_str(), mk_symbol(ctx, id));
+  check(ctx);
+  if (h->inexact_weight.empty() && !weight_prints_exactly(ctx, weight)) h->inexact_weight = weight;
   check(ctx);
   h->touch();
   uint64_t serial = h->note_objective(idx);
@@ -111,8 +130,9 @@ std::string cpp_optimize_check(SEXP o_, Rcpp::List assumptions, SEXP timeout) {
   const CtxPtr& ctx = h->o.ctx();
   AstVec as;
   for (R_xlen_t i = 0; i < assumptions.size(); ++i) as.push_back(bool_arg(ctx, assumptions[i], "assumptions"));
-  std::vector<Z3_ast> r = raw(as);
   h->assumptions = as;
+  if (h->assume_tracked) as.insert(as.end(), h->tracked.begin(), h->tracked.end());
+  std::vector<Z3_ast> r = raw(as);
   OptimizeTimeout once;
   once.apply(h, timeout);
   Z3_lbool st;
@@ -279,6 +299,7 @@ void cpp_optimize_push(SEXP o_) {
   h->touch();
   h->scopes.push_back(n);
   h->tracked_scopes.push_back(h->tracked.size());
+  h->weight_scopes.push_back(h->inexact_weight);
 }
 
 // [[Rcpp::export(rng = false)]]
@@ -293,6 +314,8 @@ void cpp_optimize_pop(SEXP o_) {
   h->scopes.pop_back();
   h->tracked.resize(h->tracked_scopes.back());
   h->tracked_scopes.pop_back();
+  h->inexact_weight = h->weight_scopes.back();
+  h->weight_scopes.pop_back();
 }
 
 // [[Rcpp::export(rng = false)]]
@@ -347,20 +370,46 @@ SEXP cpp_optimize_param_help(SEXP o_) {
 }
 
 // [[Rcpp::export(rng = false)]]
-Rcpp::String cpp_optimize_to_string(SEXP o_) {
+Rcpp::String cpp_optimize_to_string(SEXP o_, bool exact) {
   OptimizeHolder* h = optimizer(o_);
+  if (exact && !h->inexact_weight.empty()) {
+    fail("the soft constraint weight " + h->inexact_weight + " has no exact three-decimal form, and Z3 "
+         "writes weights with three decimals, so the text could have another optimum; scale the weights "
+         "to integers");
+  }
   std::string out = str(Z3_optimize_to_string(h->o.c(), h->o));
   check(h->o.ctx());
   return out;
+}
+
+// Text parsed into an optimizer: datatype names it may not redeclare, and
+// opt.priority, which Z3 applies to the optimizer without listing it in the
+// optimizer's text (so an export would lose it).
+static void guard_optimizer_text(OptimizeHolder* h, const std::string& text) {
+  guard_smt_datatypes(h->o.ctx(), text);
+  for (const std::string& w : smt_soft_weights(text)) {
+    try {
+      if (h->inexact_weight.empty() && !weight_prints_exactly(h->o.ctx(), w)) h->inexact_weight = w;
+    } catch (...) {
+      // Not a number Z3 reads; Z3's parser reports it.
+    }
+  }
+  if (smt_sets_option(text, ":opt.priority")) {
+    fail("set the objective priority with z3_set_params(opt, priority = ...), not with set-option in "
+         "SMT-LIB text: Z3 would apply it without recording it, and z3_to_smtlib() would lose it");
+  }
 }
 
 // [[Rcpp::export(rng = false)]]
 void cpp_optimize_from_string(SEXP o_, SEXP text_) {
   OptimizeHolder* h = optimizer(o_);
   std::string text = as_string(text_, "text");
+  std::string scanned = text;
+  guard_optimizer_text(h, scanned);
+  h->touch();  // also when parsing fails part way: Z3 keeps what it read
   Z3_optimize_from_string(h->o.c(), h->o, text.c_str());
   check(h->o.ctx());
-  h->touch();
+  register_smt_datatypes(h->o.ctx(), scanned);
 }
 
 // [[Rcpp::export(rng = false)]]
@@ -375,9 +424,12 @@ std::string cpp_optimize_help(SEXP o_) {
 void cpp_optimize_from_file(SEXP o_, SEXP file_) {
   OptimizeHolder* h = optimizer(o_);
   std::string file = as_string(file_, "file");
+  std::string scanned = smt_file_text(file);
+  guard_optimizer_text(h, scanned);
+  h->touch();  // also when parsing fails part way: Z3 keeps what it read
   Z3_optimize_from_file(h->o.c(), h->o, file.c_str());
   check(h->o.ctx());
-  h->touch();
+  register_smt_datatypes(h->o.ctx(), scanned);
 }
 
 // [[Rcpp::export(rng = false)]]
@@ -410,6 +462,7 @@ SEXP cpp_optimize_translate(SEXP o_, SEXP target_) {
   nh->o = own(target, t);
   // Z3 copies the parameters; keep the record of them for later sets.
   nh->params = h->params;
+  nh->assume_tracked = true;
   for (const Ast& l : h->tracked) {
     nh->tracked.push_back(own_ast(target, Z3_translate(h->o.c(), l, target->c)));
   }

@@ -131,6 +131,16 @@ if test -n "${PKG_LIBS}"; then
   Z3_SOURCE="PKG_CPPFLAGS/PKG_LIBS"
   try_z3 "${Z3_CPPFLAGS}" "${Z3_LIBS}" || Z3_SOURCE=""
 elif test -n "${Z3_INCLUDE_DIR}" || test -n "${Z3_LIB_DIR}"; then
+  # Directories that do not hold Z3 would let the compiler find another Z3
+  # through the default paths, reported as these.
+  if test -n "${Z3_INCLUDE_DIR}" && test ! -f "${Z3_INCLUDE_DIR}/z3.h"; then
+    echo "configure: error: Z3_INCLUDE_DIR=${Z3_INCLUDE_DIR} has no z3.h" >&2
+    exit 1
+  fi
+  if test -n "${Z3_LIB_DIR}" && ! ls "${Z3_LIB_DIR}"/libz3.* >/dev/null 2>&1; then
+    echo "configure: error: Z3_LIB_DIR=${Z3_LIB_DIR} has no libz3 library" >&2
+    exit 1
+  fi
   if test -n "${Z3_INCLUDE_DIR}"; then Z3_CPPFLAGS="-I`sq "${Z3_INCLUDE_DIR}"`"; fi
   if test -n "${Z3_LIB_DIR}"; then
     Z3_LIBS=`z3_lib_flags "${Z3_LIB_DIR}"`
@@ -286,6 +296,9 @@ write_build_info () {
     echo "#define Z3R_BUILD_SOURCE \"`build_esc "$2"`\""
     echo "#define Z3R_BUILD_ASSET \"`build_esc "$3"`\""
     echo "#define Z3R_BUILD_SHA256 \"$4\""
+    # Not used by the code: a change here (another Z3 behind the same
+    # paths) makes every object, which depends on this file, rebuild.
+    echo "// Z3 ${Z3_FOUND_VERSION}: `build_esc "${Z3_CPPFLAGS} ${Z3_LIBS}"`"
   } > src/z3r_build.h.new
   if cmp -s src/z3r_build.h.new src/z3r_build.h; then
     rm -f src/z3r_build.h.new

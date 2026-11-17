@@ -2,7 +2,13 @@
 # interrupted).
 callback_invoke <- function(fn, ...) {
   tryCatch(list(fn(...), NULL, FALSE),
-           error = function(e) list(NULL, conditionMessage(e), FALSE),
+           error = function(e) {
+             # A condition may carry a NULL or empty message; it is still an error.
+             m <- tryCatch(paste(as.character(conditionMessage(e)), collapse = "\n"),
+                           error = function(e2) "")
+             if (!nzchar(m)) m <- "an error without a message"
+             list(NULL, m, FALSE)
+           },
            interrupt = function(e) list(NULL, "interrupted by the user", TRUE))
 }
 

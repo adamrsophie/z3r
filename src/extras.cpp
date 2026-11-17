@@ -59,16 +59,7 @@ SEXP cpp_update_term(SEXP x, Rcpp::List args) {
 
 // [[Rcpp::export(rng = false)]]
 void cpp_solver_from_file(SEXP s_, SEXP file_) {
-  SolverHolder* h = solver_of(s_);
-  std::string file = as_string(file_, "file");
-  h->touch();
-  if (h->simplified) h->inputs_partial = true;
-  {
-    BusyGuard<SolverHolder> busy(h);
-    Z3_solver_from_file(h->s.c(), h->s, file.c_str());
-  }
-  raise_callback_errors(h->callbacks);
-  check(h->s.ctx());
+  solver_parse(solver_of(s_), as_string(file_, "file"), true);
 }
 
 // [[Rcpp::export(rng = false)]]
@@ -246,7 +237,11 @@ SEXP cpp_parser_parse(SEXP p_, SEXP text_) {
 #if Z3R_AT_LEAST(4, 9, 0)
   const Ref<Z3_parser_context>& p = *get_xptr<Ref<Z3_parser_context>>(p_, Kind::Parser);
   std::string text = as_string(text_, "text");
-  return wrap_ast_vector(p.ctx(), Z3_parser_context_from_string(p.c(), p, text.c_str()));
+  guard_smt_datatypes(p.ctx(), text);
+  SEXP out = PROTECT(wrap_ast_vector(p.ctx(), Z3_parser_context_from_string(p.c(), p, text.c_str())));
+  register_smt_datatypes(p.ctx(), text);
+  UNPROTECT(1);
+  return out;
 #else
   (void)p_; (void)text_;
   needs_version("z3_parser()", "4.9.0");

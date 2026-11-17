@@ -23,8 +23,12 @@ Rcpp::List cpp_model_eval_many(SEXP m_, Rcpp::List xs, bool completion) {
   const Ref<Z3_model>& m = model(m_);
   const CtxPtr& ctx = m.ctx();
   Rcpp::List out(xs.size());
+  // Every input is checked before any evaluation, since completion changes
+  // the model.
+  AstVec in;
+  for (R_xlen_t i = 0; i < xs.size(); ++i) in.push_back(lift(ctx, xs[i], nullptr));
   for (R_xlen_t i = 0; i < xs.size(); ++i) {
-    Ast a = lift(ctx, xs[i], nullptr);
+    const Ast& a = in[i];
     Z3_ast v = nullptr;
     bool ok = Z3_model_eval(ctx->c, m, a, completion, &v);
     check(ctx);
@@ -198,11 +202,19 @@ void cpp_model_set_const(SEXP m_, SEXP constant, SEXP value) {
   Z3_context c = ctx->c;
   const Ast& k = get_expr(constant);
   same_ctx(ctx, k.ctx());
-  if (!Z3_is_app(c, k) || Z3_get_app_num_args(c, Z3_to_app(c, k)) != 0) {
-    fail("only constants can be assigned in a model");
+  if (!Z3_is_app(c, k) || Z3_get_app_num_args(c, Z3_to_app(c, k)) != 0 ||
+      Z3_get_decl_kind(c, Z3_get_app_decl(c, Z3_to_app(c, k))) != Z3_OP_UNINTERPRETED) {
+    fail("only constants can be assigned in a model (declared constants, not literals such as true or 1)");
   }
   Z3_func_decl d = Z3_get_app_decl(c, Z3_to_app(c, k));
   Ast v = model_value(ctx, value, Z3_get_sort(c, k), "the value");
+  for (Z3_sort fv : free_var_sorts(c, v)) {
+    if (fv) fail("the value of a constant cannot use bound variables (z3_bound_var())");
+  }
+  // A value that mentions other constants takes their values in this model.
+  Z3_ast ev = nullptr;
+  if (Z3_model_eval(c, m, v, false, &ev) && ev) v = own_ast(ctx, ev);
+  check(ctx);
   Z3_add_const_interp(c, m, d, v);
   check(ctx);
   clear_eval_cache(m);

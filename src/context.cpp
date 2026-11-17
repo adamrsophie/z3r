@@ -204,7 +204,7 @@ std::string as_string(SEXP x, const char* what) {
   if (TYPEOF(x) != STRSXP || Rf_xlength(x) != 1 || STRING_ELT(x, 0) == NA_STRING) {
     fail(std::string(what) + " must be a single non-missing string");
   }
-  return std::string(Rf_translateCharUTF8(STRING_ELT(x, 0)));
+  return std::string(utf8_char(STRING_ELT(x, 0)));
 }
 
 Z3_symbol mk_symbol(const CtxPtr& ctx, const std::string& name) {

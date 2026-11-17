@@ -666,7 +666,8 @@ z3_import_model_converter <- function(src, dst) {
 #' `z3_all_models(solver, vars, limit)` lists the distinct assignments of
 #' `vars` in models of the solver's assertions, at most `limit` of them. It
 #' blocks each assignment found and checks again, inside a scope, so the
-#' solver is unchanged afterwards. Values are converted as by
+#' solver's assertions and scopes are unchanged afterwards; the result of an
+#' earlier [z3_check()] is not kept, so check again before [z3_model()]. Values are converted as by
 #' [z3_model_values()]. The `"status"` attribute says why enumeration
 #' stopped: `"unsat"` (all assignments were found), `"limit"`,
 #' `"unknown"` or `"stopped"`.

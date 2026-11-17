@@ -18,6 +18,7 @@ const char* lbool_string(Z3_lbool r) {
 bool has_propagator(const CallbackPtr& cb) { return cb->propagator; }
 
 void begin_search(SolverHolder* h) {
+  h->searched = true;
   for (CallbackPtr& cb : h->callbacks) {
     cb->cloned = false;
     cb->off_thread = false;
@@ -327,7 +328,12 @@ SEXP cpp_solver_assert_and_track(SEXP s_, SEXP constraint, SEXP label_) {
     std::string name = as_string(label_, "name");
     label = own_ast(ctx, Z3_mk_const(ctx->c, mk_symbol(ctx, name), Z3_mk_bool_sort(ctx->c)));
   }
-  if (!is_bool(label)) fail("the tracking label must be a Boolean constant");
+  {
+    Z3_context c = ctx->c;
+    bool constant = is_bool(label) && Z3_is_app(c, label) && Z3_get_app_num_args(c, Z3_to_app(c, label)) == 0 &&
+                    Z3_get_decl_kind(c, Z3_get_app_decl(c, Z3_to_app(c, label))) == Z3_OP_UNINTERPRETED;
+    if (!constant) fail("the tracking label must be a Boolean constant (such as z3_bool(ctx, \"t\")), not a formula");
+  }
   h->touch();
   {
     BusyGuard<SolverHolder> busy(h);
@@ -436,6 +442,7 @@ void cpp_solver_push(SEXP s_) {
   check(h->s.ctx());
   h->tracked_scopes.push_back(h->tracked.size());
   h->input_scopes.push_back(h->inputs.size());
+  h->partial_scopes.push_back(h->inputs_partial);
 }
 
 // [[Rcpp::export(rng = false)]]
@@ -457,6 +464,8 @@ void cpp_solver_pop(SEXP s_, int n) {
     h->tracked_scopes.pop_back();
     h->inputs.resize(h->input_scopes.back());
     h->input_scopes.pop_back();
+    h->inputs_partial = h->partial_scopes.back();
+    h->partial_scopes.pop_back();
   }
   raise_callback_errors(h->callbacks);
   check(h->s.ctx());
@@ -477,10 +486,12 @@ void cpp_solver_reset(SEXP s_) {
   check(h->s.ctx());
   h->touch();
   h->checked = false;
+  h->searched = false;
   h->tracked.clear();
   h->tracked_scopes.clear();
   h->inputs.clear();
   h->input_scopes.clear();
+  h->partial_scopes.clear();
   h->inputs_partial = false;
   // Resetting discards Z3's solver, including user propagators and clause
   // callbacks; drop their state so they can be installed again.
@@ -590,19 +601,64 @@ Rcpp::String cpp_solver_to_string(SEXP s_) {
   return out;
 }
 
-// Parses SMT-LIB2 text and asserts its assertions into the solver.
-// [[Rcpp::export(rng = false)]]
-void cpp_solver_from_string(SEXP s_, SEXP text_) {
-  SolverHolder* h = solver(s_);
-  std::string text = as_string(text_, "text");
+// With unsat cores enabled, Z3 asserts (! F :named l) from SMT-LIB text as
+// the tracked constraint l => F; record l as z3_assert_and_track() would,
+// so exports assert it. `before` is the number of assertions before.
+static void adopt_named(SolverHolder* h, unsigned before, const std::string& text) {
+  if (h->simplified) return;  // its assertions cannot be listed exactly anyway
+  std::set<std::string> names = smt_named_labels(text);
+  if (names.empty()) return;
+  const CtxPtr& ctx = h->s.ctx();
+  Z3_context c = ctx->c;
+  Ref<Z3_ast_vector> v = own(ctx, Z3_solver_get_assertions(c, h->s));
+  for (unsigned i = before, n = Z3_ast_vector_size(c, v); i < n; ++i) {
+    Z3_ast a = Z3_ast_vector_get(c, v, i);
+    if (!Z3_is_app(c, a)) continue;
+    Z3_app app = Z3_to_app(c, a);
+    if (Z3_get_decl_kind(c, Z3_get_app_decl(c, app)) != Z3_OP_IMPLIES || Z3_get_app_num_args(c, app) != 2) continue;
+    Z3_ast l = Z3_get_app_arg(c, app, 0);
+    if (!Z3_is_app(c, l) || Z3_get_app_num_args(c, Z3_to_app(c, l)) != 0) continue;
+    Z3_func_decl d = Z3_get_app_decl(c, Z3_to_app(c, l));
+    if (Z3_get_decl_kind(c, d) != Z3_OP_UNINTERPRETED || Z3_get_sort_kind(c, Z3_get_sort(c, l)) != Z3_BOOL_SORT) continue;
+    Z3_symbol sym = Z3_get_decl_name(c, d);
+    if (Z3_get_symbol_kind(c, sym) != Z3_STRING_SYMBOL || !names.count(Z3_get_symbol_string(c, sym))) continue;
+    bool known = false;
+    for (const Ast& t : h->tracked) known = known || Z3_is_eq_ast(c, t, l);
+    if (!known) h->tracked.push_back(own_ast(ctx, l));
+  }
+  check(ctx);
+}
+
+// Parses SMT-LIB2 text (or a file when is_file) into the solver.
+void z3r::solver_parse(SolverHolder* h, const std::string& text, bool is_file) {
+  const CtxPtr& ctx = h->s.ctx();
+  std::string scanned = is_file ? smt_file_text(text) : text;
+  guard_smt_datatypes(ctx, scanned);
+  unsigned before = 0;
+  if (!h->simplified) {
+    Ref<Z3_ast_vector> v = own(ctx, Z3_solver_get_assertions(ctx->c, h->s));
+    before = Z3_ast_vector_size(ctx->c, v);
+  }
   h->touch();
   if (h->simplified) h->inputs_partial = true;
   {
     BusyGuard<SolverHolder> busy(h);
-    Z3_solver_from_string(h->s.c(), h->s, text.c_str());
+    if (is_file) {
+      Z3_solver_from_file(h->s.c(), h->s, text.c_str());
+    } else {
+      Z3_solver_from_string(h->s.c(), h->s, text.c_str());
+    }
   }
   raise_callback_errors(h->callbacks);
-  check(h->s.ctx());
+  check(ctx);
+  register_smt_datatypes(ctx, scanned);
+  adopt_named(h, before, scanned);
+}
+
+// Parses SMT-LIB2 text and asserts its assertions into the solver.
+// [[Rcpp::export(rng = false)]]
+void cpp_solver_from_string(SEXP s_, SEXP text_) {
+  solver_parse(solver(s_), as_string(text_, "text"), false);
 }
 
 // ---------------------------------------------------------------------------
@@ -662,6 +718,7 @@ SEXP cpp_solver_cube(SEXP s_, Rcpp::List vars, double backtrack_level) {
   ensure_solver_ready(ctx->c, h->s);
   check(ctx);
   Z3_ast_vector cube;
+  h->searched = true;
   {
     BusyGuard<SolverHolder> busy(h);
     cube = Z3_solver_cube(ctx->c, h->s, vv, static_cast<unsigned>(backtrack_level));
@@ -750,8 +807,21 @@ std::string cpp_param_names(SEXP x) {
   return out;
 }
 
+// A user propagator's constraints live in R code, which no text carries.
+// [[Rcpp::export(rng = false)]]
+void cpp_solver_refuse_propagator_export(SEXP s_) {
+  SolverHolder* h = solver(s_);
+  for (const CallbackPtr& cb : h->callbacks) {
+    if (cb->propagator) {
+      fail("this solver has a user propagator, whose constraints exist only in R code; "
+           "exported text would not have the solver's answer");
+    }
+  }
+}
+
 // [[Rcpp::export(rng = false)]]
 Rcpp::String cpp_solver_to_dimacs(SEXP s_, bool include_names) {
+  cpp_solver_refuse_propagator_export(s_);
   SolverHolder* h = solver(s_);
   const CtxPtr& ctx = h->s.ctx();
   AstVec fs;

@@ -726,12 +726,13 @@ BEGIN_RCPP
 END_RCPP
 }
 // cpp_fingerprint
-std::string cpp_fingerprint(Rcpp::List xs);
-RcppExport SEXP _z3r_cpp_fingerprint(SEXP xsSEXP) {
+std::string cpp_fingerprint(Rcpp::List xs, std::string extra);
+RcppExport SEXP _z3r_cpp_fingerprint(SEXP xsSEXP, SEXP extraSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::traits::input_parameter< Rcpp::List >::type xs(xsSEXP);
-    rcpp_result_gen = Rcpp::wrap(cpp_fingerprint(xs));
+    Rcpp::traits::input_parameter< std::string >::type extra(extraSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_fingerprint(xs, extra));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -2358,12 +2359,13 @@ BEGIN_RCPP
 END_RCPP
 }
 // cpp_optimize_to_string
-Rcpp::String cpp_optimize_to_string(SEXP o_);
-RcppExport SEXP _z3r_cpp_optimize_to_string(SEXP o_SEXP) {
+Rcpp::String cpp_optimize_to_string(SEXP o_, bool exact);
+RcppExport SEXP _z3r_cpp_optimize_to_string(SEXP o_SEXP, SEXP exactSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::traits::input_parameter< SEXP >::type o_(o_SEXP);
-    rcpp_result_gen = Rcpp::wrap(cpp_optimize_to_string(o_));
+    Rcpp::traits::input_parameter< bool >::type exact(exactSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_optimize_to_string(o_, exact));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -2934,6 +2936,15 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cpp_solver_refuse_propagator_export
+void cpp_solver_refuse_propagator_export(SEXP s_);
+RcppExport SEXP _z3r_cpp_solver_refuse_propagator_export(SEXP s_SEXP) {
+BEGIN_RCPP
+    Rcpp::traits::input_parameter< SEXP >::type s_(s_SEXP);
+    cpp_solver_refuse_propagator_export(s_);
+    return R_NilValue;
+END_RCPP
+}
 // cpp_solver_to_dimacs
 Rcpp::String cpp_solver_to_dimacs(SEXP s_, bool include_names);
 RcppExport SEXP _z3r_cpp_solver_to_dimacs(SEXP s_SEXP, SEXP include_namesSEXP) {
@@ -3482,7 +3493,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_z3r_cpp_open_log", (DL_FUNC) &_z3r_cpp_open_log, 1},
     {"_z3r_cpp_close_log", (DL_FUNC) &_z3r_cpp_close_log, 0},
     {"_z3r_cpp_toggle_warnings", (DL_FUNC) &_z3r_cpp_toggle_warnings, 1},
-    {"_z3r_cpp_fingerprint", (DL_FUNC) &_z3r_cpp_fingerprint, 1},
+    {"_z3r_cpp_fingerprint", (DL_FUNC) &_z3r_cpp_fingerprint, 2},
     {"_z3r_cpp_build_info", (DL_FUNC) &_z3r_cpp_build_info, 0},
     {"_z3r_cpp_propagate_init", (DL_FUNC) &_z3r_cpp_propagate_init, 2},
     {"_z3r_cpp_propagate_register", (DL_FUNC) &_z3r_cpp_propagate_register, 2},
@@ -3632,7 +3643,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_z3r_cpp_optimize_interrupt", (DL_FUNC) &_z3r_cpp_optimize_interrupt, 1},
     {"_z3r_cpp_optimize_set_params", (DL_FUNC) &_z3r_cpp_optimize_set_params, 2},
     {"_z3r_cpp_optimize_param_help", (DL_FUNC) &_z3r_cpp_optimize_param_help, 1},
-    {"_z3r_cpp_optimize_to_string", (DL_FUNC) &_z3r_cpp_optimize_to_string, 1},
+    {"_z3r_cpp_optimize_to_string", (DL_FUNC) &_z3r_cpp_optimize_to_string, 2},
     {"_z3r_cpp_optimize_from_string", (DL_FUNC) &_z3r_cpp_optimize_from_string, 2},
     {"_z3r_cpp_optimize_help", (DL_FUNC) &_z3r_cpp_optimize_help, 1},
     {"_z3r_cpp_optimize_from_file", (DL_FUNC) &_z3r_cpp_optimize_from_file, 2},
@@ -3687,6 +3698,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_z3r_cpp_solver_help", (DL_FUNC) &_z3r_cpp_solver_help, 1},
     {"_z3r_cpp_simplify_help_text", (DL_FUNC) &_z3r_cpp_simplify_help_text, 1},
     {"_z3r_cpp_param_names", (DL_FUNC) &_z3r_cpp_param_names, 1},
+    {"_z3r_cpp_solver_refuse_propagator_export", (DL_FUNC) &_z3r_cpp_solver_refuse_propagator_export, 1},
     {"_z3r_cpp_solver_to_dimacs", (DL_FUNC) &_z3r_cpp_solver_to_dimacs, 2},
     {"_z3r_cpp_solver_translate", (DL_FUNC) &_z3r_cpp_solver_translate, 2},
     {"_z3r_cpp_solver_initial_value", (DL_FUNC) &_z3r_cpp_solver_initial_value, 3},

@@ -111,6 +111,9 @@ test_that("resetting a solver removes its callbacks", {
   z3_reset(s)
   z3_add(s, z3_or(p))
   expect_identical(z3_check(s), "sat")
+  # After a search, Z3 may reuse what it found without the new propagator.
+  expect_error(install(s), "before the solver's first check")
+  z3_reset(s)
   install(s)
   z3_add(s, z3_or(p))
   expect_identical(z3_check(s), "unsat")

@@ -65,7 +65,7 @@ z3_linear <- function(A, x, op = "<=", b, nrow = NULL) {
         length(A$value) != length(row)) {
       stop("row and col must be whole numbers of the same length as value", call. = FALSE)
     }
-    if (anyNA(unlist(lapply(A$value, function(v) is.na(v))))) {
+    if (any(vapply(A$value, function(v) !is_z3_expr(v) && anyNA(v), NA))) {
       stop("A must not contain missing values", call. = FALSE)
     }
     m <- if (is.null(nrow)) as.integer(max(c(0, row))) else as_count(nrow, "nrow")
@@ -83,7 +83,10 @@ z3_linear <- function(A, x, op = "<=", b, nrow = NULL) {
   if (!(length(b) %in% c(1L, m))) {
     stop(sprintf("b must have length 1 or one element per row (%d)", m), call. = FALSE)
   }
-  if (any(vapply(b, function(v) length(v) != 1L || is.na(v), logical(1)))) {
+  if (is.matrix(A) && !is.numeric(A) && !is.character(A)) {
+    stop("A must be a numeric or character matrix", call. = FALSE)
+  }
+  if (any(vapply(b, function(v) !is_z3_expr(v) && (length(v) != 1L || is.na(v)), logical(1)))) {
     stop("b must hold single non-missing values", call. = FALSE)
   }
   # Strings are exact numbers here (elsewhere they are string literals).

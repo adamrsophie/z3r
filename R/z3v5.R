@@ -81,7 +81,11 @@ z3_ff_sort <- function(ctx, p) {
 
 #' @rdname z3_v5_theories
 #' @export
-z3_ff_size <- function(sort) cpp_v5_sort_info(sort)
+z3_ff_size <- function(sort) {
+  r <- cpp_v5_sort_info(sort)
+  if (!is.character(r)) stop("sort must be a finite field sort", call. = FALSE)
+  r
+}
 
 #' @rdname z3_v5_theories
 #' @export
@@ -105,7 +109,11 @@ z3_finite_set_sort <- function(element) cpp_v5_sort(z3_context_of(element), "fin
 
 #' @rdname z3_v5_theories
 #' @export
-z3_fs_element_sort <- function(sort) cpp_v5_sort_info(sort)
+z3_fs_element_sort <- function(sort) {
+  r <- cpp_v5_sort_info(sort)
+  if (is.character(r)) stop("sort must be a finite set sort", call. = FALSE)
+  r
+}
 
 #' @rdname z3_v5_theories
 #' @export

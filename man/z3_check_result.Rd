@@ -38,7 +38,8 @@ and \code{proof} (for \code{"unsat"} in a context made with
 \item \code{statistics}: Z3's statistics after the check.
 \item \code{params}: the parameters set on the solver, as Z3's text.
 \item \code{fingerprint}: a structural hash of the assertions, tracked labels
-and assumptions. Two checks of the same formulas have the same
+and assumptions, and for an optimizer its objectives and soft
+constraints. Two checks of the same formulas have the same
 fingerprint in one Z3 version; it is not a cryptographic hash. It is
 \code{NA} when z3r cannot list the assertions (a solver with a simplifier
 that SMT-LIB was parsed into).

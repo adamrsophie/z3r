@@ -53,7 +53,10 @@ test_that("powers keep the sort for small literal exponents", {
   expect_identical(format(x^2), "(* x x)")
   expect_identical(z3_sort_kind(x^3), "int")
   expect_identical(format(x^1), "x")
-  expect_identical(format(x^0), "1")
+  # x^0 is 1 except at x = 0, which Z3 leaves to its power operator.
+  expect_identical(z3_sort_kind(x^0), "int")
+  expect_identical(check_status(ctx, x != 0, x^0 != 1), "unsat")
+  expect_identical(format(z3_int_val(ctx, 2)^0), "1")
   expect_identical(z3_sort_kind(x^x), "real")
   expect_identical(z3_sort_kind(x^0.5), "real")
   r <- z3_real(ctx, "r")

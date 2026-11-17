@@ -191,12 +191,12 @@ static Ast mk_numeral(const CtxPtr& ctx, const std::string& s, Z3_sort sort) {
 
 // Shortest decimal string that converts back to the same double.
 static std::string shortest_decimal(double v) {
-  char buf[64];
+  std::string s;
   for (int prec = 1; prec <= 17; ++prec) {
-    std::snprintf(buf, sizeof(buf), "%.*g", prec, v);
-    if (std::strtod(buf, nullptr) == v) break;
+    s = c_format(v, prec);
+    if (c_strtod(s) == v) break;
   }
-  return std::string(buf);
+  return s;
 }
 
 // Decimal digits of 2^k, computed exactly.
@@ -343,7 +343,7 @@ static std::vector<unsigned> code_points(const char* utf8) {
 
 // Z3_mk_string would interpret backslash escapes; code points do not.
 static Ast mk_string_literal(const CtxPtr& ctx, SEXP chr) {
-  std::vector<unsigned> cps = code_points(Rf_translateCharUTF8(chr));
+  std::vector<unsigned> cps = code_points(utf8_char(chr));
   return own_ast(ctx, Z3_mk_u32string(ctx->c, static_cast<unsigned>(cps.size()),
                                       cps.empty() ? nullptr : cps.data()));
 }
@@ -644,7 +644,23 @@ static Ast power(const CtxPtr& ctx, Ast a, SEXP exponent_r, Ast b) {
   if (literal) {
     double k = Rf_asReal(exponent_r);
     if (k >= 0 && k == std::floor(k) && k <= 64) {
-      if (k == 0) return own_ast(ctx, Z3_mk_numeral(ctx->c, "1", Z3_get_sort(a.c(), a)));
+      if (k == 0) {
+        // x^0 is 1 only for x != 0: Z3 leaves 0^0 unspecified in some
+        // releases, so a base that can be zero keeps Z3's power.
+        Z3_sort s = Z3_get_sort(a.c(), a);
+        int sign = 0;
+        bool nonzero = Z3_is_numeral_ast(ctx->c, a) && !(Z3_get_numeral_int(ctx->c, a, &sign) && sign == 0);
+        if (nonzero) return own_ast(ctx, Z3_mk_numeral(ctx->c, "1", s));
+        // The term x^y builds for y = 0, so both forms mean the same.
+        Ast p = own_ast(ctx, Z3_mk_power(ctx->c, to_real(a), own_ast(ctx, Z3_mk_numeral(ctx->c, "0", Z3_mk_real_sort(ctx->c)))));
+        if (Z3_get_sort_kind(ctx->c, s) != Z3_INT_SORT) return p;
+        // An Int base keeps its sort: 1, except where x = 0.
+        Ast zero = own_ast(ctx, Z3_mk_numeral(ctx->c, "0", s));
+        Ast one = own_ast(ctx, Z3_mk_numeral(ctx->c, "1", s));
+        Ast is_zero = own_ast(ctx, Z3_mk_eq(ctx->c, a, zero));
+        Ast as_int = own_ast(ctx, Z3_mk_real2int(ctx->c, p));
+        return own_ast(ctx, Z3_mk_ite(ctx->c, is_zero, as_int, one));
+      }
       AstVec f(static_cast<size_t>(k), a);
       return f.size() == 1 ? a : nary(ctx, Z3_mk_mul, f);
     }
@@ -786,7 +802,8 @@ Rcpp::List cpp_mk_consts(SEXP ctx_, Rcpp::CharacterVector names, SEXP sort_) {
   same_ctx(ctx, s.ctx());
   Rcpp::List out(names.size());
   for (R_xlen_t i = 0; i < names.size(); ++i) {
-    Rcpp::CharacterVector one(1, names[i]);
+    // The CHARSXP itself, so its encoding mark is kept.
+    Rcpp::Shield<SEXP> one(Rf_ScalarString(STRING_ELT(names, i)));
     out[i] = wrap_expr(own_ast(ctx, Z3_mk_const(ctx->c, const_symbol(ctx, one), as_sort(s))));
   }
   return out;
@@ -1382,7 +1399,7 @@ static double approx_double(const CtxPtr& ctx, Z3_ast a) {
       size_t point = d.find('.');
       if (point != std::string::npos && point > first) --sig;
     }
-    if (!inexact || sig >= 25 || prec >= 1280) return std::strtod(d.c_str(), nullptr);
+    if (!inexact || sig >= 25 || prec >= 1280) return c_strtod(d);
   }
 }
 
@@ -1449,7 +1466,7 @@ SEXP cpp_value_info(SEXP x, int digits) {
       int dexp = 0;
       while (exact_double && (INT64_C(1) << dexp) < d) ++dexp;
       value = exact_double ? std::ldexp(static_cast<double>(n), -dexp) : NA_REAL;
-      approx = exact_double ? value : d == 1 ? std::strtod(exact.c_str(), nullptr) : approx_double(ctx, a);
+      approx = exact_double ? value : d == 1 ? c_strtod(exact) : approx_double(ctx, a);
     } else {
       exact = str(Z3_get_numeral_string(c, a));
       check(ctx);
@@ -1482,7 +1499,7 @@ SEXP cpp_value_info(SEXP x, int digits) {
       }
       exact_double = fits && n64 <= (1LL << 53) && n64 >= -(1LL << 53);
       value = exact_double ? std::ldexp(static_cast<double>(n64), -dexp) : NA_REAL;
-      approx = exact_double ? value : k == Z3_BV_SORT ? std::strtod(exact.c_str(), nullptr) : approx_double(ctx, a);
+      approx = exact_double ? value : k == Z3_BV_SORT ? c_strtod(exact) : approx_double(ctx, a);
     }
     std::string kind = k == Z3_INT_SORT ? "int" : k == Z3_REAL_SORT ? "real" : "bv";
     return Rcpp::List::create(Named("kind") = kind, Named("exact") = exact,
@@ -1532,7 +1549,7 @@ SEXP cpp_value_info(SEXP x, int digits) {
     if (!Z3_is_numeral_ast(c, a)) return Rcpp::List::create(Named("kind") = "symbolic");
     std::string exact = str(Z3_get_numeral_string(c, a));
     check(ctx);
-    double v = std::strtod(exact.c_str(), nullptr);
+    double v = c_strtod(exact);
     bool exact_double = exact.size() < 16 || (exact.size() == 16 && exact <= "9007199254740992");
     return Rcpp::List::create(Named("kind") = "ff", Named("exact") = exact, Named("exact_double") = exact_double,
                               Named("value") = exact_double ? v : NA_REAL, Named("approx") = v);
@@ -1603,10 +1620,13 @@ Rcpp::List cpp_linear(Rcpp::List x, Rcpp::IntegerVector row, Rcpp::IntegerVector
       const Ast& v = vars[col[k] - 1];
       Z3_sort s = Z3_get_sort(c, v);
       Ast a = lift(ctx, val[k], s);
-      if (Z3_is_numeral_ast(c, a)) {
-        int sign = 0;
-        if (Z3_get_numeral_int(c, a, &sign) && sign == 0) continue;  // drop zero terms
+      Z3_sort_kind ak = Z3_get_sort_kind(c, Z3_get_sort(c, a));
+      if (!Z3_is_numeral_ast(c, a) || (ak != Z3_INT_SORT && ak != Z3_REAL_SORT)) {
+        fail("the coefficient in row " + std::to_string(row[k]) + ", column " + std::to_string(col[k]) +
+             " is not a number; a linear system needs numeric coefficients");
       }
+      int sign = 0;
+      if (Z3_get_numeral_int(c, a, &sign) && sign == 0) continue;  // drop zero terms
       // A fractional coefficient of an Int variable makes the term Real.
       Ast var = v;
       bool rterm = Z3_get_sort_kind(c, Z3_get_sort(c, a)) == Z3_REAL_SORT || Z3_get_sort_kind(c, s) == Z3_REAL_SORT;

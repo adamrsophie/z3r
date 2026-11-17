@@ -261,8 +261,8 @@ cpp_toggle_warnings <- function(enabled) {
     invisible(.Call(`_z3r_cpp_toggle_warnings`, enabled))
 }
 
-cpp_fingerprint <- function(xs) {
-    .Call(`_z3r_cpp_fingerprint`, xs)
+cpp_fingerprint <- function(xs, extra) {
+    .Call(`_z3r_cpp_fingerprint`, xs, extra)
 }
 
 cpp_build_info <- function() {
@@ -861,8 +861,8 @@ cpp_optimize_param_help <- function(o_) {
     .Call(`_z3r_cpp_optimize_param_help`, o_)
 }
 
-cpp_optimize_to_string <- function(o_) {
-    .Call(`_z3r_cpp_optimize_to_string`, o_)
+cpp_optimize_to_string <- function(o_, exact) {
+    .Call(`_z3r_cpp_optimize_to_string`, o_, exact)
 }
 
 cpp_optimize_from_string <- function(o_, text_) {
@@ -1079,6 +1079,10 @@ cpp_simplify_help_text <- function(ctx_) {
 
 cpp_param_names <- function(x) {
     .Call(`_z3r_cpp_param_names`, x)
+}
+
+cpp_solver_refuse_propagator_export <- function(s_) {
+    invisible(.Call(`_z3r_cpp_solver_refuse_propagator_export`, s_))
 }
 
 cpp_solver_to_dimacs <- function(s_, include_names) {

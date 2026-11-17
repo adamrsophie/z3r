@@ -88,6 +88,8 @@ sym_unsupported <- function(e) {
 
 from_sym <- function(ctx, e, sorts, expected, seen) {
   key <- if (is.null(e$key)) NULL else paste0(if (is.null(expected)) "" else expected, "|", e$key)
+  # R limits names in an environment to 10000 bytes; long keys go unmemoized.
+  if (!is.null(key) && nchar(key, type = "bytes") > 9000L) key <- NULL
   if (!is.null(key) && !is.null(hit <- seen$memo[[key]])) return(hit)
   out <- from_sym_node(ctx, e, sorts, expected, seen)
   if (!is.null(key)) assign(key, out, envir = seen$memo)
@@ -153,6 +155,15 @@ sym_symbol <- function(ctx, e, sorts, expected, seen) {
   target <- if (!is.null(sorts[[name]])) z3_sort_kind(sorts[[name]]) else
     if (isTRUE(symcompR::is_integer(e))) "int" else if (isTRUE(symcompR::is_real(e))) "real" else
       if (identical(expected, "bool")) "bool" else NA
+  if (!is.na(target) && !(target %in% names(sym_allowed))) {
+    stop(sprintf(paste("symbol '%s' is given a %s sort; symcompR expressions translate exactly only",
+                       "to Int, Real and Bool constants"), name, target), call. = FALSE)
+  }
+  if (!is.na(target) && ((identical(expected, "arith") && target == "bool") ||
+                         (identical(expected, "bool") && target != "bool"))) {
+    stop(sprintf("symbol '%s' is used as %s but has the %s sort", name,
+                 if (expected == "bool") "a condition" else "a number", target), call. = FALSE)
+  }
   if (is.na(target)) {
     stop(sprintf(paste(
       "cannot tell the sort of symbol '%s': give it the assumption integer = TRUE or",

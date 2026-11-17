@@ -37,20 +37,18 @@ z3_datatype_instance(ctx, name, sort)
 z3_is_recursive_datatype(sort)
 }
 \arguments{
-\item{ctx}{A \code{\link[=z3_context]{z3_context()}}.}
-
-\item{name}{Name of the datatype.}
-
 \item{...}{Constructors, each a named list of field sorts. For
 \code{z3_tuple_sort()}, the named field sorts.}
 
-\item{parameters}{Optional list of type variables.}
+\item{ctx}{A \code{\link[=z3_context]{z3_context()}}.}
 
 \item{specs}{For \code{z3_datatypes()}: a named list whose elements are lists
 of constructors as in \code{...}.}
 
 \item{sort}{A datatype sort (or a \code{z3_datatype}), or sorts for the
 instance.}
+
+\item{name}{Name of the datatype.}
 
 \item{values}{Names of the enumeration values.}
 
@@ -61,6 +59,8 @@ instance.}
 \item{field}{A field accessor (an element of the \code{z3_datatype}).}
 
 \item{value}{New value of the field.}
+
+\item{parameters}{Optional list of type variables.}
 }
 \value{
 A \code{z3_datatype} (a named list of datatypes for
@@ -98,10 +98,12 @@ dedicated constructors.
 A datatype name can be declared once per context: Z3 would replace the
 earlier datatype and free sorts and functions that R objects still use,
 so z3r refuses a second declaration, also when a script runs again. Keep
-the earlier object, or use another name or a new context. z3r cannot see
-datatypes declared by SMT-LIB text (\code{z3_from_smtlib()},
-\code{z3_eval_smtlib()}) or copied in by \code{\link[=z3_translate]{z3_translate()}}; do not declare
-such a name again in that context.
+the earlier object, or use another name or a new context. The same holds
+for datatypes declared by SMT-LIB text (\code{z3_from_smtlib()},
+\code{z3_add_smtlib()}, \code{z3_eval_smtlib()} and the other parsers): text that
+declares a name the context already has is refused. z3r cannot see
+datatypes copied in by \code{\link[=z3_translate]{z3_translate()}}; do not declare such a name again
+in that context.
 \code{z3_tuple_sort()}
 names its constructor \verb{mk_<name>}. A datatype with a single constructor
 that has the datatype's own name and no recursive fields, as in

@@ -42,7 +42,8 @@ between the two stay.
 \code{z3_all_models(solver, vars, limit)} lists the distinct assignments of
 \code{vars} in models of the solver's assertions, at most \code{limit} of them. It
 blocks each assignment found and checks again, inside a scope, so the
-solver is unchanged afterwards. Values are converted as by
+solver's assertions and scopes are unchanged afterwards; the result of an
+earlier \code{\link[=z3_check]{z3_check()}} is not kept, so check again before \code{\link[=z3_model]{z3_model()}}. Values are converted as by
 \code{\link[=z3_model_values]{z3_model_values()}}. The \code{"status"} attribute says why enumeration
 stopped: \code{"unsat"} (all assignments were found), \code{"limit"},
 \code{"unknown"} or \code{"stopped"}.

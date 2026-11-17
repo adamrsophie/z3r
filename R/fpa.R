@@ -150,6 +150,11 @@ z3_fp <- function(ctx, name, sort) cpp_mk_const(ctx, name, sort)
 #' @export
 z3_fp_val <- function(ctx, x, sort, rounding = NULL) {
   if (!is.numeric(x) || length(x) != 1L) stop("x must be a single number", call. = FALSE)
+  if (is.object(x)) {
+    # integer64 and gmp numbers would be rounded to a double first.
+    stop("x must be a plain double or integer; convert an exact number with ",
+         "z3_fp_to_fp(rounding, z3_real_val(ctx, as.character(x)), sort)", call. = FALSE)
+  }
   if (is.character(rounding)) rounding <- z3_rounding(ctx, rounding)
   cpp_fp_from_double(ctx, as.double(x), sort, rounding)
 }

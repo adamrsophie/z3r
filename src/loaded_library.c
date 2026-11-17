@@ -13,9 +13,11 @@
 const char* z3r_loaded_library(void) {
 #ifdef _WIN32
   static char path[MAX_PATH * 4];
-  HMODULE h = NULL;
-  if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                          (LPCSTR)(void*)&Z3_get_full_version, &h)) {
+  /* Linked through an import library, &Z3_get_full_version can be a stub
+     inside z3r's own DLL, so look the official DLL up by name first. */
+  HMODULE h = GetModuleHandleA("libz3.dll");
+  if (!h && !GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                                (LPCSTR)(void*)&Z3_get_full_version, &h)) {
     return "";
   }
   DWORD n = GetModuleFileNameA(h, path, (DWORD)sizeof(path));

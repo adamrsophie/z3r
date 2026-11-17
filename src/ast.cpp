@@ -408,9 +408,10 @@ void cpp_toggle_warnings(bool enabled) {
 }
 
 // A structural fingerprint of a list of expressions: FNV-1a over Z3's AST
-// hashes, in order. Equal for equal formulas in one Z3 version.
+// hashes, in order, then over the bytes of `extra`. Equal for equal
+// formulas in one Z3 version.
 // [[Rcpp::export(rng = false)]]
-std::string cpp_fingerprint(Rcpp::List xs) {
+std::string cpp_fingerprint(Rcpp::List xs, std::string extra) {
   uint64_t h = 1469598103934665603ULL;
   for (R_xlen_t i = 0; i < xs.size(); ++i) {
     const Ast& a = get_expr(xs[i]);
@@ -419,6 +420,10 @@ std::string cpp_fingerprint(Rcpp::List xs) {
       h ^= (v >> (8 * b)) & 0xffu;
       h *= 1099511628211ULL;
     }
+  }
+  for (unsigned char ch : extra) {
+    h ^= ch;
+    h *= 1099511628211ULL;
   }
   char buf[17];
   std::snprintf(buf, sizeof(buf), "%016llx", static_cast<unsigned long long>(h));

@@ -89,6 +89,10 @@ SEXP invoke(CallbackState* st, const char* name, std::vector<SEXP> args) {
     return R_NilValue;
   }
   SEXP msg = VECTOR_ELT(res, 1);
+  if (msg != R_NilValue && (TYPEOF(msg) != STRSXP || Rf_xlength(msg) < 1)) {
+    record_error(st, std::string("the R callback '") + name + "' failed");
+    return R_NilValue;
+  }
   if (msg != R_NilValue) {
     bool intr = Rf_asLogical(VECTOR_ELT(res, 2)) == TRUE;
     record_error(st, std::string("error in the R callback '") + name + "': " + CHAR(STRING_ELT(msg, 0)), intr);
@@ -295,7 +299,7 @@ Z3_string proof_check_eh(void* p, Z3_context, Z3_ast proof, Z3_ast_vector assert
     SEXP as = PROTECT(wrap_ast_vector(ctx, assertions));
     SEXP r = invoke(st, "check", {pr, as});
     if (TYPEOF(r) == STRSXP && Rf_xlength(r) == 1 && STRING_ELT(r, 0) != NA_STRING) {
-      st->report = Rf_translateCharUTF8(STRING_ELT(r, 0));
+      st->report = utf8_char(STRING_ELT(r, 0));
     } else {
       st->report.clear();  // NULL or no usable report: an empty report
     }
@@ -353,6 +357,10 @@ void cpp_propagate_init(SEXP s_, SEXP fns) {
     if (cb->propagator) fail("this solver already has a user propagator");
   }
   if (!has(fns, "push") || !has(fns, "pop")) fail("a user propagator needs push and pop functions");
+  if (h->searched) {
+    fail("install the user propagator before the solver's first check (or after z3_reset()): "
+         "Z3 can reuse what an earlier search found without calling it");
+  }
   // Check every option before Z3 can keep a pointer to the state.
 #if !Z3R_AT_LEAST(4, 15, 3)
   if (has(fns, "binding")) needs_version("the binding callback", "4.15.3");
@@ -387,6 +395,10 @@ void cpp_propagate_register(SEXP s_, SEXP e_) {
   bool has_propagator = false;
   for (const CallbackPtr& cb : h->callbacks) has_propagator = has_propagator || cb->propagator;
   if (!has_propagator) fail("install a user propagator with z3_propagator() before registering terms");
+  if (h->searched) {
+    fail("register terms before the solver's first check (or after z3_reset()), or from a callback "
+         "during a search: Z3 can reuse what an earlier search found for them");
+  }
   Ast e = lift(h->s.ctx(), e_, nullptr);
   ensure_solver_ready(h->s.c(), h->s);
   {
