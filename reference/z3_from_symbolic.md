@@ -42,16 +42,25 @@ Only translations that preserve the mathematical meaning exactly are
 made; anything else is an error naming the unsupported part.
 
 **Supported.** Integers and rationals (exact); symbols; `+`, `-`, `*`,
-`/`, powers with integer exponents (and rational exponents, which become
-Z3's real power); `Eq`, `Ne`, `Lt`, `Le`, `Gt`, `Ge`; `And`, `Or`,
-`Not`, `Implies`, `Xor`, `Equivalent`, `ITE`; `Abs`, `floor`, `ceiling`,
-`Mod` (with Python's sign convention, which is also symcompR's: the
-result takes the sign of the divisor), `Max`, `Min`, and `Piecewise`
-with a final `TRUE` branch; `true` and `false`.
+`/`, powers with integer exponents; `Eq`, `Ne`, `Lt`, `Le`, `Gt`, `Ge`;
+`And`, `Or`, `Not`, `Implies`, `Xor`, `Equivalent`, `ITE`; `Abs`,
+`floor`, `ceiling`, `Mod` (with Python's sign convention, which is also
+symcompR's: the result takes the sign of the divisor), `Max`, `Min`, and
+`Piecewise` with a final `TRUE` branch; `true` and `false`.
 
 **Not supported.** Floats (they are inexact), constants such as `pi`,
 `E` and `oo`, complex numbers, transcendental functions, derivatives,
-integrals, sums and other unevaluated operators.
+integrals, sums and other unevaluated operators. Powers with rational or
+symbolic exponents are refused: symcompR takes the principal complex
+root (`(-8)^(1/3)` is `1 + 1.73i`), Z3 the real one (`-2`).
+
+**Division by zero.** symcompR leaves `x/0` undefined and cancels `x/x`
+to 1; Z3's division is total, with an unspecified value at zero. A
+translation from symcompR is exact wherever the symcompR expression is
+defined; at a zero denominator Z3 may take any value. In the other
+direction, Z3's `/`, `div`, `mod` and power are translated only with a
+nonzero numeral divisor (and a positive whole exponent), since symcompR
+would otherwise cancel or rewrite terms Z3 keeps.
 
 **Symbols and sorts.** A symbol becomes a Z3 constant of the same name.
 Its sort comes from `sorts` (a named list of `z3_sort`s) when given;
@@ -59,6 +68,10 @@ otherwise from its assumptions: `integer = TRUE` gives Int and
 `real = TRUE` gives Real. A symbol without assumptions is Bool where a
 Boolean is expected (as an argument of `And`, `Or`, ...), and an error
 elsewhere, because SymPy-style symbols without assumptions are complex.
+A symbol with sign or parity assumptions (`positive`, `nonzero`, `even`,
+and so on) is refused: a Z3 constant has a sort but no assumptions, so
+they would be lost. Use a symbol with only `integer` or `real`, and add
+the condition as a constraint (for example `z3_int(ctx, "n") > 0`).
 
 In the other direction, Int constants become symbols with
 `integer = TRUE`, Real constants symbols with `real = TRUE`, and Bool

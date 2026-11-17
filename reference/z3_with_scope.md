@@ -4,7 +4,9 @@
 [`z3_push()`](https://adamrsophie.github.io/z3r/reference/z3_push.md) /
 [`z3_pop()`](https://adamrsophie.github.io/z3r/reference/z3_push.md)
 pair on a solver or optimizer: assertions added by `code` are removed
-afterwards, also when `code` fails.
+afterwards, also when `code` fails or leaves scopes of its own open. If
+`code` pops that scope itself or resets the solver, nothing is popped
+and a warning says so.
 
 ## Usage
 

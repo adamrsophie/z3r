@@ -10,9 +10,13 @@
   returns the status and updates the solver's last result.
 
 - `z3_cube()` returns the next cube (a conjunction of literals as a
-  list) for cube-and-conquer search over `vars`; an empty list means the
-  search space is exhausted, and a list holding only `FALSE` means
-  unsat.
+  list) for cube-and-conquer search over `vars`. Call it repeatedly. A
+  list holding only `FALSE` means no cubes remain; it does not mean the
+  assertions are unsatisfiable. An empty list is a last cube covering
+  the rest of the search: Z3 could not split it further (tactic-based
+  solvers always return it), so check the solver itself. Neither result
+  decides satisfiability; check each cube with
+  [`z3_check()`](https://adamrsophie.github.io/z3r/reference/z3_check.md).
 
 - `z3_units()`, `z3_non_units()` and `z3_trail()` expose literals the
   solver has derived; `z3_trail()` also returns decision levels.

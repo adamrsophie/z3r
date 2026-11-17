@@ -64,6 +64,14 @@ works on the right of an operator (`x == i64`); on the left, bit64's own
 operator method runs instead and fails, so write `z3_int_val(ctx, i64)`
 there.
 
+**Strings and roots.** `<`, `<=`, `>` and `>=` on two strings compare
+them lexicographically
+([`z3_str_lt()`](https://adamrsophie.github.io/z3r/reference/z3_strings.md)).
+[`sqrt()`](https://rdrr.io/r/base/MathFun.html) of an Int or Real is
+`x^(1/2)`, Real-valued, and of a floating point number
+[`z3_fp_sqrt()`](https://adamrsophie.github.io/z3r/reference/z3_fp.md)
+with rounding to nearest, ties to even.
+
 **R's own logic.** `&&` and `||` cannot be overloaded; use
 [`z3_and()`](https://adamrsophie.github.io/z3r/reference/z3_and.md) and
 [`z3_or()`](https://adamrsophie.github.io/z3r/reference/z3_and.md). A Z3

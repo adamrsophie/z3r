@@ -108,6 +108,10 @@ Classed values such as dates are refused; convert them first. A
 <code><a href="https://bit64.r-lib.org/reference/bit64-package.html" class="external-link">bit64::integer64</a></code> works on the right of an operator (<code>x == i64</code>); on
 the left, bit64's own operator method runs instead and fails, so write
 <code>z3_int_val(ctx, i64)</code> there.</p>
+<p><strong>Strings and roots.</strong> <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code> and <code>&gt;=</code> on two strings compare
+them lexicographically (<code><a href="z3_strings.html">z3_str_lt()</a></code>). <code><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt()</a></code> of an Int or Real is
+<code>x^(1/2)</code>, Real-valued, and of a floating point number
+<code><a href="z3_fp.html">z3_fp_sqrt()</a></code> with rounding to nearest, ties to even.</p>
 <p><strong>R's own logic.</strong> <code>&amp;&amp;</code> and <code>||</code> cannot be overloaded; use <code><a href="z3_and.html">z3_and()</a></code>
 and <code><a href="z3_and.html">z3_or()</a></code>. A Z3 expression is never converted to <code>TRUE</code> or <code>FALSE</code>,
 so <code>if (x &gt; 0)</code> is an error rather than a silent mistake. Note that

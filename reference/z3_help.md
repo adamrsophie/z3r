@@ -6,7 +6,11 @@ describes the parameters of
 [`z3_simplify()`](https://adamrsophie.github.io/z3r/reference/z3_simplify.md).
 With `names_only = TRUE` it returns only the parameter names, as Z3
 lists them. `z3_to_dimacs()` writes the assertions of a propositional
-solver or goal in DIMACS CNF.
+solver or goal in DIMACS CNF. Every assertion must be a clause: a
+Boolean constant, its negation, or a disjunction of these; anything else
+is refused (apply the `"tseitin-cnf"` tactic to a goal first), since
+writing it as a fresh variable would change its meaning. Labels of
+tracked clauses are written as unit clauses, as a check assumes them.
 
 ## Usage
 

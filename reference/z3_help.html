@@ -4,12 +4,20 @@ optimizer, fixedpoint engine, tactic or simplifier; for a context, it
 describes the parameters of z3_simplify(). With names_only = TRUE
 it returns only the parameter names, as Z3 lists them.
 z3_to_dimacs() writes the assertions of a propositional solver or goal
-in DIMACS CNF."><meta property="og:description" content="z3_help() returns Z3's description of the parameters of a solver,
+in DIMACS CNF. Every assertion must be a clause: a Boolean constant, its
+negation, or a disjunction of these; anything else is refused (apply the
+&quot;tseitin-cnf&quot; tactic to a goal first), since writing it as a fresh
+variable would change its meaning. Labels of tracked clauses are written
+as unit clauses, as a check assumes them."><meta property="og:description" content="z3_help() returns Z3's description of the parameters of a solver,
 optimizer, fixedpoint engine, tactic or simplifier; for a context, it
 describes the parameters of z3_simplify(). With names_only = TRUE
 it returns only the parameter names, as Z3 lists them.
 z3_to_dimacs() writes the assertions of a propositional solver or goal
-in DIMACS CNF."><meta property="og:image" content="https://adamrsophie.github.io/z3r/logo.svg"></head><body>
+in DIMACS CNF. Every assertion must be a clause: a Boolean constant, its
+negation, or a disjunction of these; anything else is refused (apply the
+&quot;tseitin-cnf&quot; tactic to a goal first), since writing it as a fresh
+variable would change its meaning. Labels of tracked clauses are written
+as unit clauses, as a check assumes them."><meta property="og:image" content="https://adamrsophie.github.io/z3r/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -73,7 +81,11 @@ optimizer, fixedpoint engine, tactic or simplifier; for a context, it
 describes the parameters of <code><a href="z3_simplify.html">z3_simplify()</a></code>. With <code>names_only = TRUE</code>
 it returns only the parameter names, as Z3 lists them.
 <code>z3_to_dimacs()</code> writes the assertions of a propositional solver or goal
-in DIMACS CNF.</p>
+in DIMACS CNF. Every assertion must be a clause: a Boolean constant, its
+negation, or a disjunction of these; anything else is refused (apply the
+<code>"tseitin-cnf"</code> tactic to a goal first), since writing it as a fresh
+variable would change its meaning. Labels of tracked clauses are written
+as unit clauses, as a check assumes them.</p>
     </div>
 
     <div class="section level2">

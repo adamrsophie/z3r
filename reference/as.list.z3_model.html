@@ -101,6 +101,12 @@ partial model, which has none).</p></li>
 <span></span>
 <span><span class="fu">z3_model_values</span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span>
 <span></span>
+<span><span class="co"># S3 method for class 'z3_model'</span></span>
+<span><span class="va">x</span><span class="op">[[</span><span class="va">name</span>, <span class="va">...</span><span class="op">]</span><span class="op">]</span></span>
+<span></span>
+<span><span class="co"># S3 method for class 'z3_model'</span></span>
+<span><span class="va">x</span><span class="op">$</span><span class="va">name</span></span>
+<span></span>
 <span><span class="fu">z3_model_functions</span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -114,6 +120,10 @@ partial model, which has none).</p></li>
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
 <dd><p>Unused.</p></dd>
+
+
+<dt id="arg-name">name<a class="anchor" aria-label="anchor" href="#arg-name"></a></dt>
+<dd><p>Name of a constant in the model.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -152,6 +162,8 @@ see <code><a href="z3_eval.html">z3_eval()</a></code> with <code>completion = TR
 <span class="r-out co"><span class="r-pr">#&gt;</span> Big Integer ('bigz') :</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1180591620717411303424</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-in"><span><span class="va">m</span><span class="op">$</span><span class="va">x</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;z3_expr Int&gt; 1180591620717411303424</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

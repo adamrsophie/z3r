@@ -106,21 +106,33 @@ these functions need it installed.</p>
     <p>Only translations that preserve the mathematical meaning exactly are
 made; anything else is an error naming the unsupported part.</p>
 <p><strong>Supported.</strong> Integers and rationals (exact); symbols; <code>+</code>, <code>-</code>, <code>*</code>,
-<code>/</code>, powers with integer exponents (and rational exponents, which become
-Z3's real power); <code>Eq</code>, <code>Ne</code>, <code>Lt</code>, <code>Le</code>, <code>Gt</code>, <code>Ge</code>; <code>And</code>, <code>Or</code>,
+<code>/</code>, powers with integer exponents; <code>Eq</code>, <code>Ne</code>, <code>Lt</code>, <code>Le</code>, <code>Gt</code>, <code>Ge</code>; <code>And</code>, <code>Or</code>,
 <code>Not</code>, <code>Implies</code>, <code>Xor</code>, <code>Equivalent</code>, <code>ITE</code>; <code>Abs</code>, <code>floor</code>,
 <code>ceiling</code>, <code>Mod</code> (with Python's sign convention, which is also
 symcompR's: the result takes the sign of the divisor), <code>Max</code>, <code>Min</code>, and
 <code>Piecewise</code> with a final <code>TRUE</code> branch; <code>true</code> and <code>false</code>.</p>
 <p><strong>Not supported.</strong> Floats (they are inexact), constants such as <code>pi</code>,
 <code>E</code> and <code>oo</code>, complex numbers, transcendental functions, derivatives,
-integrals, sums and other unevaluated operators.</p>
+integrals, sums and other unevaluated operators. Powers with rational or
+symbolic exponents are refused: symcompR takes the principal complex
+root (<code>(-8)^(1/3)</code> is <code>1 + 1.73i</code>), Z3 the real one (<code>-2</code>).</p>
+<p><strong>Division by zero.</strong> symcompR leaves <code>x/0</code> undefined and cancels <code>x/x</code>
+to 1; Z3's division is total, with an unspecified value at zero. A
+translation from symcompR is exact wherever the symcompR expression is
+defined; at a zero denominator Z3 may take any value. In the other
+direction, Z3's <code>/</code>, <code>div</code>, <code>mod</code> and power are translated only with a
+nonzero numeral divisor (and a positive whole exponent), since symcompR
+would otherwise cancel or rewrite terms Z3 keeps.</p>
 <p><strong>Symbols and sorts.</strong> A symbol becomes a Z3 constant of the same name.
 Its sort comes from <code>sorts</code> (a named list of <code>z3_sort</code>s) when given;
 otherwise from its assumptions: <code>integer = TRUE</code> gives Int and
 <code>real = TRUE</code> gives Real. A symbol without assumptions is Bool where a
 Boolean is expected (as an argument of <code>And</code>, <code>Or</code>, ...), and an error
-elsewhere, because SymPy-style symbols without assumptions are complex.</p>
+elsewhere, because SymPy-style symbols without assumptions are complex.
+A symbol with sign or parity assumptions (<code>positive</code>, <code>nonzero</code>, <code>even</code>,
+and so on) is refused: a Z3 constant has a sort but no assumptions, so
+they would be lost. Use a symbol with only <code>integer</code> or <code>real</code>, and add
+the condition as a constraint (for example <code>z3_int(ctx, "n") &gt; 0</code>).</p>
 <p>In the other direction, Int constants become symbols with <code>integer = TRUE</code>, Real constants symbols with <code>real = TRUE</code>, and Bool constants
 plain symbols. Z3's <code>div</code> and <code>mod</code> are translated with <code>floor</code> and
 <code>Abs</code> so that the result keeps Z3's (Euclidean) meaning.</p>

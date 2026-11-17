@@ -118,6 +118,9 @@
   Add constraints
 - [`z3_check()`](https://adamrsophie.github.io/z3r/reference/z3_check.md)
   : Check satisfiability
+- [`z3_solve()`](https://adamrsophie.github.io/z3r/reference/z3_solve.md)
+  [`z3_prove()`](https://adamrsophie.github.io/z3r/reference/z3_solve.md)
+  : Solve or prove in one call
 - [`z3_interrupt()`](https://adamrsophie.github.io/z3r/reference/z3_interrupt.md)
   : Interrupt a running check
 - [`z3_model()`](https://adamrsophie.github.io/z3r/reference/z3_model.md)
@@ -126,6 +129,8 @@
   : Evaluate an expression in a model
 - [`as.list(`*`<z3_model>`*`)`](https://adamrsophie.github.io/z3r/reference/as.list.z3_model.md)
   [`z3_model_values()`](https://adamrsophie.github.io/z3r/reference/as.list.z3_model.md)
+  [`` `[[`( ``*`<z3_model>`*`)`](https://adamrsophie.github.io/z3r/reference/as.list.z3_model.md)
+  [`` `$`( ``*`<z3_model>`*`)`](https://adamrsophie.github.io/z3r/reference/as.list.z3_model.md)
   [`z3_model_functions()`](https://adamrsophie.github.io/z3r/reference/as.list.z3_model.md)
   : Contents of a model
 - [`z3_model_set()`](https://adamrsophie.github.io/z3r/reference/z3_model_set.md)
@@ -301,6 +306,7 @@
 
 - [`z3_array()`](https://adamrsophie.github.io/z3r/reference/z3_array.md)
   [`z3_select()`](https://adamrsophie.github.io/z3r/reference/z3_array.md)
+  [`` `[`( ``*`<z3_expr>`*`)`](https://adamrsophie.github.io/z3r/reference/z3_array.md)
   [`z3_store()`](https://adamrsophie.github.io/z3r/reference/z3_array.md)
   [`z3_const_array()`](https://adamrsophie.github.io/z3r/reference/z3_array.md)
   [`z3_array_map()`](https://adamrsophie.github.io/z3r/reference/z3_array.md)

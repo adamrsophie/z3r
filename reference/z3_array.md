@@ -12,6 +12,9 @@ z3_array(ctx, name, domain, range)
 
 z3_select(a, i, ...)
 
+# S3 method for class 'z3_expr'
+x[i, ...]
+
 z3_store(a, i, v)
 
 z3_const_array(domain, value)
@@ -58,6 +61,10 @@ z3_array_sort_info(x)
   Further indices for multi-index arrays, or arrays for
   `z3_array_map()`.
 
+- x:
+
+  An array expression or array sort.
+
 - v:
 
   A value (expression or R scalar).
@@ -81,10 +88,6 @@ z3_array_sort_info(x)
 - body:
 
   An expression.
-
-- x:
-
-  An array expression or array sort.
 
 ## Value
 

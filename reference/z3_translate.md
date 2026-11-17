@@ -30,6 +30,15 @@ in `ctx`.
 
 ## Details
 
+A translated solver or optimizer keeps its assertions and the parameters
+set with
+[`z3_set_params()`](https://adamrsophie.github.io/z3r/reference/z3_set_params.md),
+which z3r applies to the copy again (Z3 does not carry over every limit,
+such as `rlimit`). The copy of an optimizer has no open scopes: Z3
+copies all its assertions at the base level, so
+[`z3_pop()`](https://adamrsophie.github.io/z3r/reference/z3_push.md) on
+it cannot remove them.
+
 A plain list of expressions (all from one context) is translated in one
 step, so subterms shared between its elements are copied once; names are
 kept.

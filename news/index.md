@@ -43,7 +43,9 @@ the one z3r was built with say which version they need.
   documented conversion policy for doubles.
   [`z3_value()`](https://adamrsophie.github.io/z3r/reference/z3_value.md)
   converts results to R without loss of precision.
-- R operators with z3r’s own sort checking.
+- R operators with z3r’s own sort checking; `<` and friends order
+  strings, [`sqrt()`](https://rdrr.io/r/base/MathFun.html) works on Int,
+  Real and floating point terms, and `a[i]` reads an array.
 - Inspection
   ([`z3_kind()`](https://adamrsophie.github.io/z3r/reference/z3_inspect.md),
   [`z3_decl()`](https://adamrsophie.github.io/z3r/reference/z3_inspect.md),
@@ -68,6 +70,11 @@ the one z3r was built with say which version they need.
 
 ### Solving
 
+- One-call shortcuts:
+  [`z3_solve()`](https://adamrsophie.github.io/z3r/reference/z3_solve.md)
+  returns a model or `NULL`, and
+  [`z3_prove()`](https://adamrsophie.github.io/z3r/reference/z3_solve.md)
+  returns `TRUE` or `FALSE` with a counterexample.
 - Solvers with assertions, tracked assertions, assumptions,
   push/pop/reset,
   [`z3_with_scope()`](https://adamrsophie.github.io/z3r/reference/z3_with_scope.md),
@@ -75,12 +82,15 @@ the one z3r was built with say which version they need.
   ([`z3_all_models()`](https://adamrsophie.github.io/z3r/reference/z3_with_scope.md)),
   models with staleness protection (each
   [`z3_model()`](https://adamrsophie.github.io/z3r/reference/z3_model.md)
-  is a separate copy), hand-built models, unsatisfiable cores, proofs,
-  consequences, cubes, units and trails, congruence classes, solving for
-  variables, initial values, typed parameters, statistics (also as Z3’s
-  text,
+  is a separate copy), `m$x` and `m[["x"]]` for the value of a constant,
+  hand-built models, unsatisfiable cores, proofs, consequences, cubes,
+  units and trails, congruence classes, solving for variables, initial
+  values, typed parameters, statistics (also as Z3’s text,
   [`z3_statistics_text()`](https://adamrsophie.github.io/z3r/reference/z3_statistics.md))
-  and DIMACS export.
+  and DIMACS export of clauses (other formulas are refused, not
+  renamed).
+- SMT-LIB exports of solvers with tracked constraints or a simplifier,
+  and of optimizers, check to the same answer as the original.
 - Timeouts for a single check (`z3_check(timeout = )`), which keep the
   other parameters of a solver or optimizer and restore the context’s
   timeout (also a global one in force when the context was made), and
@@ -98,7 +108,8 @@ the one z3r was built with say which version they need.
   errors and interrupts are raised safely after the check, callbacks
   cannot reenter their own solver, and callback closures do not keep
   their solver or context alive. Callbacks never run R code on Z3’s
-  worker threads; a `"sat"` found there is refused.
+  worker threads; a `"sat"` found there is refused. A propagator needs
+  push and pop functions.
 
 ### Theories and engines
 

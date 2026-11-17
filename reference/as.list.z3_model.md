@@ -22,6 +22,12 @@ as.list(x, ...)
 
 z3_model_values(model)
 
+# S3 method for class 'z3_model'
+x[[name, ...]]
+
+# S3 method for class 'z3_model'
+x$name
+
 z3_model_functions(model)
 ```
 
@@ -34,6 +40,10 @@ z3_model_functions(model)
 - ...:
 
   Unused.
+
+- name:
+
+  Name of a constant in the model.
 
 ## Value
 
@@ -73,4 +83,6 @@ z3_model_values(m)
 #> Big Integer ('bigz') :
 #> [1] 1180591620717411303424
 #> 
+m$x
+#> <z3_expr Int> 1180591620717411303424
 ```

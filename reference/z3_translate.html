@@ -96,7 +96,12 @@ expressions in <code>ctx</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>A plain list of expressions (all from one context) is translated in one
+    <p>A translated solver or optimizer keeps its assertions and the parameters
+set with <code><a href="z3_set_params.html">z3_set_params()</a></code>, which z3r applies to the copy again (Z3 does
+not carry over every limit, such as <code>rlimit</code>). The copy of an optimizer
+has no open scopes: Z3 copies all its assertions at the base level, so
+<code><a href="z3_push.html">z3_pop()</a></code> on it cannot remove them.</p>
+<p>A plain list of expressions (all from one context) is translated in one
 step, so subterms shared between its elements are copied once; names
 are kept.</p>
     </div>

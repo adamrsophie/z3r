@@ -21,7 +21,7 @@ z3_binary_string(x)
 
 - digits:
 
-  Number of digits after the decimal point.
+  Number of digits after the decimal point, at most 1e6.
 
 ## Value
 
