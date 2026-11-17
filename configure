@@ -214,10 +214,10 @@ if test -z "${Z3_SOURCE}" && want_download; then
   else
     Z3_URL="https://github.com/Z3Prover/z3/releases/download/z3-${Z3_PIN}/${Z3_ASSET}.zip"
     echo "configure: downloading Z3 ${Z3_PIN} from ${Z3_URL}"
-    rm -rf src/z3bundle
-    mkdir -p src/z3bundle
-    if fetch_z3 "${Z3_URL}" "`pwd`/src/z3bundle/z3.zip" "${Z3_SHA}"; then
-      zdir="`pwd`/src/z3bundle/${Z3_ASSET}"
+    rm -rf z3bundle
+    mkdir -p z3bundle
+    if fetch_z3 "${Z3_URL}" "`pwd`/z3bundle/z3.zip" "${Z3_SHA}"; then
+      zdir="`pwd`/z3bundle/${Z3_ASSET}"
       Z3_CPPFLAGS="-I`sq "${zdir}/include"`"
       # The test program finds libz3 in the download; the package finds the
       # copy installed next to z3r's shared library.

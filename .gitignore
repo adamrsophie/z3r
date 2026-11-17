@@ -17,4 +17,4 @@ docs/
 src/Makevars.win
 src/Makevars.new
 src/Makevars.win.new
-src/z3bundle/
+z3bundle/

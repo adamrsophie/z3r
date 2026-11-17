@@ -94,6 +94,7 @@ Z3_DLL=""
 Z3_DLLDIR=""
 Z3_LICENSE=""
 Z3_SOURCE=""
+Z3_DOWNLOADED=""
 
 # Windows paths may use backslashes, which sed below would treat as escapes.
 to_slash () { printf '%s\n' "$1" | sed 's|\\|/|g'; }
@@ -145,10 +146,11 @@ if test -z "${PKG_LIBS}" && test -z "${Z3_DIR}" && test -z "${Z3_INCLUDE_DIR}" &
   esac
   Z3_URL="https://github.com/Z3Prover/z3/releases/download/z3-${Z3_PIN}/${Z3_ASSET}.zip"
   echo "configure.win: downloading Z3 ${Z3_PIN} from ${Z3_URL}"
-  rm -rf src/z3bundle
-  mkdir -p src/z3bundle
-  if fetch_z3 "${Z3_URL}" "`pwd`/src/z3bundle/z3.zip" "${Z3_SHA}"; then
-    Z3_DIR="`pwd`/src/z3bundle/${Z3_ASSET}"
+  rm -rf z3bundle
+  mkdir -p z3bundle
+  if fetch_z3 "${Z3_URL}" "`pwd`/z3bundle/z3.zip" "${Z3_SHA}"; then
+    Z3_DIR="`pwd`/z3bundle/${Z3_ASSET}"
+    Z3_DOWNLOADED="${Z3_ASSET}"
   fi
 fi
 
@@ -210,6 +212,7 @@ EOF
   exit 1
 fi
 
+if test -n "${Z3_DOWNLOADED}"; then Z3_SOURCE="download of ${Z3_DOWNLOADED}"; fi
 echo "configure.win: using Z3 ${Z3_FOUND_VERSION} (found via ${Z3_SOURCE})"
 sed -e "s|@Z3_CPPFLAGS@|`sed_escape "${Z3_CPPFLAGS}"`|" -e "s|@Z3_LIBS@|`sed_escape "${Z3_LIBS}"`|" \
     -e "s|@Z3_DLLDIR@|`sed_escape "${Z3_DLLDIR:+$(sq "${Z3_DLLDIR}")}"`|" \

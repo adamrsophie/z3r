@@ -15,4 +15,4 @@
 ^tools/sanitizers$
 ^LICENSE$
 ^tools$
-^src/z3bundle$
+^z3bundle$

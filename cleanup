@@ -1,4 +1,4 @@
 #!/bin/sh
 rm -rf config.log conftest conftest.cpp conftest.err conftest.exe conftest.dSYM src/Makevars src/Makevars.win src/Makevars.new src/Makevars.win.new
-rm -rf src/z3bundle
+rm -rf z3bundle
 rm -f src/*.o src/*.so src/*.dll
