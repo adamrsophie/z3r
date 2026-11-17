@@ -35,13 +35,14 @@ z3_check(s)
 names(z3_statistics(s))
 #> [1] "elim-unconstrained"  "solve-eqs-steps"     "solve-eqs-elim-vars"
 #> [4] "num allocs"          "rlimit count"        "max memory"         
-#> [7] "memory"             
+#> [7] "memory"              "time"               
 cat(z3_statistics_text(s), "\n")
 #> (:elim-unconstrained  2
-#>  :max-memory          77.46
-#>  :memory              52.25
-#>  :num-allocs          431702117
+#>  :max-memory          76.90
+#>  :memory              35.22
+#>  :num-allocs          435091643
 #>  :rlimit-count        84
 #>  :solve-eqs-elim-vars 1
-#>  :solve-eqs-steps     1) 
+#>  :solve-eqs-steps     1
+#>  :time                0.00) 
 ```
