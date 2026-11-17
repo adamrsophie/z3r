@@ -356,6 +356,9 @@ std::string cpp_solver_check(SEXP s_, Rcpp::List assumptions, SEXP timeout) {
     if (!is_bool(a)) fail("assumptions must be Boolean");
     as.push_back(a);
   }
+  for (const Ast& l : h->tracked) {
+    if (h->is_adopted(ctx->c, l)) as.push_back(l);
+  }
   std::vector<Z3_ast> r = raw(as);
   SolverTimeout once;
   once.apply(h, timeout);
@@ -488,6 +491,7 @@ void cpp_solver_reset(SEXP s_) {
   h->checked = false;
   h->searched = false;
   h->tracked.clear();
+  h->adopted.clear();
   h->tracked_scopes.clear();
   h->inputs.clear();
   h->input_scopes.clear();
@@ -624,7 +628,10 @@ static void adopt_named(SolverHolder* h, unsigned before, const std::string& tex
     if (Z3_get_symbol_kind(c, sym) != Z3_STRING_SYMBOL || !names.count(Z3_get_symbol_string(c, sym))) continue;
     bool known = false;
     for (const Ast& t : h->tracked) known = known || Z3_is_eq_ast(c, t, l);
-    if (!known) h->tracked.push_back(own_ast(ctx, l));
+    if (!known) {
+      h->tracked.push_back(own_ast(ctx, l));
+      h->adopted.push_back(own_ast(ctx, l));
+    }
   }
   check(ctx);
 }
@@ -857,6 +864,7 @@ SEXP cpp_solver_translate(SEXP s_, SEXP target_ctx) {
   }
   for (const Ast& l : h->tracked) {
     copy->tracked.push_back(own_ast(target, Z3_translate(h->s.c(), l, target->c)));
+    if (h->is_adopted(h->s.c(), l)) copy->adopted.push_back(copy->tracked.back());
   }
   // The copy of a solver with a simplifier keeps its inputs, all at the
   // base level, as Z3 copies the assertions without scopes.

@@ -288,6 +288,13 @@ struct SolverHolder {
   // label => constraint, so exported text must assert the labels too.
   AstVec tracked;
   std::vector<size_t> tracked_scopes;  // number of labels at each push
+  // Labels of :named assertions parsed from SMT-LIB text; some Z3 releases
+  // (4.9 to 4.11) do not assume them, so each check does.
+  AstVec adopted;
+  bool is_adopted(Z3_context c, const Ast& l) const {
+    for (const Ast& a : adopted) if (Z3_is_eq_ast(c, a, l)) return true;
+    return false;
+  }
   // A solver with a simplifier holds its assertions back until a check and
   // then lists the simplified ones; z3r keeps what was added, for export.
   bool simplified = false;
