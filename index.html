@@ -133,7 +133,7 @@
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
-<p>z3r needs the Z3 C library and headers, version 4.8.13 or later (the first release with Z3’s Unicode string API). Nothing is downloaded during installation. Ubuntu 22.04 and 24.04 and Debian 12 ship Z3 4.8.12, which is too old; use a newer distribution package (Debian 13 and Ubuntu 26.04 ship 4.13.3) or an official release archive there. Features that need a newer Z3 than the one z3r was built with report so when they are called.</p>
+<p>z3r needs the Z3 C library and headers, version 4.8.13 or later (the first release with Z3’s Unicode string API). Nothing is downloaded during installation unless you ask for it (see below). Ubuntu 22.04 and 24.04 and Debian 12 ship Z3 4.8.12, which is too old; use a newer distribution package (Debian 13 and Ubuntu 26.04 ship 4.13.3) or an official release archive there. Features that need a newer Z3 than the one z3r was built with report so when they are called.</p>
 <div class="section level3">
 <h3 id="any-platform-an-official-release">Any platform: an official release<a class="anchor" aria-label="anchor" href="#any-platform-an-official-release"></a>
 </h3>
@@ -142,19 +142,26 @@
 <span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>  <span class="ex">R</span> <span class="at">-e</span> <span class="st">'remotes::install_github("adamrsophie/z3r")'</span></span></code></pre></div>
 </div>
 <div class="section level3">
+<h3 id="any-platform-let-z3r-download-z3">Any platform: let z3r download Z3<a class="anchor" aria-label="anchor" href="#any-platform-let-z3r-download-z3"></a>
+</h3>
+<p>With <code>Z3R_DOWNLOAD=true</code>, an installation that finds no usable Z3 downloads the official Z3 5.4.1 release for the platform over https, verifies its SHA-256 checksum, and installs <code>libz3</code> (with Z3’s license) inside the z3r package:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="va">Z3R_DOWNLOAD</span><span class="op">=</span>true <span class="ex">R</span> <span class="at">-e</span> <span class="st">'remotes::install_github("adamrsophie/z3r")'</span></span></code></pre></div>
+<p>Binaries from <a href="https://adamrsophie.r-universe.dev" class="external-link">R-universe</a> are built this way and need no Z3 installation.</p>
+</div>
+<div class="section level3">
 <h3 id="macos">macOS<a class="anchor" aria-label="anchor" href="#macos"></a>
 </h3>
-<div class="sourceCode" id="cb3"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="ex">brew</span> install z3</span></code></pre></div>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="ex">brew</span> install z3</span></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"adamrsophie/z3r"</span><span class="op">)</span></span></code></pre></div>
 <p>Verified with the official Z3 5.4.1 and 5.3.3 archives and with Homebrew’s Z3 4.16.0 on Apple silicon.</p>
 </div>
 <div class="section level3">
 <h3 id="linux">Linux<a class="anchor" aria-label="anchor" href="#linux"></a>
 </h3>
-<div class="sourceCode" id="cb5"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="fu">sudo</span> apt-get install libz3-dev    <span class="co"># Debian 13, Ubuntu 26.04 or later</span></span>
-<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="fu">sudo</span> dnf install z3-devel         <span class="co"># Fedora</span></span></code></pre></div>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="fu">sudo</span> apt-get install libz3-dev    <span class="co"># Debian 13, Ubuntu 26.04 or later</span></span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="fu">sudo</span> dnf install z3-devel         <span class="co"># Fedora</span></span></code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"adamrsophie/z3r"</span><span class="op">)</span></span></code></pre></div>
 <p>Verified on Ubuntu (arm64) with the distribution’s <code>libz3-dev</code> 4.13.3.</p>
 </div>
@@ -162,7 +169,7 @@
 <h3 id="windows">Windows<a class="anchor" aria-label="anchor" href="#windows"></a>
 </h3>
 <p>Download an official release such as <code>z3-5.4.1-x64-win.zip</code> from the <a href="https://github.com/Z3Prover/z3/releases" class="external-link">Z3 releases page</a>, unpack it, and point z3r at the unpacked folder:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Sys.setenv.html" class="external-link">Sys.setenv</a></span><span class="op">(</span>Z3_DIR <span class="op">=</span> <span class="st">"C:/path/to/z3-5.4.1-x64-win"</span><span class="op">)</span></span>
 <span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"adamrsophie/z3r"</span><span class="op">)</span></span></code></pre></div>
 <p>Rtools links against <code>libz3.dll</code> directly, and the DLL is copied next to z3r’s own DLL. The Windows build is written and covered by the CI workflow, but it has not been run on Windows yet.</p>
@@ -171,7 +178,7 @@
 <h3 id="choosing-a-specific-z3">Choosing a specific Z3<a class="anchor" aria-label="anchor" href="#choosing-a-specific-z3"></a>
 </h3>
 <p>The configure script looks, in order, at <code>PKG_CPPFLAGS</code>/<code>PKG_LIBS</code>, at <code>Z3_INCLUDE_DIR</code>/<code>Z3_LIB_DIR</code> (or <code>Z3_DIR</code> on Windows), at <code>pkg-config z3</code>, and at the usual prefixes (<code>/opt/homebrew</code>, <code>/usr/local</code>, <code>/usr</code>). It links the chosen library by its full path and refuses headers and libraries of different versions:</p>
-<div class="sourceCode" id="cb8"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="va">Z3_INCLUDE_DIR</span><span class="op">=</span>/opt/z3/include <span class="va">Z3_LIB_DIR</span><span class="op">=</span>/opt/z3/bin <span class="ex">R</span> CMD INSTALL z3r</span></code></pre></div>
+<div class="sourceCode" id="cb9"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="va">Z3_INCLUDE_DIR</span><span class="op">=</span>/opt/z3/include <span class="va">Z3_LIB_DIR</span><span class="op">=</span>/opt/z3/bin <span class="ex">R</span> CMD INSTALL z3r</span></code></pre></div>
 <p><code><a href="reference/z3_version.html">z3_version()</a></code> reports the library z3r runs with and the headers it was compiled against.</p>
 </div>
 <div class="section level3">

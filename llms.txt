@@ -65,11 +65,11 @@ releases from 4.8.13 to 5.4.1.
 
 z3r needs the Z3 C library and headers, version 4.8.13 or later (the
 first release with Z3’s Unicode string API). Nothing is downloaded
-during installation. Ubuntu 22.04 and 24.04 and Debian 12 ship Z3
-4.8.12, which is too old; use a newer distribution package (Debian 13
-and Ubuntu 26.04 ship 4.13.3) or an official release archive there.
-Features that need a newer Z3 than the one z3r was built with report so
-when they are called.
+during installation unless you ask for it (see below). Ubuntu 22.04 and
+24.04 and Debian 12 ship Z3 4.8.12, which is too old; use a newer
+distribution package (Debian 13 and Ubuntu 26.04 ship 4.13.3) or an
+official release archive there. Features that need a newer Z3 than the
+one z3r was built with report so when they are called.
 
 ### Any platform: an official release
 
@@ -81,6 +81,20 @@ page](https://github.com/Z3Prover/z3/releases) (for example
 Z3_INCLUDE_DIR=/path/to/z3-5.4.1/include Z3_LIB_DIR=/path/to/z3-5.4.1/bin \
   R -e 'remotes::install_github("adamrsophie/z3r")'
 ```
+
+### Any platform: let z3r download Z3
+
+With `Z3R_DOWNLOAD=true`, an installation that finds no usable Z3
+downloads the official Z3 5.4.1 release for the platform over https,
+verifies its SHA-256 checksum, and installs `libz3` (with Z3’s license)
+inside the z3r package:
+
+``` sh
+Z3R_DOWNLOAD=true R -e 'remotes::install_github("adamrsophie/z3r")'
+```
+
+Binaries from [R-universe](https://adamrsophie.r-universe.dev) are built
+this way and need no Z3 installation.
 
 ### macOS
 
