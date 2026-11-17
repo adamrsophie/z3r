@@ -3,11 +3,15 @@
 z3_pop() pair on a solver or optimizer: assertions added by code are
 removed afterwards, also when code fails or leaves scopes of its own
 open. If code pops that scope itself or resets the solver, nothing is
-popped and a warning says so."><meta property="og:description" content="z3_with_scope(x, code) evaluates code inside a z3_push() /
+popped and a warning says so. z3r counts scopes: code that pops the scope
+and pushes another in its place is not detected, and assertions it made
+between the two stay."><meta property="og:description" content="z3_with_scope(x, code) evaluates code inside a z3_push() /
 z3_pop() pair on a solver or optimizer: assertions added by code are
 removed afterwards, also when code fails or leaves scopes of its own
 open. If code pops that scope itself or resets the solver, nothing is
-popped and a warning says so."><meta property="og:image" content="https://adamrsophie.github.io/z3r/logo.svg"></head><body>
+popped and a warning says so. z3r counts scopes: code that pops the scope
+and pushes another in its place is not detected, and assertions it made
+between the two stay."><meta property="og:image" content="https://adamrsophie.github.io/z3r/logo.svg"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -70,7 +74,9 @@ popped and a warning says so."><meta property="og:image" content="https://adamrs
 <code><a href="z3_push.html">z3_pop()</a></code> pair on a solver or optimizer: assertions added by <code>code</code> are
 removed afterwards, also when <code>code</code> fails or leaves scopes of its own
 open. If <code>code</code> pops that scope itself or resets the solver, nothing is
-popped and a warning says so.</p>
+popped and a warning says so. z3r counts scopes: code that pops the scope
+and pushes another in its place is not detected, and assertions it made
+between the two stay.</p>
     </div>
 
     <div class="section level2">

@@ -93,6 +93,13 @@ inside the z3r package:
 Z3R_DOWNLOAD=true R -e 'remotes::install_github("adamrsophie/z3r")'
 ```
 
+The downloaded library needs a recent system. On Linux x86-64 it uses
+glibc 2.38 and libstdc++ from GCC 13 (`GLIBCXX_3.4.32`) or later, as in
+Ubuntu 24.04, Debian 13 and Fedora 39; on macOS it needs 13.3 or later.
+Configure test-loads the library before using it; on an older system
+that test fails (the loader’s message is in `config.log`), and Z3 from
+the distribution, or one built from source, is the way to go.
+
 Binaries from [R-universe](https://adamrsophie.r-universe.dev) are built
 this way and need no Z3 installation.
 

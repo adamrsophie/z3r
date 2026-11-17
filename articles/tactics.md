@@ -196,9 +196,9 @@ z3_add(gb, p$a | p$b, !p$a | p$c, !p$c)
 cat(z3_to_dimacs(gb))
 #> p cnf 3 3
 #> 1 2 0
-#> 3 -1 0
+#> -1 3 0
 #> -3 0
-#> c 3 c
-#> c 2 b
 #> c 1 a
+#> c 2 b
+#> c 3 c
 ```

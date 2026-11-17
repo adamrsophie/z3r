@@ -68,10 +68,13 @@ otherwise from its assumptions: `integer = TRUE` gives Int and
 `real = TRUE` gives Real. A symbol without assumptions is Bool where a
 Boolean is expected (as an argument of `And`, `Or`, ...), and an error
 elsewhere, because SymPy-style symbols without assumptions are complex.
-A symbol with sign or parity assumptions (`positive`, `nonzero`, `even`,
-and so on) is refused: a Z3 constant has a sort but no assumptions, so
-they would be lost. Use a symbol with only `integer` or `real`, and add
-the condition as a constraint (for example `z3_int(ctx, "n") > 0`).
+A symbol given any assumption its Z3 sort does not guarantee is refused
+(`rational = TRUE` alone, `positive`, `prime = FALSE`, `even`, and so
+on): a Z3 constant has a sort but no assumptions, so the restriction
+would be lost. Use a symbol with only `integer` or `real`, and add the
+condition as a constraint (for example `z3_int(ctx, "n") > 0`). Two
+different symbols with the same name (other assumptions) in one
+expression are refused, since they would become one Z3 constant.
 
 In the other direction, Int constants become symbols with
 `integer = TRUE`, Real constants symbols with `real = TRUE`, and Bool

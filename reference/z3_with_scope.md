@@ -6,7 +6,9 @@
 pair on a solver or optimizer: assertions added by `code` are removed
 afterwards, also when `code` fails or leaves scopes of its own open. If
 `code` pops that scope itself or resets the solver, nothing is popped
-and a warning says so.
+and a warning says so. z3r counts scopes: code that pops the scope and
+pushes another in its place is not detected, and assertions it made
+between the two stay.
 
 ## Usage
 
