@@ -434,6 +434,11 @@ bool has_propagator(const CallbackPtr& cb);
 // DIMACS text of clauses over Boolean constants; refuses other formulas.
 std::string dimacs_text(const CtxPtr& ctx, const AstVec& formulas, bool include_names);
 void refuse_copy_with_callbacks(SolverHolder* h, const char* what);
+// Every query that searches (checks, consequences, implied equalities)
+// clears the copy markers first, then refuses a "sat" found by a copy of
+// the solver that ran without the R user propagator.
+void begin_search(SolverHolder* h);
+void refuse_unsound_sat(SolverHolder* h, Z3_lbool st);
 
 // Floating point (fpa.cpp)
 bool is_fp(const Ast& e);

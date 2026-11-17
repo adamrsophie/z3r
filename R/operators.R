@@ -94,7 +94,8 @@ Math.z3_expr <- function(x, ...) {
   if (.Generic == "sqrt") {
     kind <- z3_sort_kind(x)
     if (kind == "floating_point") return(z3_fp_sqrt(z3_rounding(z3_context_of(x), "RNE"), x))
-    if (kind %in% c("int", "real")) return(x^(1/2))
+    # An exact 1/2, also under options(z3r.doubles = "error").
+    if (kind %in% c("int", "real")) return(x^z3_real_val(z3_context_of(x), "1/2"))
   }
   stop(sprintf("%s() has no exact counterpart in Z3", .Generic), call. = FALSE)
 }

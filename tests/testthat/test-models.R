@@ -110,3 +110,17 @@ test_that("printing a model shows each overloaded function", {
   expect_true(any(grepl("7", out)))
   expect_true(any(grepl("true", out)))
 })
+
+test_that("model lookup by name and value fallback", {
+  ctx <- z3_context()
+  s <- z3_solver(ctx)
+  a <- z3_const(ctx, "arr", z3_array_sort(z3_int_sort(ctx), z3_int_sort(ctx)))
+  z3_add(s, z3_int(ctx, "k") == 4, a[1] == 2)
+  z3_check(s)
+  m <- z3_model(s)
+  expect_equal(z3_value(m$k), 4)
+  expect_null(m[["nope"]])
+  v <- z3_model_values(m)
+  expect_equal(v$k, 4)
+  expect_true(z3_is_expr(v$arr))
+})

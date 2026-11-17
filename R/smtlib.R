@@ -65,7 +65,7 @@ z3_to_smtlib <- function(x, logic = "", state = FALSE) {
     if (isTRUE(state) && !cpp_solver_simplified(x)) {
       return(paste0(cpp_solver_to_string(x), assert_lines(tracked)))
     }
-    a <- c(cpp_solver_export_assertions(x), tracked)
+    a <- c(cpp_solver_assertions(x), tracked)
     if (!length(a)) a <- list(cpp_lift(z3_context_of(x), TRUE, NULL))
     return(cpp_benchmark(a, logic))
   }
@@ -86,6 +86,8 @@ z3_to_smtlib <- function(x, logic = "", state = FALSE) {
 }
 
 assert_lines <- function(labels) {
+  # paste0() with a zero-length argument would still give "(assert )".
+  if (!length(labels)) return("")
   paste0("(assert ", vapply(labels, cpp_expr_to_string, character(1)), ")\n", collapse = "")
 }
 

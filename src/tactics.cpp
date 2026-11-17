@@ -1,6 +1,9 @@
 // Probes, tactic combinators, simplifiers and goal inspection.
 #include "z3r.h"
 
+#include <cstdio>
+#include <map>
+
 using namespace z3r;
 
 static const Ref<Z3_tactic>& tactic(SEXP x) { return *get_xptr<Ref<Z3_tactic>>(x, Kind::Tactic); }
@@ -185,68 +188,147 @@ SEXP cpp_goal_convert_model(SEXP g_, SEXP m_) {
   return make_xptr(new Ref<Z3_model>(own(g.ctx(), r)), Kind::Model);
 }
 
-// A DIMACS literal: a Boolean constant or its negation. Z3's printers turn
-// any other formula into a fresh variable, which changes its meaning (p ==
-// !p would become a satisfiable unit clause), so z3r refuses them.
-static bool dimacs_literal(Z3_context c, Z3_ast f, bool may_negate = true) {
-  if (!Z3_is_app(c, f)) return false;
+// DIMACS export. z3r prints the clauses itself: Z3's printer turns any
+// formula that is not a literal into a fresh variable, which changes its
+// meaning (p == !p would become a satisfiable unit clause), and writes
+// names into comments unescaped, so a name holding a newline adds a clause.
+
+namespace {
+// A literal: a Boolean constant or its negation, or true or false.
+struct DimacsLit {
+  enum Kind { Bad, Atom, True, False } kind = Bad;
+  Z3_ast atom = nullptr;
+  bool negated = false;
+};
+
+DimacsLit dimacs_literal(Z3_context c, Z3_ast f, bool may_negate = true) {
+  DimacsLit l;
+  if (!Z3_is_app(c, f)) return l;
   Z3_app a = Z3_to_app(c, f);
   Z3_func_decl d = Z3_get_app_decl(c, a);
-  if (may_negate && Z3_get_decl_kind(c, d) == Z3_OP_NOT) return dimacs_literal(c, Z3_get_app_arg(c, a, 0), false);
-  return Z3_get_app_num_args(c, a) == 0 && Z3_get_decl_kind(c, d) == Z3_OP_UNINTERPRETED &&
-         Z3_get_sort_kind(c, Z3_get_sort(c, f)) == Z3_BOOL_SORT;
+  Z3_decl_kind k = Z3_get_decl_kind(c, d);
+  if (k == Z3_OP_TRUE) l.kind = DimacsLit::True;
+  else if (k == Z3_OP_FALSE) l.kind = DimacsLit::False;
+  else if (k == Z3_OP_NOT && may_negate) {
+    l = dimacs_literal(c, Z3_get_app_arg(c, a, 0), false);
+    if (l.kind == DimacsLit::Atom) l.negated = true;
+    else if (l.kind == DimacsLit::True) l.kind = DimacsLit::False;
+    else if (l.kind == DimacsLit::False) l.kind = DimacsLit::True;
+  } else if (k == Z3_OP_UNINTERPRETED && Z3_get_app_num_args(c, a) == 0 &&
+             Z3_get_sort_kind(c, Z3_get_sort(c, f)) == Z3_BOOL_SORT) {
+    l.kind = DimacsLit::Atom;
+    l.atom = f;
+  }
+  return l;
 }
 
-// Appends the literals of clause f (a literal or a disjunction of them).
-static bool dimacs_clause(Z3_context c, Z3_ast f, std::vector<Z3_ast>& lits) {
-  if (dimacs_literal(c, f)) {
-    lits.push_back(f);
-    return true;
-  }
-  if (!Z3_is_app(c, f)) return false;
-  Z3_app a = Z3_to_app(c, f);
-  if (Z3_get_decl_kind(c, Z3_get_app_decl(c, a)) != Z3_OP_OR) return false;
-  for (unsigned j = 0, n = Z3_get_app_num_args(c, a); j < n; ++j) {
-    Z3_ast l = Z3_get_app_arg(c, a, j);
-    if (!dimacs_literal(c, l)) return false;
-    lits.push_back(l);
-  }
-  return true;
-}
+struct DimacsWriter {
+  Z3_context c;
+  const CtxPtr& ctx;
+  std::map<unsigned, int> var;  // AST id of an atom -> DIMACS variable
+  std::vector<Z3_ast> atoms;
+  std::vector<std::vector<int>> clauses;
 
-std::string z3r::dimacs_text(const CtxPtr& ctx, const AstVec& formulas, bool include_names) {
-  Z3_context c = ctx->c;
-  Ref<Z3_solver> s = own(ctx, Z3_mk_simple_solver(c));
-  AstVec keep;
-  for (const Ast& a : formulas) {
-    Z3_ast f = a;
-    std::vector<Z3_ast> lits;
-    bool ok = dimacs_clause(c, f, lits);
-    // A tracked clause, label => clause, is the clause (not label) or clause.
-    if (!ok && Z3_is_app(c, f) && Z3_get_decl_kind(c, Z3_get_app_decl(c, Z3_to_app(c, f))) == Z3_OP_IMPLIES) {
-      Z3_app im = Z3_to_app(c, f);
-      Z3_ast lhs = Z3_get_app_arg(c, im, 0);
-      lits.clear();
-      if (dimacs_literal(c, lhs, false) && dimacs_clause(c, Z3_get_app_arg(c, im, 1), lits)) {
-        Ast neg = own_ast(ctx, Z3_mk_not(c, lhs));
-        keep.push_back(neg);
-        lits.insert(lits.begin(), neg);
-        ok = true;
+  int var_of(Z3_ast a) {
+    auto it = var.find(Z3_get_ast_id(c, a));
+    if (it != var.end()) return it->second;
+    atoms.push_back(a);
+    int v = static_cast<int>(atoms.size());
+    var[Z3_get_ast_id(c, a)] = v;
+    return v;
+  }
+  // Adds lit to the clause; returns false when it makes the clause true.
+  bool add(const DimacsLit& l, std::vector<int>& cl) {
+    if (l.kind == DimacsLit::True) return false;
+    if (l.kind == DimacsLit::Atom) {
+      int v = var_of(l.atom);
+      cl.push_back(l.negated ? -v : v);
+    }
+    return true;  // a false literal adds nothing
+  }
+  // A clause: a literal or a disjunction of literals. Sets *ok to false if f
+  // is not one.
+  void clause(Z3_ast f, std::vector<int> cl, bool* ok) {
+    DimacsLit l = dimacs_literal(c, f);
+    if (l.kind != DimacsLit::Bad) {
+      if (add(l, cl)) clauses.push_back(cl);
+      return;
+    }
+    if (Z3_is_app(c, f) && Z3_get_decl_kind(c, Z3_get_app_decl(c, Z3_to_app(c, f))) == Z3_OP_OR) {
+      Z3_app a = Z3_to_app(c, f);
+      std::vector<DimacsLit> ls;
+      for (unsigned j = 0, n = Z3_get_app_num_args(c, a); j < n; ++j) {
+        ls.push_back(dimacs_literal(c, Z3_get_app_arg(c, a, j)));
+        if (ls.back().kind == DimacsLit::Bad) { *ok = false; return; }
       }
+      for (const DimacsLit& x : ls) if (!add(x, cl)) return;
+      clauses.push_back(cl);
+      return;
+    }
+    *ok = false;
+  }
+  void formula(Z3_ast f) {
+    bool ok = true;
+    Z3_app a = Z3_is_app(c, f) ? Z3_to_app(c, f) : nullptr;
+    Z3_decl_kind k = a ? Z3_get_decl_kind(c, Z3_get_app_decl(c, a)) : Z3_OP_UNINTERPRETED;
+    if (k == Z3_OP_AND) {
+      for (unsigned j = 0, n = Z3_get_app_num_args(c, a); j < n; ++j) formula(Z3_get_app_arg(c, a, j));
+      return;
+    }
+    if (k == Z3_OP_IMPLIES) {
+      // A tracked clause, label => clause, is (not label) or clause.
+      DimacsLit lhs = dimacs_literal(c, Z3_get_app_arg(c, a, 0), false);
+      if (lhs.kind == DimacsLit::Atom) {
+        std::vector<int> cl(1, -var_of(lhs.atom));
+        clause(Z3_get_app_arg(c, a, 1), cl, &ok);
+        if (ok) return;
+      }
+      ok = false;
+    } else {
+      clause(f, std::vector<int>(), &ok);
     }
     if (!ok) {
       fail("DIMACS needs clauses of Boolean constants, and '" + str(Z3_ast_to_string(c, f)) +
            "' is not one; apply the \"tseitin-cnf\" tactic to a goal (after \"bit-blast\" for "
            "bit-vectors) first");
     }
-    Ast clause = own_ast(ctx, lits.size() == 1 ? lits[0] : Z3_mk_or(c, static_cast<unsigned>(lits.size()), lits.data()));
-    keep.push_back(clause);
-    Z3_solver_assert(c, s, clause);
-    check(ctx);
   }
-  std::string out = str(Z3_solver_to_dimacs_string(c, s, include_names));
+};
+
+// A name for a DIMACS comment: control characters and backslashes escaped,
+// so the comment stays on its line.
+std::string dimacs_name(const std::string& s) {
+  std::string out;
+  for (unsigned char ch : s) {
+    if (ch == '\\') out += "\\\\";
+    else if (ch == '\n') out += "\\n";
+    else if (ch == '\r') out += "\\r";
+    else if (ch < 0x20 || ch == 0x7f) {
+      char buf[8];
+      std::snprintf(buf, sizeof(buf), "\\x%02x", ch);
+      out += buf;
+    } else out += static_cast<char>(ch);
+  }
+  return out;
+}
+}  // namespace
+
+std::string z3r::dimacs_text(const CtxPtr& ctx, const AstVec& formulas, bool include_names) {
+  DimacsWriter w{ctx->c, ctx, {}, {}, {}};
+  for (const Ast& a : formulas) w.formula(a);
+  std::string out = "p cnf " + std::to_string(w.atoms.size()) + " " + std::to_string(w.clauses.size());
+  for (const std::vector<int>& cl : w.clauses) {
+    out += "\n";
+    for (int l : cl) out += std::to_string(l) + " ";
+    out += "0";
+  }
+  if (include_names) {
+    for (size_t i = 0; i < w.atoms.size(); ++i) {
+      Z3_func_decl d = Z3_get_app_decl(ctx->c, Z3_to_app(ctx->c, w.atoms[i]));
+      out += "\nc " + std::to_string(i + 1) + " " + dimacs_name(symbol_string(ctx, Z3_get_decl_name(ctx->c, d)));
+    }
+  }
   check(ctx);
-  if (!out.empty() && out.back() == '\n') out.pop_back();
   return out;
 }
 
@@ -349,6 +431,15 @@ SEXP cpp_solver_add_simplifier(SEXP s_, SEXP simp_) {
 #if Z3R_AT_LEAST(4, 12, 2)
   SolverHolder* h = solver_of(s_);
   refuse_copy_with_callbacks(h, "z3_solver_add_simplifier()");
+  // z3r cannot carry assertions or scopes into the new solver's record of
+  // its inputs (a solver with a simplifier holds them back from Z3's list).
+  bool nonempty = Z3_solver_get_num_scopes(h->s.c(), h->s) > 0 || !h->inputs.empty() || h->inputs_partial;
+  if (!h->simplified) {
+    Ref<Z3_ast_vector> v = own(h->s.ctx(), Z3_solver_get_assertions(h->s.c(), h->s));
+    nonempty = nonempty || Z3_ast_vector_size(h->s.c(), v) > 0;
+  }
+  check(h->s.ctx());
+  if (nonempty) fail("add the simplifier to a solver with no assertions or scopes");
   const Ref<Z3_simplifier>& sp = simplifier(simp_);
   same_ctx(h->s.ctx(), sp.ctx());
   Z3_solver ns = Z3_solver_add_simplifier(sp.c(), h->s, sp);

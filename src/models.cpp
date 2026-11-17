@@ -46,6 +46,33 @@ SEXP cpp_model_consts(SEXP m_) {
                             Rcpp::Named("values") = values);
 }
 
+// The value of the constant named `name`, wrapping only that one; NULL when
+// there is none. Constants of other sorts can share a name: an error then.
+// ponytail: one scan per lookup, O(n) without allocation; an index cached on
+// the model if repeated lookups in huge models matter.
+// [[Rcpp::export(rng = false)]]
+SEXP cpp_model_lookup(SEXP m_, std::string name) {
+  const Ref<Z3_model>& m = model(m_);
+  const CtxPtr& ctx = m.ctx();
+  Z3_context c = ctx->c;
+  unsigned n = Z3_model_get_num_consts(c, m), hits = 0;
+  Z3_func_decl found = nullptr;
+  for (unsigned i = 0; i < n; ++i) {
+    Z3_func_decl d = Z3_model_get_const_decl(c, m, i);
+    if (symbol_string(ctx, Z3_get_decl_name(c, d)) == name) {
+      ++hits;
+      found = d;
+    }
+  }
+  check(ctx);
+  if (hits > 1) {
+    fail("the model has " + std::to_string(hits) + " constants named '" + name +
+         "'; use z3_eval() with the constant");
+  }
+  if (!found) return R_NilValue;
+  return wrap_expr(own_ast(ctx, Z3_model_get_const_interp(c, m, found)));
+}
+
 // [[Rcpp::export(rng = false)]]
 int cpp_model_num_consts(SEXP m_) {
   const Ref<Z3_model>& m = model(m_);

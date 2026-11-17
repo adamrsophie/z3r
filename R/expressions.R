@@ -286,52 +286,54 @@ z3_value <- function(x, exact = TRUE, signed = FALSE) {
   if (isTRUE(signed) && cpp_sort_kind(x) == "bitvector") {
     x <- cpp_simplify(cpp_op("bv2int", list(x), 1L))
   }
-  info <- cpp_value_info(x, 20L)
+  value_from_info(x, cpp_value_info(x, 20L), exact, function(msg) stop(msg, call. = FALSE))
+}
+
+# The R value of x from its value info; for a value with no (exact) R
+# representation, the result of unsupported(message).
+value_from_info <- function(x, info, exact, unsupported) {
   switch(info$kind,
     bool = info$value,
     string = , char = info$value,
     int = , real = , bv = , ff = number_value(info, exact),
-    complex = complex_value(info, exact),
-    nul_string = stop(
-      "the string contains the character U+0000, which R strings cannot hold; use z3_string_escaped(), z3_string_bytes(), or z3_str_to_code() or z3_seq_nth() on its characters",
-      call. = FALSE
+    complex = complex_value(info, exact, unsupported),
+    nul_string = unsupported(
+      "the string contains the character U+0000, which R strings cannot hold; use z3_string_escaped(), z3_string_bytes(), or z3_str_to_code() or z3_seq_nth() on its characters"
     ),
-    surrogate_string = stop(
-      "the string contains a surrogate code point (U+D800 to U+DFFF), which has no UTF-8 encoding; use z3_string_escaped(), or z3_str_to_code() or z3_seq_nth() on its characters",
-      call. = FALSE
+    surrogate_string = unsupported(
+      "the string contains a surrogate code point (U+D800 to U+DFFF), which has no UTF-8 encoding; use z3_string_escaped(), or z3_str_to_code() or z3_seq_nth() on its characters"
     ),
-    fp = if (info$exact_double || !exact) info$value else stop(sprintf(
+    fp = if (info$exact_double || !exact) info$value else unsupported(sprintf(
       "the floating point value %s is not exactly representable as a double; use exact = FALSE to round it",
       info$text
-    ), call. = FALSE),
+    )),
     rm = info$value,
     algebraic = if (exact) {
-      stop(sprintf(
+      unsupported(sprintf(
         "%s is an irrational algebraic number with no exact R representation; use exact = FALSE for a double or z3_decimal() for digits",
         info$text
-      ), call. = FALSE)
+      ))
     } else {
       info$approx
     },
-    symbolic = stop(
-      "x is a symbolic expression, not a value; evaluate it in a model with z3_eval() first",
-      call. = FALSE
+    symbolic = unsupported(
+      "x is a symbolic expression, not a value; evaluate it in a model with z3_eval() first"
     ),
-    stop(sprintf("values of sort %s cannot be converted to R",
-                 cpp_sort_to_string(cpp_sort_of(x))), call. = FALSE)
+    unsupported(sprintf("values of sort %s cannot be converted to R",
+                 cpp_sort_to_string(cpp_sort_of(x))))
   )
 }
 
 # An R complex number when both parts are exact doubles, or rounded doubles
 # when exact = FALSE; otherwise an error (R has no exact complex type).
-complex_value <- function(info, exact) {
+complex_value <- function(info, exact, unsupported) {
   parts <- lapply(list(info$re, info$im), function(p) cpp_value_info(p, 20L))
   ok <- vapply(parts, function(p) isTRUE(p$exact_double), logical(1))
   if (exact && !all(ok)) {
-    stop(paste(
+    return(unsupported(paste(
       "this complex value has a part that is not exactly representable as a double;",
       "use exact = FALSE to round it, or z3_real_part() and z3_imag_part() for exact parts"
-    ), call. = FALSE)
+    )))
   }
   num <- function(p) if (isTRUE(p$exact_double)) p$value else p$approx
   complex(real = num(parts[[1]]), imaginary = num(parts[[2]]))

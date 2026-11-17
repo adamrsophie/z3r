@@ -140,3 +140,53 @@ test_that("optimizer and simplifier exports keep their answer", {
   z3_add_smtlib(sp, "(declare-const y Int) (assert (< y 0))")
   expect_error(z3_to_smtlib(sp), "cannot list")
 })
+
+test_that("a solver with a simplifier keeps its inputs across routes", {
+  skip_if_not(z3_version_at_least("4.12.2"))
+  ctx <- z3_context()
+  x <- z3_int(ctx, "x")
+  mk <- function() z3_solver_add_simplifier(z3_solver(ctx), z3_simplifier(ctx, "simplify"))
+  roundtrip <- function(s) {
+    copy <- z3_solver(z3_context())
+    z3_add_smtlib(copy, z3_to_smtlib(s))
+    copy
+  }
+  # File import is opaque, as string import is.
+  s <- mk()
+  f <- tempfile(fileext = ".smt2")
+  writeLines("(assert false)", f)
+  z3_add_smtlib(s, file = f)
+  expect_error(z3_to_smtlib(s), "cannot list")
+  expect_error(z3_assertions(s), "cannot list")
+  expect_output(print(s), "unknown number of assertions")
+  expect_error(z3_to_smtlib(z3_translate(s, z3_context())), "cannot list")
+  # Translation keeps the inputs.
+  s <- mk()
+  z3_add(s, x == 3)
+  z3_check(s)
+  copy <- roundtrip(z3_translate(s, z3_context()))
+  z3_add_smtlib(copy, "(assert (not (= x 3)))")
+  expect_identical(z3_check(copy), "unsat")
+  # Assertions are the inputs.
+  s <- mk()
+  z3_add(s, FALSE)
+  expect_length(z3_assertions(s), 1L)
+  # A second simplifier needs an empty solver.
+  expect_error(z3_solver_add_simplifier(s, z3_simplifier(ctx, "simplify")), "no assertions")
+})
+
+test_that("an optimizer without tracked labels exports valid text", {
+  ctx <- z3_context()
+  x <- z3_int(ctx, "x")
+  o <- z3_optimize(ctx)
+  z3_add(o, x == 3)
+  txt <- z3_to_smtlib(o)
+  expect_false(grepl("(assert )", txt, fixed = TRUE))
+  z3_push(o)
+  z3_assert_and_track(o, x > 5, "b")
+  z3_pop(o)
+  expect_false(grepl("(assert )", z3_to_smtlib(o), fixed = TRUE))
+  s <- z3_solver(ctx)
+  z3_add_smtlib(s, txt)
+  expect_identical(z3_check(s), "sat")
+})

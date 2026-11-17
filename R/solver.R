@@ -38,10 +38,11 @@ print.z3_solver <- function(x, ...) {
     cat("<z3_solver: invalid (restored from a saved session)>\n")
     return(invisible(x))
   }
-  n <- length(cpp_solver_assertions(x))
+  # A solver with a simplifier and parsed SMT-LIB cannot list assertions.
+  n <- tryCatch(length(cpp_solver_assertions(x)), error = function(e) NA_integer_)
   status <- cpp_solver_last_status(x)
-  cat(sprintf("<z3_solver: %d assertion%s, %d scope%s, %s>\n",
-              n, if (n == 1L) "" else "s",
+  cat(sprintf("<z3_solver: %s assertion%s, %d scope%s, %s>\n",
+              if (is.na(n)) "unknown number of" else n, if (identical(n, 1L)) "" else "s",
               cpp_solver_num_scopes(x), if (cpp_solver_num_scopes(x) == 1L) "" else "s",
               if (is.na(status)) "not checked" else paste("last check:", status)))
   print_kept_params(x)
@@ -658,7 +659,9 @@ z3_import_model_converter <- function(src, dst) {
 #' [z3_pop()] pair on a solver or optimizer: assertions added by `code` are
 #' removed afterwards, also when `code` fails or leaves scopes of its own
 #' open. If `code` pops that scope itself or resets the solver, nothing is
-#' popped and a warning says so.
+#' popped and a warning says so. z3r counts scopes: code that pops the scope
+#' and pushes another in its place is not detected, and assertions it made
+#' between the two stay.
 #'
 #' `z3_all_models(solver, vars, limit)` lists the distinct assignments of
 #' `vars` in models of the solver's assertions, at most `limit` of them. It
@@ -694,16 +697,21 @@ z3_import_model_converter <- function(src, dst) {
 z3_with_scope <- function(x, code) {
   depth <- z3_num_scopes(x)
   z3_push(x)
+  done <- FALSE
   # Return to the depth on entry, also after scopes code pushed and did not
-  # pop; a failure here must not hide an error from code.
-  on.exit(tryCatch({
-    extra <- z3_num_scopes(x) - depth
-    if (extra < 1L) {
-      warning("code popped or reset the scope z3_with_scope() opened", call. = FALSE)
-    }
-    for (i in seq_len(max(extra, 0L))) z3_pop(x)
-  }, error = function(e) warning(conditionMessage(e), call. = FALSE)), add = TRUE)
-  force(code)
+  # pop. After an error in code, problems here are reported as messages, so
+  # they cannot replace that error (even under options(warn = 2)).
+  on.exit({
+    note <- if (done) function(m) warning(m, call. = FALSE) else function(m) message("z3_with_scope(): ", m)
+    tryCatch({
+      extra <- z3_num_scopes(x) - depth
+      if (extra < 1L) note("code popped or reset the scope z3_with_scope() opened")
+      for (i in seq_len(max(extra, 0L))) z3_pop(x)
+    }, error = function(e) note(conditionMessage(e)))
+  }, add = TRUE)
+  out <- force(code)
+  done <- TRUE
+  out
 }
 
 #' @rdname z3_with_scope

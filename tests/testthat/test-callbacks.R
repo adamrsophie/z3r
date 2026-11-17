@@ -269,3 +269,22 @@ test_that("a propagator needs push and pop functions", {
   expect_error(z3_propagator(s, push = NULL, pop = NULL, final = function(cb) NULL), "push and pop")
   expect_error(z3_propagator(s, push = 1, pop = function(cb, n) NULL), "push and pop")
 })
+
+test_that("every search refuses a sat found without the propagator", {
+  skip_if_not(z3_version_at_least("4.12.3"))
+  for (threads in c(1, 2)) {
+    ctx <- z3_context()
+    s <- z3_solver(ctx, threads = threads)
+    p <- z3_bool(ctx, "p")
+    q <- z3_bool(ctx, "q")
+    z3_propagator(s, push = function(cb) NULL, pop = function(cb, n) NULL,
+                  final = function(cb) z3_propagate_conflict(cb))
+    z3_propagate_register(s, p)
+    z3_add(s, p | q)
+    for (run in list(function() z3_check(s), function() z3_consequences(s, list(), list(p, q))$status,
+                     function() z3_implied_equalities(s, list(p, q))$status)) {
+      r <- tryCatch(run(), error = function(e) "refused")
+      expect_true(r %in% c("unsat", "refused"))
+    }
+  }
+})

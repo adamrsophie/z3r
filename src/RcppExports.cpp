@@ -1916,6 +1916,17 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cpp_model_lookup
+SEXP cpp_model_lookup(SEXP m_, std::string name);
+RcppExport SEXP _z3r_cpp_model_lookup(SEXP m_SEXP, SEXP nameSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type m_(m_SEXP);
+    Rcpp::traits::input_parameter< std::string >::type name(nameSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_model_lookup(m_, name));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cpp_model_num_consts
 int cpp_model_num_consts(SEXP m_);
 RcppExport SEXP _z3r_cpp_model_num_consts(SEXP m_SEXP) {
@@ -2686,16 +2697,6 @@ BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::traits::input_parameter< SEXP >::type s_(s_SEXP);
     rcpp_result_gen = Rcpp::wrap(cpp_solver_simplified(s_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// cpp_solver_export_assertions
-SEXP cpp_solver_export_assertions(SEXP s_);
-RcppExport SEXP _z3r_cpp_solver_export_assertions(SEXP s_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::traits::input_parameter< SEXP >::type s_(s_SEXP);
-    rcpp_result_gen = Rcpp::wrap(cpp_solver_export_assertions(s_));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -3520,6 +3521,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_z3r_cpp_model_eval", (DL_FUNC) &_z3r_cpp_model_eval, 3},
     {"_z3r_cpp_model_to_string", (DL_FUNC) &_z3r_cpp_model_to_string, 1},
     {"_z3r_cpp_model_consts", (DL_FUNC) &_z3r_cpp_model_consts, 1},
+    {"_z3r_cpp_model_lookup", (DL_FUNC) &_z3r_cpp_model_lookup, 2},
     {"_z3r_cpp_model_num_consts", (DL_FUNC) &_z3r_cpp_model_num_consts, 1},
     {"_z3r_cpp_model_funcs", (DL_FUNC) &_z3r_cpp_model_funcs, 1},
     {"_z3r_cpp_mk_model", (DL_FUNC) &_z3r_cpp_mk_model, 1},
@@ -3593,7 +3595,6 @@ static const R_CallMethodDef CallEntries[] = {
     {"_z3r_cpp_solver_reset", (DL_FUNC) &_z3r_cpp_solver_reset, 1},
     {"_z3r_cpp_solver_assertions", (DL_FUNC) &_z3r_cpp_solver_assertions, 1},
     {"_z3r_cpp_solver_simplified", (DL_FUNC) &_z3r_cpp_solver_simplified, 1},
-    {"_z3r_cpp_solver_export_assertions", (DL_FUNC) &_z3r_cpp_solver_export_assertions, 1},
     {"_z3r_cpp_solver_statistics", (DL_FUNC) &_z3r_cpp_solver_statistics, 1},
     {"_z3r_cpp_statistics_text", (DL_FUNC) &_z3r_cpp_statistics_text, 1},
     {"_z3r_cpp_solver_interrupt", (DL_FUNC) &_z3r_cpp_solver_interrupt, 1},

@@ -51,3 +51,23 @@ test_that("symcompR translations refuse what changes meaning", {
   z3_add(s, z3_real(ctx, "rx") != 0, e * z3_real(ctx, "rx") != 1)
   expect_identical(z3_check(s), "unsat")
 })
+
+test_that("symcompR domains and symbol identities are kept or refused", {
+  skip_if_not_installed("symcompR")
+  ctx <- z3_context()
+  expect_error(z3_from_symbolic(ctx, symcompR::Symbol("q", rational = TRUE)), "rational = TRUE")
+  expect_error(z3_from_symbolic(ctx, symcompR::Symbol("n", integer = TRUE, prime = FALSE) + 1), "prime = FALSE")
+  a <- symcompR::Symbol("same", integer = TRUE)
+  b <- symcompR::Symbol("same", real = TRUE)
+  expect_error(z3_from_symbolic(ctx, symcompR::Eq(a - b, 1)), "two different symbols")
+  # Plain and implied assumptions still work.
+  i <- symcompR::Symbol("i", integer = TRUE, rational = TRUE)
+  expect_identical(z3_sort_kind(z3_from_symbolic(ctx, i + 1)), "int")
+  # Boolean ITE alone, and Boolean distinct round trips.
+  ite <- z3_from_symbolic(ctx, symcompR::ITE(symcompR::Symbol("p"), symcompR::Symbol("q"), symcompR::Symbol("r")))
+  expect_identical(z3_sort_kind(ite), "bool")
+  d <- z3_distinct(z3_bool(ctx, "pb"), z3_bool(ctx, "qb"))
+  s <- z3_solver(ctx)
+  z3_add(s, z3_from_symbolic(ctx, z3_to_symbolic(d)) != d)
+  expect_identical(z3_check(s), "unsat")
+})

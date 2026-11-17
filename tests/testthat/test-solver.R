@@ -272,3 +272,11 @@ test_that("z3_with_scope returns to the entry depth", {
   z3_with_scope(o, { z3_add(o, x > 1); z3_push(o) })
   expect_identical(z3_num_scopes(o), 0L)
 })
+
+test_that("z3_with_scope keeps the error from code under warn = 2", {
+  ctx <- z3_context()
+  s <- z3_solver(ctx)
+  old <- options(warn = 2)
+  on.exit(options(old))
+  expect_error(suppressMessages(z3_with_scope(s, { z3_pop(s); stop("original error") })), "original error")
+})

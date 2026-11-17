@@ -35,10 +35,13 @@
 #' `real = TRUE` gives Real. A symbol without assumptions is Bool where a
 #' Boolean is expected (as an argument of `And`, `Or`, ...), and an error
 #' elsewhere, because SymPy-style symbols without assumptions are complex.
-#' A symbol with sign or parity assumptions (`positive`, `nonzero`, `even`,
-#' and so on) is refused: a Z3 constant has a sort but no assumptions, so
-#' they would be lost. Use a symbol with only `integer` or `real`, and add
-#' the condition as a constraint (for example `z3_int(ctx, "n") > 0`).
+#' A symbol given any assumption its Z3 sort does not guarantee is refused
+#' (`rational = TRUE` alone, `positive`, `prime = FALSE`, `even`, and so
+#' on): a Z3 constant has a sort but no assumptions, so the restriction
+#' would be lost. Use a symbol with only `integer` or `real`, and add the
+#' condition as a constraint (for example `z3_int(ctx, "n") > 0`). Two
+#' different symbols with the same name (other assumptions) in one
+#' expression are refused, since they would become one Z3 constant.
 #'
 #' In the other direction, Int constants become symbols with `integer =
 #' TRUE`, Real constants symbols with `real = TRUE`, and Bool constants
@@ -66,7 +69,7 @@
 z3_from_symbolic <- function(ctx, expr, sorts = list()) {
   need_symcompr()
   if (!inherits(expr, "sym")) expr <- symcompR::as_sym(expr)
-  from_sym(ctx, expr, sorts, expected = NULL)
+  from_sym(ctx, expr, sorts, expected = NULL, seen = new.env(parent = emptyenv()))
 }
 
 need_symcompr <- function() {
@@ -80,10 +83,10 @@ sym_unsupported <- function(e) {
                format(e), symcompR::sym_type(e)), call. = FALSE)
 }
 
-from_sym <- function(ctx, e, sorts, expected) {
+from_sym <- function(ctx, e, sorts, expected, seen) {
   type <- symcompR::sym_type(e)
   args <- symcompR::sym_args(e)
-  rec <- function(a, exp = NULL) from_sym(ctx, a, sorts, exp)
+  rec <- function(a, exp = NULL) from_sym(ctx, a, sorts, exp, seen)
   rec_all <- function(exp = NULL) lapply(args, rec, exp)
   switch(type,
     Integer = z3_int_val(ctx, as.character(e$value)),
@@ -91,7 +94,7 @@ from_sym <- function(ctx, e, sorts, expected) {
     Float = stop("symcompR Floats are inexact and are not translated; use Rational values",
                  call. = FALSE),
     BooleanAtom = z3_bool_val(ctx, identical(symcompR::sym_name(e), "true")),
-    Symbol = sym_symbol(ctx, e, sorts, expected),
+    Symbol = sym_symbol(ctx, e, sorts, expected, seen),
     Add = z3_sum(rec_all("arith")),
     Mul = z3_prod(rec_all("arith")),
     Pow = sym_pow(ctx, args, rec),
@@ -107,31 +110,54 @@ from_sym <- function(ctx, e, sorts, expected) {
     Implies = z3_implies(rec(args[[1]], "bool"), rec(args[[2]], "bool")),
     Xor = Reduce(z3_xor, rec_all("bool")),
     Equivalent = z3_and(lapply(rec_all("bool")[-1], function(b) z3_iff(rec(args[[1]], "bool"), b))),
-    ITE = z3_ite(rec(args[[1]], "bool"), rec(args[[2]], expected), rec(args[[3]], expected)),
+    # symcompR's ITE is Boolean; Piecewise is the arithmetic one.
+    ITE = z3_ite(rec(args[[1]], "bool"), rec(args[[2]], "bool"), rec(args[[3]], "bool")),
     Piecewise = sym_piecewise(ctx, args, rec, expected),
     Function = sym_function(ctx, e, args, rec),
     sym_unsupported(e)
   )
 }
 
-sym_symbol <- function(ctx, e, sorts, expected) {
+# Assumptions a symbol may be given for each target sort: those the sort
+# guarantees. Any other given assumption (rational for a Real, prime = FALSE,
+# positive, ...) restricts the domain beyond the sort, so it is refused.
+sym_allowed <- list(
+  int = c("integer", "rational", "algebraic", "real", "extended_real", "complex", "hermitian",
+          "finite", "commutative"),
+  real = c("real", "extended_real", "complex", "hermitian", "finite", "commutative"),
+  bool = c("commutative")
+)
+
+sym_symbol <- function(ctx, e, sorts, expected, seen) {
   name <- symcompR::sym_name(e)
-  for (a in c("positive", "negative", "nonnegative", "nonpositive", "nonzero", "zero", "even", "odd")) {
-    if (isTRUE(getExportedValue("symcompR", paste0("is_", a))(e))) {
-      stop(sprintf(paste(
-        "symbol '%s' has the assumption %s, which a Z3 constant cannot carry; use a symbol",
-        "with only integer = TRUE or real = TRUE and add the condition as a constraint"
-      ), name, a), call. = FALSE)
-    }
+  # Distinct symcompR symbols (same name, other assumptions) must not become
+  # one Z3 constant.
+  key <- if (is.null(e$key)) name else e$key
+  if (!is.null(seen[[name]]) && !identical(seen[[name]], key)) {
+    stop(sprintf(paste("the expression has two different symbols named '%s' (with different",
+                       "assumptions), which would become one Z3 constant"), name), call. = FALSE)
+  }
+  assign(name, key, envir = seen)
+  given <- e$extra$given
+  target <- if (!is.null(sorts[[name]])) z3_sort_kind(sorts[[name]]) else
+    if (isTRUE(symcompR::is_integer(e))) "int" else if (isTRUE(symcompR::is_real(e))) "real" else
+      if (identical(expected, "bool")) "bool" else NA
+  if (is.na(target)) {
+    stop(sprintf(paste(
+      "cannot tell the sort of symbol '%s': give it the assumption integer = TRUE or",
+      "real = TRUE, or pass sorts = list(%s = <sort>)"
+    ), name, name), call. = FALSE)
+  }
+  ok <- if (is.null(sym_allowed[[target]])) character() else sym_allowed[[target]]
+  bad <- names(given)[!(names(given) %in% ok & given %in% TRUE)]
+  if (length(bad)) {
+    stop(sprintf(paste(
+      "symbol '%s' has the assumption %s, which a Z3 %s constant cannot carry; use a symbol",
+      "with only integer = TRUE or real = TRUE and add the condition as a constraint"
+    ), name, paste0(bad[1], " = ", given[[bad[1]]]), target), call. = FALSE)
   }
   if (!is.null(sorts[[name]])) return(z3_const(ctx, name, sorts[[name]]))
-  if (isTRUE(symcompR::is_integer(e))) return(z3_int(ctx, name))
-  if (isTRUE(symcompR::is_real(e))) return(z3_real(ctx, name))
-  if (identical(expected, "bool")) return(z3_bool(ctx, name))
-  stop(sprintf(paste(
-    "cannot tell the sort of symbol '%s': give it the assumption integer = TRUE or",
-    "real = TRUE, or pass sorts = list(%s = <sort>)"
-  ), name, name), call. = FALSE)
+  switch(target, int = z3_int(ctx, name), real = z3_real(ctx, name), bool = z3_bool(ctx, name))
 }
 
 sym_pow <- function(ctx, args, rec) {
@@ -236,7 +262,8 @@ to_sym <- function(x) {
     gt = S("Gt")(args[[1]], args[[2]]),
     eq = if (sort_is_bool(z3_args(x)[[1]])) S("Equivalent")(args[[1]], args[[2]]) else S("Eq")(args[[1]], args[[2]]),
     distinct = do.call(S("And"), unlist(lapply(seq_along(args)[-length(args)], function(i) {
-      lapply((i + 1):length(args), function(j) S("Ne")(args[[i]], args[[j]]))
+      ne <- if (sort_is_bool(z3_args(x)[[1]])) S("Xor") else S("Ne")
+      lapply((i + 1):length(args), function(j) ne(args[[i]], args[[j]]))
     }), recursive = FALSE)),
     and = do.call(S("And"), args),
     or = do.call(S("Or"), args),

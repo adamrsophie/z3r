@@ -12,7 +12,7 @@
 # Microsoft runtime DLLs shipped beside it and Z3's license are copied next
 # to z3r.dll at install time, where Windows finds them when R loads the
 # package. Headers and DLL must be the same Z3 version.#
-# Nothing is downloaded by default. When no Z3 is found and Z3R_DOWNLOAD is
+# Nothing is downloaded by default. When no usable Z3 is found and Z3R_DOWNLOAD is
 # "true" (or the build runs on R-universe, which sets MY_UNIVERSE, and
 # Z3R_DOWNLOAD is not "false"), configure downloads one pinned official Z3
 # release over https, verifies its SHA-256 checksum, and installs libz3 and
@@ -132,40 +132,12 @@ fetch_z3 () {
   rm -f "$2"
 }
 
-# Opt-in download of a pinned official release (see the header), used only
-# when no Z3 is given and pkg-config finds none.
-if test -z "${PKG_LIBS}" && test -z "${Z3_DIR}" && test -z "${Z3_INCLUDE_DIR}" &&
-   test -z "${Z3_LIB_DIR}" && ! pkg-config --exists z3 2>/dev/null &&
-   want_download; then
-  Z3_PIN=5.4.1
-  case "`"${RBIN}" --vanilla -s -e 'cat(R.version$arch)'`" in
-    aarch64) Z3_ASSET=z3-${Z3_PIN}-arm64-win
-      Z3_SHA=1159ecd4cb008838471d816f09bdf69654a1908b47a7279fca2fc8dadbb81e0f ;;
-    *) Z3_ASSET=z3-${Z3_PIN}-x64-win
-      Z3_SHA=f16e991e1c883b0cee30c78eb445343e1a3f49c142aa7dead7d6c35f9cc44934 ;;
-  esac
-  Z3_URL="https://github.com/Z3Prover/z3/releases/download/z3-${Z3_PIN}/${Z3_ASSET}.zip"
-  echo "configure.win: downloading Z3 ${Z3_PIN} from ${Z3_URL}"
-  rm -rf z3bundle
-  mkdir -p z3bundle
-  if fetch_z3 "${Z3_URL}" "`pwd`/z3bundle/z3.zip" "${Z3_SHA}"; then
-    Z3_DIR="`pwd`/z3bundle/${Z3_ASSET}"
-    Z3_DOWNLOADED="${Z3_ASSET}"
-  fi
-fi
-
-if test -n "${Z3_DIR}"; then
-  : "${Z3_INCLUDE_DIR:=${Z3_DIR}/include}"
-  : "${Z3_LIB_DIR:=${Z3_DIR}/bin}"
-fi
-
-if test -n "${PKG_LIBS}"; then
-  Z3_CPPFLAGS="${PKG_CPPFLAGS}"
-  Z3_LIBS="${PKG_LIBS}"
-  Z3_SOURCE="PKG_CPPFLAGS/PKG_LIBS"
-  try_z3 "${Z3_CPPFLAGS}" "${Z3_LIBS}" "" || Z3_SOURCE=""
-elif test -n "${Z3_INCLUDE_DIR}" || test -n "${Z3_LIB_DIR}"; then
+# Uses the Z3 in Z3_INCLUDE_DIR and Z3_LIB_DIR.
+use_dirs () {
   Z3_CPPFLAGS="-I`sq "${Z3_INCLUDE_DIR}"`"
+  Z3_DLL=""
+  Z3_DLLDIR=""
+  Z3_LICENSE=""
   if test -f "${Z3_LIB_DIR}/libz3.dll"; then
     Z3_DLL="${Z3_LIB_DIR}/libz3.dll"
     Z3_DLLDIR="${Z3_LIB_DIR}"
@@ -179,12 +151,50 @@ elif test -n "${Z3_INCLUDE_DIR}" || test -n "${Z3_LIB_DIR}"; then
   fi
   Z3_SOURCE="Z3_INCLUDE_DIR/Z3_LIB_DIR"
   try_z3 "${Z3_CPPFLAGS}" "${Z3_LIBS}" "${Z3_DLLDIR}" || Z3_SOURCE=""
+}
+
+if test -n "${Z3_DIR}"; then
+  : "${Z3_INCLUDE_DIR:=${Z3_DIR}/include}"
+  : "${Z3_LIB_DIR:=${Z3_DIR}/bin}"
+fi
+
+if test -n "${PKG_LIBS}"; then
+  Z3_CPPFLAGS="${PKG_CPPFLAGS}"
+  Z3_LIBS="${PKG_LIBS}"
+  Z3_SOURCE="PKG_CPPFLAGS/PKG_LIBS"
+  try_z3 "${Z3_CPPFLAGS}" "${Z3_LIBS}" "" || Z3_SOURCE=""
+elif test -n "${Z3_INCLUDE_DIR}" || test -n "${Z3_LIB_DIR}"; then
+  use_dirs
 elif pkg-config --exists z3 2>/dev/null; then
   Z3_CPPFLAGS=`pkg-config --cflags z3`
   Z3_LIBS=`pkg-config --libs --static z3`
   Z3_SOURCE="pkg-config"
   try_z3 "${Z3_CPPFLAGS}" "${Z3_LIBS}" "" || Z3_SOURCE=""
 fi
+
+# Opt-in download of a pinned official release (see the header), used when
+# no usable Z3 was found (also when pkg-config lists an unusable one).
+if test -z "${Z3_SOURCE}" && want_download; then
+  Z3_PIN=5.4.1
+  case "`"${RBIN}" --vanilla -s -e 'cat(R.version$arch)'`" in
+    aarch64) Z3_ASSET=z3-${Z3_PIN}-arm64-win
+      Z3_SHA=1159ecd4cb008838471d816f09bdf69654a1908b47a7279fca2fc8dadbb81e0f ;;
+    *) Z3_ASSET=z3-${Z3_PIN}-x64-win
+      Z3_SHA=f16e991e1c883b0cee30c78eb445343e1a3f49c142aa7dead7d6c35f9cc44934 ;;
+  esac
+  Z3_URL="https://github.com/Z3Prover/z3/releases/download/z3-${Z3_PIN}/${Z3_ASSET}.zip"
+  echo "configure.win: downloading Z3 ${Z3_PIN} from ${Z3_URL}"
+  rm -rf z3bundle
+  mkdir -p z3bundle
+  if fetch_z3 "${Z3_URL}" "`pwd`/z3bundle/z3.zip" "${Z3_SHA}"; then
+    Z3_DIR="`pwd`/z3bundle/${Z3_ASSET}"
+    Z3_INCLUDE_DIR="${Z3_DIR}/include"
+    Z3_LIB_DIR="${Z3_DIR}/bin"
+    use_dirs
+    if test -n "${Z3_SOURCE}"; then Z3_DOWNLOADED="${Z3_ASSET}"; fi
+  fi
+fi
+
 
 rm -f conftest.cpp conftest.exe conftest.err
 for f in ${Z3_RUNTIME_DLLS}; do rm -f "$f"; done

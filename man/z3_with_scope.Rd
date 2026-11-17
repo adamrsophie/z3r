@@ -30,7 +30,9 @@ returns a list of named lists, one per assignment, with attribute
 \code{\link[=z3_pop]{z3_pop()}} pair on a solver or optimizer: assertions added by \code{code} are
 removed afterwards, also when \code{code} fails or leaves scopes of its own
 open. If \code{code} pops that scope itself or resets the solver, nothing is
-popped and a warning says so.
+popped and a warning says so. z3r counts scopes: code that pops the scope
+and pushes another in its place is not detected, and assertions it made
+between the two stay.
 }
 \details{
 \code{z3_all_models(solver, vars, limit)} lists the distinct assignments of

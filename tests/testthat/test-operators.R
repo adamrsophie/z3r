@@ -218,3 +218,15 @@ test_that("strings compare lexicographically; sqrt; array indexing", {
   expect_true(z3_value(z3_simplify(a[1] == z3_select(a, 1))))
   expect_error(r[1], "only array")
 })
+
+test_that("sqrt is exact under the strict double policy", {
+  ctx <- z3_context()
+  old <- options(z3r.doubles = "error")
+  on.exit(options(old))
+  for (x in list(z3_real(ctx, "x"), z3_int(ctx, "i"))) {
+    r <- sqrt(x)
+    expect_identical(z3_sort_kind(r), "real")
+    expect_match(format(r), "(^ ", fixed = TRUE)
+    expect_match(format(r), "(/ 1.0 2.0)", fixed = TRUE)
+  }
+})

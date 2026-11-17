@@ -77,14 +77,7 @@ z3_model_values <- function(model) lapply(as.list(model), value_or_expr)
   if (!is.character(name) || length(name) != 1L || is.na(name)) {
     stop("name must be a single string", call. = FALSE)
   }
-  k <- cpp_model_consts(x)
-  hit <- which(k$names == name)
-  if (length(hit) > 1L) {
-    stop(sprintf("the model has %d constants named '%s'; use z3_eval() with the constant",
-                 length(hit), name), call. = FALSE)
-  }
-  if (!length(hit)) return(NULL)
-  k$values[[hit]]
+  cpp_model_lookup(x, enc2utf8(name))
 }
 
 #' @rdname as.list.z3_model
@@ -93,7 +86,7 @@ z3_model_values <- function(model) lapply(as.list(model), value_or_expr)
 
 # An R value where one represents the Z3 value exactly, else the
 # expression; the same conversion as z3_value(), for every kind.
-value_or_expr <- function(v) tryCatch(z3_value(v), error = function(e) v)
+value_or_expr <- function(v) value_from_info(v, cpp_value_info(v, 20L), TRUE, function(msg) v)
 
 #' @rdname as.list.z3_model
 #' @export

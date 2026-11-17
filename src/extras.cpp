@@ -15,6 +15,7 @@ SEXP cpp_implied_equalities(SEXP s_, Rcpp::List terms) {
   std::vector<Z3_ast> r = raw(t);
   std::vector<unsigned> ids(r.size(), 0);
   Z3_lbool st;
+  begin_search(h);
   {
     BusyGuard<SolverHolder> busy(h);
     st = Z3_get_implied_equalities(ctx->c, h->s, static_cast<unsigned>(r.size()), r.empty() ? nullptr : r.data(),
@@ -25,6 +26,7 @@ SEXP cpp_implied_equalities(SEXP s_, Rcpp::List terms) {
   h->checked = false;
   raise_callback_errors(h->callbacks);
   check(ctx);
+  refuse_unsound_sat(h, st);
   Rcpp::IntegerVector cls(ids.size());
   for (size_t i = 0; i < ids.size(); ++i) cls[i] = static_cast<int>(ids[i]);
   return Rcpp::List::create(Rcpp::Named("status") = lbool_string(st), Rcpp::Named("class") = cls);
@@ -60,6 +62,7 @@ void cpp_solver_from_file(SEXP s_, SEXP file_) {
   SolverHolder* h = solver_of(s_);
   std::string file = as_string(file_, "file");
   h->touch();
+  if (h->simplified) h->inputs_partial = true;
   {
     BusyGuard<SolverHolder> busy(h);
     Z3_solver_from_file(h->s.c(), h->s, file.c_str());

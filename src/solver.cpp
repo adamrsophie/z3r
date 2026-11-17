@@ -17,6 +17,27 @@ const char* lbool_string(Z3_lbool r) {
 
 bool has_propagator(const CallbackPtr& cb) { return cb->propagator; }
 
+void begin_search(SolverHolder* h) {
+  for (CallbackPtr& cb : h->callbacks) {
+    cb->cloned = false;
+    cb->off_thread = false;
+  }
+}
+
+// A copy made by Z3 during a search runs no R callbacks, so a "sat" found
+// in it may violate constraints a propagator enforces. ("unsat" stays
+// sound: the copy has fewer constraints.)
+void refuse_unsound_sat(SolverHolder* h, Z3_lbool st) {
+  if (st != Z3_L_TRUE) return;
+  for (CallbackPtr& cb : h->callbacks) {
+    if ((cb->cloned || cb->off_thread) && has_propagator(cb)) {
+      fail("Z3 copied the solver during this search (for example in parallel mode), and the copy "
+           "does not run R callbacks; the \"sat\" result may violate constraints of the user "
+           "propagator, so it is refused");
+    }
+  }
+}
+
 // Z3 copies solvers without their R callbacks; a copy of a solver with a
 // user propagator or clause callback would silently lose them.
 void refuse_copy_with_callbacks(SolverHolder* h, const char* what) {
@@ -332,10 +353,7 @@ std::string cpp_solver_check(SEXP s_, Rcpp::List assumptions, SEXP timeout) {
   std::vector<Z3_ast> r = raw(as);
   SolverTimeout once;
   once.apply(h, timeout);
-  for (CallbackPtr& cb : h->callbacks) {
-    cb->cloned = false;
-    cb->off_thread = false;
-  }
+  begin_search(h);
   Z3_lbool st;
   {
     BusyGuard<SolverHolder> busy(h);
@@ -347,18 +365,7 @@ std::string cpp_solver_check(SEXP s_, Rcpp::List assumptions, SEXP timeout) {
   h->status = Z3_L_UNDEF;
   raise_callback_errors(h->callbacks);
   check(ctx);
-  // A copy made by Z3 during the check runs no R callbacks, so a "sat"
-  // found in it may violate constraints a propagator enforces. ("unsat"
-  // stays sound: the copy has fewer constraints.)
-  if (st == Z3_L_TRUE) {
-    for (CallbackPtr& cb : h->callbacks) {
-      if ((cb->cloned || cb->off_thread) && has_propagator(cb)) {
-        fail("Z3 copied the solver during this check (for example in parallel mode), and the copy "
-             "does not run R callbacks; the \"sat\" result may violate constraints of the user "
-             "propagator, so it is refused");
-      }
-    }
-  }
+  refuse_unsound_sat(h, st);
   h->status = st;
   if (st == Z3_L_UNDEF) forward_interrupt(st, str(Z3_solver_get_reason_unknown(ctx->c, h->s)));
   return lbool_string(st);
@@ -484,24 +491,21 @@ void cpp_solver_reset(SEXP s_) {
 // [[Rcpp::export(rng = false)]]
 SEXP cpp_solver_assertions(SEXP s_) {
   SolverHolder* h = solver(s_);
+  // A solver with a simplifier holds assertions back and then lists
+  // simplified ones; its assertions are what was added to it.
+  if (h->simplified) {
+    if (h->inputs_partial) {
+      fail("this solver has a simplifier and SMT-LIB was parsed into it; z3r cannot list its "
+           "assertions exactly");
+    }
+    return wrap_expr_list(h->inputs);
+  }
   return wrap_ast_vector(h->s.ctx(), Z3_solver_get_assertions(h->s.c(), h->s));
 }
 
 // [[Rcpp::export(rng = false)]]
 bool cpp_solver_simplified(SEXP s_) { return solver(s_)->simplified; }
 
-// The assertions to export: what was added to a solver with a simplifier
-// (which holds them back, then lists simplified ones), else Z3's list.
-// [[Rcpp::export(rng = false)]]
-SEXP cpp_solver_export_assertions(SEXP s_) {
-  SolverHolder* h = solver(s_);
-  if (!h->simplified) return cpp_solver_assertions(s_);
-  if (h->inputs_partial) {
-    fail("this solver has a simplifier and SMT-LIB text was parsed into it; z3r cannot list its "
-         "assertions exactly, so it does not export them");
-  }
-  return wrap_expr_list(h->inputs);
-}
 
 // [[Rcpp::export(rng = false)]]
 SEXP cpp_solver_statistics(SEXP s_) {
@@ -626,6 +630,7 @@ SEXP cpp_solver_consequences(SEXP s_, Rcpp::List assumptions, Rcpp::List variabl
   Ref<Z3_ast_vector> vv = make_ast_vector(ctx, vs);
   Ref<Z3_ast_vector> out = own(ctx, Z3_mk_ast_vector(ctx->c));
   Z3_lbool st;
+  begin_search(h);
   {
     BusyGuard<SolverHolder> busy(h);
     st = Z3_solver_get_consequences(ctx->c, h->s, va, vv, out);
@@ -635,6 +640,7 @@ SEXP cpp_solver_consequences(SEXP s_, Rcpp::List assumptions, Rcpp::List variabl
   h->status = Z3_L_UNDEF;
   raise_callback_errors(h->callbacks);
   check(ctx);
+  refuse_unsound_sat(h, st);
   h->status = st;
   if (st == Z3_L_UNDEF) forward_interrupt(st, str(Z3_solver_get_reason_unknown(ctx->c, h->s)));
   unsigned n = Z3_ast_vector_size(ctx->c, out);
@@ -782,6 +788,12 @@ SEXP cpp_solver_translate(SEXP s_, SEXP target_ctx) {
   for (const Ast& l : h->tracked) {
     copy->tracked.push_back(own_ast(target, Z3_translate(h->s.c(), l, target->c)));
   }
+  // The copy of a solver with a simplifier keeps its inputs, all at the
+  // base level, as Z3 copies the assertions without scopes.
+  copy->simplified = h->simplified;
+  copy->inputs_partial = h->inputs_partial;
+  for (const Ast& a : h->inputs) copy->inputs.push_back(own_ast(target, Z3_translate(h->s.c(), a, target->c)));
+  check(target);
   UNPROTECT(1);
   return out;
 }

@@ -697,6 +697,10 @@ cpp_model_consts <- function(m_) {
     .Call(`_z3r_cpp_model_consts`, m_)
 }
 
+cpp_model_lookup <- function(m_, name) {
+    .Call(`_z3r_cpp_model_lookup`, m_, name)
+}
+
 cpp_model_num_consts <- function(m_) {
     .Call(`_z3r_cpp_model_num_consts`, m_)
 }
@@ -987,10 +991,6 @@ cpp_solver_assertions <- function(s_) {
 
 cpp_solver_simplified <- function(s_) {
     .Call(`_z3r_cpp_solver_simplified`, s_)
-}
-
-cpp_solver_export_assertions <- function(s_) {
-    .Call(`_z3r_cpp_solver_export_assertions`, s_)
 }
 
 cpp_solver_statistics <- function(s_) {
