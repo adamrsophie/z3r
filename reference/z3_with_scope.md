@@ -15,7 +15,7 @@ between the two stay.
 ``` r
 z3_with_scope(x, code)
 
-z3_all_models(solver, vars, limit = 100)
+z3_all_models(solver, vars, limit = 100, on_model = NULL)
 ```
 
 ## Arguments
@@ -40,10 +40,17 @@ z3_all_models(solver, vars, limit = 100)
 
   Maximum number of assignments.
 
+- on_model:
+
+  Optional function called with each assignment (a named list); see
+  Details.
+
 ## Value
 
 `z3_with_scope()` returns the value of `code`. `z3_all_models()` returns
-a list of named lists, one per assignment, with attribute `"status"`.
+a list of named lists, one per assignment, with attribute `"status"`;
+with `on_model`, an empty list with attributes `"status"` and `"count"`
+(the number of assignments passed on).
 
 ## Details
 
@@ -53,7 +60,12 @@ blocks each assignment found and checks again, inside a scope, so the
 solver is unchanged afterwards. Values are converted as by
 [`z3_model_values()`](https://adamrsophie.github.io/z3r/reference/as.list.z3_model.md).
 The `"status"` attribute says why enumeration stopped: `"unsat"` (all
-assignments were found), `"limit"` or `"unknown"`.
+assignments were found), `"limit"`, `"unknown"` or `"stopped"`.
+
+With `on_model`, assignments are streamed instead of collected: each is
+passed to `on_model(values)` as soon as it is found, nothing is kept,
+and returning `FALSE` from `on_model` stops the enumeration (status
+`"stopped"`). The solver's scope is removed also when `on_model` fails.
 
 ## Examples
 

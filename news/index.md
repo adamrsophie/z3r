@@ -45,10 +45,13 @@ than the one z3r was built with report the release they need.
 - Batch construction of constants
   ([`z3_ints()`](https://adamrsophie.github.io/z3r/reference/z3_const.md),
   [`z3_reals()`](https://adamrsophie.github.io/z3r/reference/z3_const.md),
-  [`z3_bools()`](https://adamrsophie.github.io/z3r/reference/z3_const.md))
-  and n-ary sums and products
+  [`z3_bools()`](https://adamrsophie.github.io/z3r/reference/z3_const.md)),
+  n-ary sums and products
   ([`z3_sum()`](https://adamrsophie.github.io/z3r/reference/z3_sum.md),
-  [`z3_prod()`](https://adamrsophie.github.io/z3r/reference/z3_sum.md)).
+  [`z3_prod()`](https://adamrsophie.github.io/z3r/reference/z3_sum.md)),
+  and linear systems from dense or sparse coefficient matrices with
+  exact coefficients
+  ([`z3_linear()`](https://adamrsophie.github.io/z3r/reference/z3_linear.md)).
 - Inspection of terms and declarations, substitution, simplification
   with parameters, quantifiers and lambdas with patterns and weights,
   and a dictionary keyed by terms
@@ -84,8 +87,8 @@ than the one z3r was built with report the release they need.
   with a list) and conversion of all or selected values
   ([`z3_model_values()`](https://adamrsophie.github.io/z3r/reference/as.list.z3_model.md));
   enumeration of distinct models
-  ([`z3_all_models()`](https://adamrsophie.github.io/z3r/reference/z3_with_scope.md));
-  hand-built models.
+  ([`z3_all_models()`](https://adamrsophie.github.io/z3r/reference/z3_with_scope.md),
+  which can stream them to a callback); hand-built models.
 - Per-check timeouts (`z3_check(timeout = )`) that leave the solver’s
   other parameters in place, interruption with Ctrl-C, and
   [`z3_interrupt()`](https://adamrsophie.github.io/z3r/reference/z3_interrupt.md)

@@ -101,6 +101,8 @@
   [`z3_to_int()`](https://adamrsophie.github.io/z3r/reference/z3_sum.md)
   [`z3_is_int()`](https://adamrsophie.github.io/z3r/reference/z3_sum.md)
   : Arithmetic functions
+- [`z3_linear()`](https://adamrsophie.github.io/z3r/reference/z3_linear.md)
+  : Linear constraints from a coefficient matrix
 - [`z3_divides()`](https://adamrsophie.github.io/z3r/reference/z3_divides.md)
   : Divisibility
 - [`z3_atmost()`](https://adamrsophie.github.io/z3r/reference/z3_atmost.md)

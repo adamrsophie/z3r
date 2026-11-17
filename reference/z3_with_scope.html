@@ -83,7 +83,7 @@ between the two stay.</p>
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">z3_with_scope</span><span class="op">(</span><span class="va">x</span>, <span class="va">code</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">z3_all_models</span><span class="op">(</span><span class="va">solver</span>, <span class="va">vars</span>, limit <span class="op">=</span> <span class="fl">100</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu">z3_all_models</span><span class="op">(</span><span class="va">solver</span>, <span class="va">vars</span>, limit <span class="op">=</span> <span class="fl">100</span>, on_model <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -109,12 +109,18 @@ between the two stay.</p>
 <dt id="arg-limit">limit<a class="anchor" aria-label="anchor" href="#arg-limit"></a></dt>
 <dd><p>Maximum number of assignments.</p></dd>
 
+
+<dt id="arg-on-model">on_model<a class="anchor" aria-label="anchor" href="#arg-on-model"></a></dt>
+<dd><p>Optional function called with each assignment (a named
+list); see Details.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p><code>z3_with_scope()</code> returns the value of <code>code</code>. <code>z3_all_models()</code>
 returns a list of named lists, one per assignment, with attribute
-<code>"status"</code>.</p>
+<code>"status"</code>; with <code>on_model</code>, an empty list with attributes <code>"status"</code>
+and <code>"count"</code> (the number of assignments passed on).</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -123,8 +129,12 @@ returns a list of named lists, one per assignment, with attribute
 blocks each assignment found and checks again, inside a scope, so the
 solver is unchanged afterwards. Values are converted as by
 <code><a href="as.list.z3_model.html">z3_model_values()</a></code>. The <code>"status"</code> attribute says why enumeration
-stopped: <code>"unsat"</code> (all assignments were found), <code>"limit"</code> or
-<code>"unknown"</code>.</p>
+stopped: <code>"unsat"</code> (all assignments were found), <code>"limit"</code>,
+<code>"unknown"</code> or <code>"stopped"</code>.</p>
+<p>With <code>on_model</code>, assignments are streamed instead of collected: each is
+passed to <code>on_model(values)</code> as soon as it is found, nothing is kept,
+and returning <code>FALSE</code> from <code>on_model</code> stops the enumeration (status
+<code>"stopped"</code>). The solver's scope is removed also when <code>on_model</code> fails.</p>
     </div>
 
     <div class="section level2">
