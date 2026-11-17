@@ -31,15 +31,23 @@ z3_is_recursive_datatype(sort)
 
 ## Arguments
 
+- ctx:
+
+  A
+  [`z3_context()`](https://adamrsophie.github.io/z3r/reference/z3_context.md).
+
+- name:
+
+  Name of the datatype.
+
 - ...:
 
   Constructors, each a named list of field sorts. For `z3_tuple_sort()`,
   the named field sorts.
 
-- ctx:
+- parameters:
 
-  A
-  [`z3_context()`](https://adamrsophie.github.io/z3r/reference/z3_context.md).
+  Optional list of type variables.
 
 - specs:
 
@@ -49,10 +57,6 @@ z3_is_recursive_datatype(sort)
 - sort:
 
   A datatype sort (or a `z3_datatype`), or sorts for the instance.
-
-- name:
-
-  Name of the datatype.
 
 - values:
 
@@ -73,10 +77,6 @@ z3_is_recursive_datatype(sort)
 - value:
 
   New value of the field.
-
-- parameters:
-
-  Optional list of type variables.
 
 ## Value
 
