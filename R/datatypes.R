@@ -88,16 +88,19 @@
 #' tf <- z3_tuple_fields(Point)
 #' names(tf$fields)
 #' z3_simplify(tf$fields$y(tf$constructor(1, 2)))
-#' @usage z3_datatype(ctx, name, ..., parameters = NULL)
 #' @export
-z3_datatype <- function(...) {
-  # Taken apart by hand: with formals ctx and name, R's partial matching
-  # would give a constructor named c (or n, na, nam) to them.
-  args <- datatype_args(list(...))
-  ctx <- args$ctx
-  name <- args$name
-  parameters <- args$parameters
-  spec <- datatype_spec(args$constructors, name)
+z3_datatype <- function(ctx, name, ..., parameters = NULL) {
+  constructors <- list(...)
+  # R's partial matching gives a constructor named c (or n, na, nam) to
+  # ctx or name; rebuild the arguments from the call then.
+  re <- rematch_call(sys.call(), parent.frame())
+  if (!is.null(re)) {
+    ctx <- re$ctx
+    name <- re$name
+    if (!is.null(re$parameters)) parameters <- re$parameters
+    constructors <- re$constructors
+  }
+  spec <- datatype_spec(constructors, name)
   if (!is.null(parameters)) {
     sort <- cpp_mk_polymorphic_datatype(ctx, name, as_list(parameters), spec)
     return(new_datatype(sort))
@@ -240,6 +243,25 @@ z3_enum_sort <- function(ctx, name, values) {
   new_datatype(built$sort, built$parts)
 }
 
+# NULL when no argument name abbreviates ctx or name; otherwise the
+# arguments of the call, evaluated in env and taken apart by datatype_args().
+rematch_call <- function(call, env) {
+  cl <- as.list(call)[-1L]
+  nm <- names(cl)
+  if (is.null(nm)) return(NULL)
+  partial <- nzchar(nm) & !(nm %in% c("ctx", "name", "parameters")) &
+    (startsWith("ctx", nm) | startsWith("name", nm))
+  if (!any(partial)) return(NULL)
+  if (any(vapply(cl, identical, NA, quote(...)))) {
+    stop("a constructor or field named like an abbreviation of ctx or name (here '",
+         nm[partial][1L], "') cannot be passed through ...; call z3_datatype() directly",
+         call. = FALSE)
+  }
+  vals <- lapply(cl, eval, envir = env)
+  names(vals) <- nm
+  datatype_args(vals)
+}
+
 # ctx and name of z3_datatype(): named exactly, or the first two unnamed
 # arguments; `parameters` by its exact name; the rest are constructors.
 datatype_args <- function(a) {
@@ -267,12 +289,17 @@ datatype_args <- function(a) {
 
 #' @rdname z3_datatype
 #' @export
-#' @usage z3_tuple_sort(ctx, name, ...)
-z3_tuple_sort <- function(...) {
-  a <- datatype_args(list(...))  # fields named c or n must stay fields
-  if (!is.null(a$parameters)) a$constructors$parameters <- a$parameters
-  do.call(z3_datatype, c(list(ctx = a$ctx, name = a$name),
-                         stats::setNames(list(a$constructors), paste0("mk_", a$name))))
+z3_tuple_sort <- function(ctx, name, ...) {
+  fields <- list(...)
+  re <- rematch_call(sys.call(), parent.frame())  # fields named c or n stay fields
+  if (!is.null(re)) {
+    ctx <- re$ctx
+    name <- re$name
+    fields <- re$constructors
+    if (!is.null(re$parameters)) fields$parameters <- re$parameters
+  }
+  do.call(z3_datatype, c(list(ctx = ctx, name = name),
+                         stats::setNames(list(fields), paste0("mk_", name))))
 }
 
 #' @rdname z3_datatype

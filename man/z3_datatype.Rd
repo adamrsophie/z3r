@@ -37,18 +37,20 @@ z3_datatype_instance(ctx, name, sort)
 z3_is_recursive_datatype(sort)
 }
 \arguments{
+\item{ctx}{A \code{\link[=z3_context]{z3_context()}}.}
+
+\item{name}{Name of the datatype.}
+
 \item{...}{Constructors, each a named list of field sorts. For
 \code{z3_tuple_sort()}, the named field sorts.}
 
-\item{ctx}{A \code{\link[=z3_context]{z3_context()}}.}
+\item{parameters}{Optional list of type variables.}
 
 \item{specs}{For \code{z3_datatypes()}: a named list whose elements are lists
 of constructors as in \code{...}.}
 
 \item{sort}{A datatype sort (or a \code{z3_datatype}), or sorts for the
 instance.}
-
-\item{name}{Name of the datatype.}
 
 \item{values}{Names of the enumeration values.}
 
@@ -59,8 +61,6 @@ instance.}
 \item{field}{A field accessor (an element of the \code{z3_datatype}).}
 
 \item{value}{New value of the field.}
-
-\item{parameters}{Optional list of type variables.}
 }
 \value{
 A \code{z3_datatype} (a named list of datatypes for
