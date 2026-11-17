@@ -13,8 +13,15 @@ test_that("SMT-LIB text cannot redeclare a datatype the context has", {
 test_that(":named assertions parsed into a solver are exported with their labels", {
   ctx <- z3_context()
   s <- z3_solver(ctx)
-  z3_add_smtlib(s, "(set-option :produce-unsat-cores true)(declare-const p Bool)
-    (assert (! p :named a1))(assert (! (not p) :named a2))")
+  ok <- tryCatch({
+    z3_add_smtlib(s, "(set-option :produce-unsat-cores true)(declare-const p Bool)
+      (assert (! p :named a1))(assert (! (not p) :named a2))")
+    TRUE
+  }, error = function(e) {
+    # Older Z3 releases refuse the option on a solver that already exists.
+    if (grepl("cannot be modified", conditionMessage(e))) FALSE else stop(e)
+  })
+  skip_if_not(ok, "this Z3 cannot enable unsat cores from SMT-LIB text")
   expect_identical(z3_check(s), "unsat")
   s2 <- z3_solver(ctx)
   z3_add(s2, z3_from_smtlib(ctx, z3_to_smtlib(s)))
@@ -116,6 +123,7 @@ test_that("user propagators are installed before searching and block export", {
 })
 
 test_that("simplifier inputs parsed in a popped scope do not block export", {
+  skip_if_not(z3_version_at_least("4.12.2"))
   ctx <- z3_context()
   s <- z3_solver_add_simplifier(z3_solver(ctx), z3_simplifier(ctx, "simplify"))
   z3_push(s)
