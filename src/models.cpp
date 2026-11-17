@@ -3,7 +3,7 @@
 
 using namespace z3r;
 
-static const Ref<Z3_model>& model(SEXP x) { return *get_xptr<Ref<Z3_model>>(x, Kind::Model); }
+static const Ref<Z3_model>& model(SEXP x) { return model_holder(x)->m; }
 
 // [[Rcpp::export(rng = false)]]
 SEXP cpp_model_eval(SEXP m_, SEXP x, bool completion) {
@@ -15,6 +15,23 @@ SEXP cpp_model_eval(SEXP m_, SEXP x, bool completion) {
   check(ctx);
   if (!ok || !out) fail("Z3 could not evaluate the expression in this model");
   return wrap_expr(own_ast(ctx, out));
+}
+
+// Evaluates each expression of xs in one call.
+// [[Rcpp::export(rng = false)]]
+Rcpp::List cpp_model_eval_many(SEXP m_, Rcpp::List xs, bool completion) {
+  const Ref<Z3_model>& m = model(m_);
+  const CtxPtr& ctx = m.ctx();
+  Rcpp::List out(xs.size());
+  for (R_xlen_t i = 0; i < xs.size(); ++i) {
+    Ast a = lift(ctx, xs[i], nullptr);
+    Z3_ast v = nullptr;
+    bool ok = Z3_model_eval(ctx->c, m, a, completion, &v);
+    check(ctx);
+    if (!ok || !v) fail("Z3 could not evaluate expression " + std::to_string(static_cast<long long>(i + 1)) + " in this model");
+    out[i] = wrap_expr(own_ast(ctx, v));
+  }
+  return out;
 }
 
 // [[Rcpp::export(rng = false)]]
@@ -48,29 +65,34 @@ SEXP cpp_model_consts(SEXP m_) {
 
 // The value of the constant named `name`, wrapping only that one; NULL when
 // there is none. Constants of other sorts can share a name: an error then.
-// ponytail: one scan per lookup, O(n) without allocation; an index cached on
-// the model if repeated lookups in huge models matter.
+// The first lookup indexes the model's constants by name; the index is
+// rebuilt when constants were added (hand-built models, model completion).
 // [[Rcpp::export(rng = false)]]
 SEXP cpp_model_lookup(SEXP m_, std::string name) {
-  const Ref<Z3_model>& m = model(m_);
+  ModelHolder* mh = model_holder(m_);
+  const Ref<Z3_model>& m = mh->m;
   const CtxPtr& ctx = m.ctx();
   Z3_context c = ctx->c;
-  unsigned n = Z3_model_get_num_consts(c, m), hits = 0;
-  Z3_func_decl found = nullptr;
-  for (unsigned i = 0; i < n; ++i) {
-    Z3_func_decl d = Z3_model_get_const_decl(c, m, i);
-    if (symbol_string(ctx, Z3_get_decl_name(c, d)) == name) {
-      ++hits;
-      found = d;
-    }
-  }
+  unsigned n = Z3_model_get_num_consts(c, m);
   check(ctx);
-  if (hits > 1) {
-    fail("the model has " + std::to_string(hits) + " constants named '" + name +
+  if (mh->indexed != n) {
+    mh->index.clear();
+    for (unsigned i = 0; i < n; ++i) {
+      Z3_func_decl d = Z3_model_get_const_decl(c, m, i);
+      auto& e = mh->index[symbol_string(ctx, Z3_get_decl_name(c, d))];
+      if (e.first++ == 0) e.second = own_ast(ctx, decl_ast(d));
+    }
+    check(ctx);
+    mh->indexed = n;
+  }
+  auto it = mh->index.find(name);
+  if (it == mh->index.end()) return R_NilValue;
+  if (it->second.first > 1) {
+    fail("the model has " + std::to_string(it->second.first) + " constants named '" + name +
          "'; use z3_eval() with the constant");
   }
-  if (!found) return R_NilValue;
-  return wrap_expr(own_ast(ctx, Z3_model_get_const_interp(c, m, found)));
+  Z3_func_decl d = Z3_to_func_decl(c, it->second.second);
+  return wrap_expr(own_ast(ctx, Z3_model_get_const_interp(c, m, d)));
 }
 
 // [[Rcpp::export(rng = false)]]
@@ -130,7 +152,7 @@ SEXP cpp_model_funcs(SEXP m_) {
 // [[Rcpp::export(rng = false)]]
 SEXP cpp_mk_model(SEXP ctx_) {
   CtxPtr ctx = get_ctx(ctx_);
-  return make_xptr(new Ref<Z3_model>(own(ctx, Z3_mk_model(ctx->c))), Kind::Model);
+  return wrap_model(own(ctx, Z3_mk_model(ctx->c)));
 }
 
 // Converts a value for a model to the sort it must have: an Int becomes a
@@ -322,7 +344,7 @@ SEXP cpp_model_translate(SEXP m_, SEXP target_) {
   CtxPtr target = get_ctx(target_);
   Z3_model t = Z3_model_translate(m.c(), m, target->c);
   check(m.ctx());
-  return make_xptr(new Ref<Z3_model>(own(target, t)), Kind::Model);
+  return wrap_model(own(target, t));
 }
 
 // Function declaration behind an (_ as-array f) array value, or NULL.

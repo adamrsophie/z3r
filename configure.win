@@ -224,6 +224,28 @@ fi
 
 if test -n "${Z3_DOWNLOADED}"; then Z3_SOURCE="download of ${Z3_DOWNLOADED}"; fi
 echo "configure.win: using Z3 ${Z3_FOUND_VERSION} (found via ${Z3_SOURCE})"
+# Records where Z3 came from, for z3_build_info(): writes src/z3r_build.h
+# (replaced only when it changes, as Makevars is).
+build_esc () { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'; }
+write_build_info () {
+  {
+    echo "// Written by configure; see z3_build_info()."
+    echo "#define Z3R_BUILD_PROVIDER \"$1\""
+    echo "#define Z3R_BUILD_SOURCE \"`build_esc "$2"`\""
+    echo "#define Z3R_BUILD_ASSET \"`build_esc "$3"`\""
+    echo "#define Z3R_BUILD_SHA256 \"$4\""
+  } > src/z3r_build.h.new
+  if cmp -s src/z3r_build.h.new src/z3r_build.h; then
+    rm -f src/z3r_build.h.new
+  else
+    mv src/z3r_build.h.new src/z3r_build.h
+  fi
+}
+if test -n "${Z3_DOWNLOADED}"; then
+  write_build_info download "${Z3_SOURCE}" "${Z3_ASSET}" "${Z3_SHA}"
+else
+  write_build_info system "${Z3_SOURCE}" "" ""
+fi
 sed -e "s|@Z3_CPPFLAGS@|`sed_escape "${Z3_CPPFLAGS}"`|" -e "s|@Z3_LIBS@|`sed_escape "${Z3_LIBS}"`|" \
     -e "s|@Z3_DLLDIR@|`sed_escape "${Z3_DLLDIR:+$(sq "${Z3_DLLDIR}")}"`|" \
     -e "s|@Z3_LICENSE@|`sed_escape "${Z3_LICENSE:+$(sq "${Z3_LICENSE}")}"`|" \

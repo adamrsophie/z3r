@@ -276,6 +276,29 @@ echo "configure: using Z3 ${Z3_FOUND_VERSION} (found via ${Z3_SOURCE})"
 echo "configure: Z3_CPPFLAGS=${Z3_CPPFLAGS}"
 echo "configure: Z3_LIBS=${Z3_LIBS}"
 
+# Records where Z3 came from, for z3_build_info(): writes src/z3r_build.h
+# (replaced only when it changes, as Makevars is).
+build_esc () { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'; }
+write_build_info () {
+  {
+    echo "// Written by configure; see z3_build_info()."
+    echo "#define Z3R_BUILD_PROVIDER \"$1\""
+    echo "#define Z3R_BUILD_SOURCE \"`build_esc "$2"`\""
+    echo "#define Z3R_BUILD_ASSET \"`build_esc "$3"`\""
+    echo "#define Z3R_BUILD_SHA256 \"$4\""
+  } > src/z3r_build.h.new
+  if cmp -s src/z3r_build.h.new src/z3r_build.h; then
+    rm -f src/z3r_build.h.new
+  else
+    mv src/z3r_build.h.new src/z3r_build.h
+  fi
+}
+if test -n "${Z3_BUNDLE}"; then
+  write_build_info download "${Z3_SOURCE}" "${Z3_ASSET}" "${Z3_SHA}"
+else
+  write_build_info system "${Z3_SOURCE}" "" ""
+fi
+
 # Replace src/Makevars only when it changes, so that switching to another Z3
 # rebuilds every object (they depend on Makevars) and an unchanged
 # configuration keeps incremental builds.

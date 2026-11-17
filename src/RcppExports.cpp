@@ -725,6 +725,25 @@ BEGIN_RCPP
     return R_NilValue;
 END_RCPP
 }
+// cpp_fingerprint
+std::string cpp_fingerprint(Rcpp::List xs);
+RcppExport SEXP _z3r_cpp_fingerprint(SEXP xsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type xs(xsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_fingerprint(xs));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_build_info
+Rcpp::List cpp_build_info();
+RcppExport SEXP _z3r_cpp_build_info() {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    rcpp_result_gen = Rcpp::wrap(cpp_build_info());
+    return rcpp_result_gen;
+END_RCPP
+}
 // cpp_propagate_init
 void cpp_propagate_init(SEXP s_, SEXP fns);
 RcppExport SEXP _z3r_cpp_propagate_init(SEXP s_SEXP, SEXP fnsSEXP) {
@@ -1160,6 +1179,18 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cpp_mk_consts
+Rcpp::List cpp_mk_consts(SEXP ctx_, Rcpp::CharacterVector names, SEXP sort_);
+RcppExport SEXP _z3r_cpp_mk_consts(SEXP ctx_SEXP, SEXP namesSEXP, SEXP sort_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ctx_(ctx_SEXP);
+    Rcpp::traits::input_parameter< Rcpp::CharacterVector >::type names(namesSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type sort_(sort_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_mk_consts(ctx_, names, sort_));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cpp_mk_fresh_const
 SEXP cpp_mk_fresh_const(SEXP ctx_, SEXP prefix_, SEXP sort_);
 RcppExport SEXP _z3r_cpp_mk_fresh_const(SEXP ctx_SEXP, SEXP prefix_SEXP, SEXP sort_SEXP) {
@@ -1367,6 +1398,17 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< SEXP >::type x(xSEXP);
     Rcpp::traits::input_parameter< int >::type digits(digitsSEXP);
     rcpp_result_gen = Rcpp::wrap(cpp_value_info(x, digits));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_value_infos
+Rcpp::List cpp_value_infos(Rcpp::List xs, int digits);
+RcppExport SEXP _z3r_cpp_value_infos(SEXP xsSEXP, SEXP digitsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type xs(xsSEXP);
+    Rcpp::traits::input_parameter< int >::type digits(digitsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_value_infos(xs, digits));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -1893,6 +1935,18 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< SEXP >::type x(xSEXP);
     Rcpp::traits::input_parameter< bool >::type completion(completionSEXP);
     rcpp_result_gen = Rcpp::wrap(cpp_model_eval(m_, x, completion));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_model_eval_many
+Rcpp::List cpp_model_eval_many(SEXP m_, Rcpp::List xs, bool completion);
+RcppExport SEXP _z3r_cpp_model_eval_many(SEXP m_SEXP, SEXP xsSEXP, SEXP completionSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type m_(m_SEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type xs(xsSEXP);
+    Rcpp::traits::input_parameter< bool >::type completion(completionSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_model_eval_many(m_, xs, completion));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -3412,6 +3466,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_z3r_cpp_open_log", (DL_FUNC) &_z3r_cpp_open_log, 1},
     {"_z3r_cpp_close_log", (DL_FUNC) &_z3r_cpp_close_log, 0},
     {"_z3r_cpp_toggle_warnings", (DL_FUNC) &_z3r_cpp_toggle_warnings, 1},
+    {"_z3r_cpp_fingerprint", (DL_FUNC) &_z3r_cpp_fingerprint, 1},
+    {"_z3r_cpp_build_info", (DL_FUNC) &_z3r_cpp_build_info, 0},
     {"_z3r_cpp_propagate_init", (DL_FUNC) &_z3r_cpp_propagate_init, 2},
     {"_z3r_cpp_propagate_register", (DL_FUNC) &_z3r_cpp_propagate_register, 2},
     {"_z3r_cpp_propagate_declare", (DL_FUNC) &_z3r_cpp_propagate_declare, 4},
@@ -3452,6 +3508,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_z3r_cpp_datatype_update", (DL_FUNC) &_z3r_cpp_datatype_update, 3},
     {"_z3r_cpp_is_recursive_datatype", (DL_FUNC) &_z3r_cpp_is_recursive_datatype, 1},
     {"_z3r_cpp_mk_const", (DL_FUNC) &_z3r_cpp_mk_const, 3},
+    {"_z3r_cpp_mk_consts", (DL_FUNC) &_z3r_cpp_mk_consts, 3},
     {"_z3r_cpp_mk_fresh_const", (DL_FUNC) &_z3r_cpp_mk_fresh_const, 3},
     {"_z3r_cpp_mk_numeral", (DL_FUNC) &_z3r_cpp_mk_numeral, 3},
     {"_z3r_cpp_mk_bv_numeral", (DL_FUNC) &_z3r_cpp_mk_bv_numeral, 3},
@@ -3471,6 +3528,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_z3r_cpp_string_escaped", (DL_FUNC) &_z3r_cpp_string_escaped, 1},
     {"_z3r_cpp_string_bytes", (DL_FUNC) &_z3r_cpp_string_bytes, 1},
     {"_z3r_cpp_value_info", (DL_FUNC) &_z3r_cpp_value_info, 2},
+    {"_z3r_cpp_value_infos", (DL_FUNC) &_z3r_cpp_value_infos, 2},
     {"_z3r_cpp_decimal_string", (DL_FUNC) &_z3r_cpp_decimal_string, 2},
     {"_z3r_cpp_implied_equalities", (DL_FUNC) &_z3r_cpp_implied_equalities, 2},
     {"_z3r_cpp_update_term", (DL_FUNC) &_z3r_cpp_update_term, 2},
@@ -3519,6 +3577,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_z3r_cpp_fp_op", (DL_FUNC) &_z3r_cpp_fp_op, 4},
     {"_z3r_cpp_fp_numeral_parts", (DL_FUNC) &_z3r_cpp_fp_numeral_parts, 3},
     {"_z3r_cpp_model_eval", (DL_FUNC) &_z3r_cpp_model_eval, 3},
+    {"_z3r_cpp_model_eval_many", (DL_FUNC) &_z3r_cpp_model_eval_many, 3},
     {"_z3r_cpp_model_to_string", (DL_FUNC) &_z3r_cpp_model_to_string, 1},
     {"_z3r_cpp_model_consts", (DL_FUNC) &_z3r_cpp_model_consts, 1},
     {"_z3r_cpp_model_lookup", (DL_FUNC) &_z3r_cpp_model_lookup, 2},

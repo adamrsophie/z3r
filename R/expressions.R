@@ -75,7 +75,7 @@ many_consts <- function(ctx, name, sort) {
   if (!is.character(name) || anyNA(name) || anyDuplicated(name)) {
     stop("name must be a character vector of distinct, non-missing names", call. = FALSE)
   }
-  stats::setNames(lapply(name, function(n) cpp_mk_const(ctx, n, sort)), name)
+  stats::setNames(cpp_mk_consts(ctx, name, sort), name)
 }
 
 #' Exact numeric, Boolean and string values

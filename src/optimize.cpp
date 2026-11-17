@@ -157,7 +157,7 @@ SEXP cpp_optimize_model(SEXP o_) {
   require_status(h, Z3_L_TRUE, "a model");
   const CtxPtr& ctx = h->o.ctx();
   Ref<Z3_model> m = own(ctx, Z3_optimize_get_model(ctx->c, h->o));
-  return make_xptr(new Ref<Z3_model>(snapshot_model(ctx, m)), Kind::Model);
+  return wrap_model(snapshot_model(ctx, m));
 }
 
 // [[Rcpp::export(rng = false)]]

@@ -10,7 +10,7 @@
 \usage{
 \method{as.list}{z3_model}(x, ...)
 
-z3_model_values(model)
+z3_model_values(model, vars = NULL)
 
 \method{[[}{z3_model}(x, name, ...)
 
@@ -23,6 +23,8 @@ z3_model_functions(model)
 
 \item{...}{Unused.}
 
+\item{vars}{Optional list of expressions (or one expression) to evaluate.}
+
 \item{name}{Name of a constant in the model.}
 }
 \value{
@@ -34,7 +36,11 @@ A named list.
 of \code{z3_expr} values. Nothing is converted, so no precision is lost.
 \item \code{z3_model_values()} converts each value with \code{\link[=z3_value]{z3_value()}}. Values that
 have no exact R representation (algebraic numbers, arrays, values of
-uninterpreted sorts) are kept as \code{z3_expr} objects.
+uninterpreted sorts) are kept as \code{z3_expr} objects. With \code{vars} (a
+list of expressions), it returns the values of those expressions
+instead, evaluated with completion so that every one is a value; the
+names are those of \code{vars}, or their text. Evaluation and conversion
+each take one native call.
 \item \code{z3_model_functions()} returns the interpretations of uninterpreted
 functions: for each function, a list of \code{entries} (argument values and
 result) and an \verb{else} value for all other arguments (\code{NULL} in a
@@ -55,5 +61,6 @@ z3_check(s)
 m <- z3_model(s)
 as.list(m)
 z3_model_values(m)
+z3_model_values(m, list(x, x + 1))
 m$x
 }

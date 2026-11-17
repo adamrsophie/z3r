@@ -733,13 +733,13 @@ z3_all_models <- function(solver, vars, limit = 100) {
         break
       }
       m <- z3_model(solver)
-      vals <- lapply(vars, function(v) z3_eval(m, v, completion = TRUE))
+      vals <- cpp_model_eval_many(m, vars, TRUE)
       found[[length(found) + 1L]] <- vals
       z3_add(solver, z3_or(Map(function(v, val) v != val, vars, vals)))
     }
   })
   nm <- vapply(vars, format, character(1))
-  out <- lapply(found, function(vals) stats::setNames(lapply(vals, value_or_expr), nm))
+  out <- lapply(found, function(vals) values_or_exprs(stats::setNames(vals, nm)))
   structure(out, status = status)
 }
 

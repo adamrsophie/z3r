@@ -2,6 +2,8 @@
 #include "z3r.h"
 #include "decl_kinds.h"
 
+#include <cstdio>
+
 using namespace z3r;
 
 namespace z3r {
@@ -403,4 +405,22 @@ void cpp_close_log() { Z3_close_log(); }
 void cpp_toggle_warnings(bool enabled) {
   warnings_enabled = enabled;
   Z3_toggle_warning_messages(enabled);
+}
+
+// A structural fingerprint of a list of expressions: FNV-1a over Z3's AST
+// hashes, in order. Equal for equal formulas in one Z3 version.
+// [[Rcpp::export(rng = false)]]
+std::string cpp_fingerprint(Rcpp::List xs) {
+  uint64_t h = 1469598103934665603ULL;
+  for (R_xlen_t i = 0; i < xs.size(); ++i) {
+    const Ast& a = get_expr(xs[i]);
+    unsigned v = Z3_get_ast_hash(a.c(), a);
+    for (int b = 0; b < 4; ++b) {
+      h ^= (v >> (8 * b)) & 0xffu;
+      h *= 1099511628211ULL;
+    }
+  }
+  char buf[17];
+  std::snprintf(buf, sizeof(buf), "%016llx", static_cast<unsigned long long>(h));
+  return buf;
 }

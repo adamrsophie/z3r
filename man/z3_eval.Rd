@@ -7,14 +7,17 @@
 z3_eval(model, x, completion = FALSE)
 }
 \arguments{
-\item{model}{A \code{z3_model}.}
+\item{model}{A \code{z3_model}.
+A list of expressions is evaluated in one native call, which is faster
+than evaluating them one by one.}
 
-\item{x}{A \code{z3_expr}, or an R scalar.}
+\item{x}{A \code{z3_expr}, an R scalar, or a list of these.}
 
 \item{completion}{Whether to complete the model; see Details.}
 }
 \value{
-A \code{z3_expr}. Use \code{\link[=z3_value]{z3_value()}} to convert it to an R value.
+A \code{z3_expr} (a list of them, with the names of \code{x}, for a list).
+Use \code{\link[=z3_value]{z3_value()}} to convert it to an R value.
 }
 \description{
 Substitutes the model's assignments into \code{x} and simplifies.
@@ -37,4 +40,5 @@ m <- z3_model(s)
 z3_eval(m, x + 1)
 z3_eval(m, x + y)
 z3_eval(m, x + y, completion = TRUE)
+z3_eval(m, list(a = x, b = x * 2))
 }

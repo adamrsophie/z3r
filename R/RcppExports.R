@@ -261,6 +261,14 @@ cpp_toggle_warnings <- function(enabled) {
     invisible(.Call(`_z3r_cpp_toggle_warnings`, enabled))
 }
 
+cpp_fingerprint <- function(xs) {
+    .Call(`_z3r_cpp_fingerprint`, xs)
+}
+
+cpp_build_info <- function() {
+    .Call(`_z3r_cpp_build_info`)
+}
+
 cpp_propagate_init <- function(s_, fns) {
     invisible(.Call(`_z3r_cpp_propagate_init`, s_, fns))
 }
@@ -421,6 +429,10 @@ cpp_mk_const <- function(ctx_, name_, sort_) {
     .Call(`_z3r_cpp_mk_const`, ctx_, name_, sort_)
 }
 
+cpp_mk_consts <- function(ctx_, names, sort_) {
+    .Call(`_z3r_cpp_mk_consts`, ctx_, names, sort_)
+}
+
 cpp_mk_fresh_const <- function(ctx_, prefix_, sort_) {
     .Call(`_z3r_cpp_mk_fresh_const`, ctx_, prefix_, sort_)
 }
@@ -495,6 +507,10 @@ cpp_string_bytes <- function(x) {
 
 cpp_value_info <- function(x, digits) {
     .Call(`_z3r_cpp_value_info`, x, digits)
+}
+
+cpp_value_infos <- function(xs, digits) {
+    .Call(`_z3r_cpp_value_infos`, xs, digits)
 }
 
 cpp_decimal_string <- function(x, digits) {
@@ -687,6 +703,10 @@ cpp_fp_numeral_parts <- function(x, biased, numeric) {
 
 cpp_model_eval <- function(m_, x, completion) {
     .Call(`_z3r_cpp_model_eval`, m_, x, completion)
+}
+
+cpp_model_eval_many <- function(m_, xs, completion) {
+    .Call(`_z3r_cpp_model_eval_many`, m_, xs, completion)
 }
 
 cpp_model_to_string <- function(m_) {

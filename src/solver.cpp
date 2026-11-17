@@ -397,7 +397,7 @@ SEXP cpp_solver_model(SEXP s_) {
   require_status(h, Z3_L_TRUE, "a model");
   const CtxPtr& ctx = h->s.ctx();
   Ref<Z3_model> m = own(ctx, Z3_solver_get_model(ctx->c, h->s));
-  return make_xptr(new Ref<Z3_model>(snapshot_model(ctx, m)), Kind::Model);
+  return wrap_model(snapshot_model(ctx, m));
 }
 
 // [[Rcpp::export(rng = false)]]

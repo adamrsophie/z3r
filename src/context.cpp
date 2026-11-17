@@ -305,7 +305,7 @@ CtxPtr ctx_of_any(SEXP x) {
   if (is_kind(x, Kind::FuncDecl)) return get_xptr<Ast>(x, Kind::FuncDecl)->ctx();
   if (is_kind(x, Kind::Solver)) return get_xptr<SolverHolder>(x, Kind::Solver)->s.ctx();
   if (is_kind(x, Kind::Optimize)) return get_xptr<OptimizeHolder>(x, Kind::Optimize)->o.ctx();
-  if (is_kind(x, Kind::Model)) return get_xptr<Ref<Z3_model>>(x, Kind::Model)->ctx();
+  if (is_kind(x, Kind::Model)) return model_holder(x)->m.ctx();
   if (is_kind(x, Kind::Goal)) return get_xptr<Ref<Z3_goal>>(x, Kind::Goal)->ctx();
   if (is_kind(x, Kind::Tactic)) return get_xptr<Ref<Z3_tactic>>(x, Kind::Tactic)->ctx();
   if (is_kind(x, Kind::Probe)) return get_xptr<Ref<Z3_probe>>(x, Kind::Probe)->ctx();

@@ -9,9 +9,13 @@
 #' the model, so the result is always a value.
 #'
 #' @param model A `z3_model`.
-#' @param x A `z3_expr`, or an R scalar.
+#' A list of expressions is evaluated in one native call, which is faster
+#' than evaluating them one by one.
+#'
+#' @param x A `z3_expr`, an R scalar, or a list of these.
 #' @param completion Whether to complete the model; see Details.
-#' @return A `z3_expr`. Use [z3_value()] to convert it to an R value.
+#' @return A `z3_expr` (a list of them, with the names of `x`, for a list).
+#'   Use [z3_value()] to convert it to an R value.
 #' @examples
 #' ctx <- z3_context()
 #' x <- z3_int(ctx, "x")
@@ -23,10 +27,14 @@
 #' z3_eval(m, x + 1)
 #' z3_eval(m, x + y)
 #' z3_eval(m, x + y, completion = TRUE)
+#' z3_eval(m, list(a = x, b = x * 2))
 #' @export
 z3_eval <- function(model, x, completion = FALSE) {
   if (!isTRUE(completion) && !isFALSE(completion)) {
     stop("completion must be TRUE or FALSE", call. = FALSE)
+  }
+  if (is.list(x) && !is_z3_expr(x)) {
+    return(stats::setNames(cpp_model_eval_many(model, x, completion), names(x)))
   }
   cpp_model_eval(model, x, completion)
 }
@@ -37,7 +45,11 @@ z3_eval <- function(model, x, completion = FALSE) {
 #'   of `z3_expr` values. Nothing is converted, so no precision is lost.
 #' * `z3_model_values()` converts each value with [z3_value()]. Values that
 #'   have no exact R representation (algebraic numbers, arrays, values of
-#'   uninterpreted sorts) are kept as `z3_expr` objects.
+#'   uninterpreted sorts) are kept as `z3_expr` objects. With `vars` (a
+#'   list of expressions), it returns the values of those expressions
+#'   instead, evaluated with completion so that every one is a value; the
+#'   names are those of `vars`, or their text. Evaluation and conversion
+#'   each take one native call.
 #' * `z3_model_functions()` returns the interpretations of uninterpreted
 #'   functions: for each function, a list of `entries` (argument values and
 #'   result) and an `else` value for all other arguments (`NULL` in a
@@ -47,6 +59,7 @@ z3_eval <- function(model, x, completion = FALSE) {
 #' see [z3_eval()] with `completion = TRUE` for the others.
 #'
 #' @param x,model A `z3_model`.
+#' @param vars Optional list of expressions (or one expression) to evaluate.
 #' @param ... Unused.
 #' @return A named list.
 #' @examples
@@ -59,6 +72,7 @@ z3_eval <- function(model, x, completion = FALSE) {
 #' m <- z3_model(s)
 #' as.list(m)
 #' z3_model_values(m)
+#' z3_model_values(m, list(x, x + 1))
 #' m$x
 #' @export
 as.list.z3_model <- function(x, ...) {
@@ -68,7 +82,25 @@ as.list.z3_model <- function(x, ...) {
 
 #' @rdname as.list.z3_model
 #' @export
-z3_model_values <- function(model) lapply(as.list(model), value_or_expr)
+z3_model_values <- function(model, vars = NULL) {
+  vals <- if (is.null(vars)) as.list(model) else {
+    if (is_z3_expr(vars)) vars <- list(vars)
+    nm <- names(vars)
+    if (is.null(nm)) nm <- rep("", length(vars))
+    text <- vapply(vars, function(v) if (is_z3_expr(v)) cpp_expr_to_string(v) else format(v), character(1))
+    stats::setNames(cpp_model_eval_many(model, vars, TRUE), ifelse(nzchar(nm), nm, text))
+  }
+  values_or_exprs(vals)
+}
+
+# R values where they represent the Z3 values exactly, else the expressions
+# (the conversion of z3_value()); the value infos come in one native call.
+values_or_exprs <- function(vals) {
+  infos <- cpp_value_infos(unname(vals), 20L)
+  out <- Map(function(v, i) value_from_info(v, i, TRUE, function(msg) v), vals, infos)
+  names(out) <- names(vals)
+  out
+}
 
 #' @rdname as.list.z3_model
 #' @param name Name of a constant in the model.
@@ -83,10 +115,6 @@ z3_model_values <- function(model) lapply(as.list(model), value_or_expr)
 #' @rdname as.list.z3_model
 #' @export
 `$.z3_model` <- function(x, name) x[[name]]
-
-# An R value where one represents the Z3 value exactly, else the
-# expression; the same conversion as z3_value(), for every kind.
-value_or_expr <- function(v) value_from_info(v, cpp_value_info(v, 20L), TRUE, function(msg) v)
 
 #' @rdname as.list.z3_model
 #' @export

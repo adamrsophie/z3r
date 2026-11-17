@@ -182,10 +182,10 @@ SEXP cpp_goal_translate(SEXP g_, SEXP target_) {
 // [[Rcpp::export(rng = false)]]
 SEXP cpp_goal_convert_model(SEXP g_, SEXP m_) {
   const Ref<Z3_goal>& g = goal(g_);
-  const Ref<Z3_model>& m = *get_xptr<Ref<Z3_model>>(m_, Kind::Model);
+  const Ref<Z3_model>& m = model_holder(m_)->m;
   same_ctx(g.ctx(), m.ctx());
   Z3_model r = Z3_goal_convert_model(g.c(), g, m);
-  return make_xptr(new Ref<Z3_model>(own(g.ctx(), r)), Kind::Model);
+  return wrap_model(own(g.ctx(), r));
 }
 
 // DIMACS export. z3r prints the clauses itself: Z3's printer turns any

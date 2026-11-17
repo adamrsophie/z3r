@@ -45,6 +45,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <unordered_map>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -295,6 +296,16 @@ struct FixedpointHolder {
 enum class Kind { Context, Sort, Expr, FuncDecl, Solver, Model, Optimize, Goal, Tactic, Probe,
                   Simplifier, Fixedpoint, Rcf, Callback, Parser, AstMap, ApplyResult };
 
+// A model, with an index of its constants by name built on the first
+// lookup. Constants are only ever added to a model, so the index is valid
+// while the number of constants is unchanged.
+struct ModelHolder {
+  Ref<Z3_model> m;
+  unsigned indexed = static_cast<unsigned>(-1);  // constants when indexed
+  std::unordered_map<std::string, std::pair<unsigned, Ast>> index;  // name -> (count, decl)
+  explicit ModelHolder(Ref<Z3_model> r) : m(std::move(r)) {}
+};
+
 const char* kind_tag(Kind k);
 const char* kind_class(Kind k);
 const char* kind_label(Kind k);
@@ -333,6 +344,9 @@ template <typename T> T* get_xptr(SEXP x, Kind k) {
   }
   return p;
 }
+
+inline SEXP wrap_model(Ref<Z3_model> r) { return make_xptr(new ModelHolder(std::move(r)), Kind::Model); }
+inline ModelHolder* model_holder(SEXP x) { return get_xptr<ModelHolder>(x, Kind::Model); }
 
 // Solvers and optimizers as seen by every entry point. While one runs Z3
 // code that may call R callbacks, every other use of it is refused: a

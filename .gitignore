@@ -17,4 +17,6 @@ docs/
 src/Makevars.win
 src/Makevars.new
 src/Makevars.win.new
+src/z3r_build.h
+src/z3r_build.h.new
 z3bundle/

@@ -275,7 +275,7 @@ void model_eh(void* p) {
     if (!st || !st->model.get()) return;
     // Snapshot: Z3 keeps updating the registered model.
     Z3_model copy = Z3_model_translate(st->ctx->c, st->model, st->ctx->c);
-    SEXP m = PROTECT(make_xptr(new Ref<Z3_model>(own(st->ctx, copy)), Kind::Model));
+    SEXP m = PROTECT(wrap_model(own(st->ctx, copy)));
     invoke(st, "model", {m});
     UNPROTECT(1);
   });

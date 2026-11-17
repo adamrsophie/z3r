@@ -778,6 +778,20 @@ SEXP cpp_mk_const(SEXP ctx_, SEXP name_, SEXP sort_) {
   return wrap_expr(own_ast(ctx, Z3_mk_const(ctx->c, const_symbol(ctx, name_), as_sort(s))));
 }
 
+// Constants of one sort, one per name, in one call.
+// [[Rcpp::export(rng = false)]]
+Rcpp::List cpp_mk_consts(SEXP ctx_, Rcpp::CharacterVector names, SEXP sort_) {
+  CtxPtr ctx = get_ctx(ctx_);
+  const Ast& s = get_sort(sort_);
+  same_ctx(ctx, s.ctx());
+  Rcpp::List out(names.size());
+  for (R_xlen_t i = 0; i < names.size(); ++i) {
+    Rcpp::CharacterVector one(1, names[i]);
+    out[i] = wrap_expr(own_ast(ctx, Z3_mk_const(ctx->c, const_symbol(ctx, one), as_sort(s))));
+  }
+  return out;
+}
+
 // Fresh constant with a unique name derived from `prefix`.
 // [[Rcpp::export(rng = false)]]
 SEXP cpp_mk_fresh_const(SEXP ctx_, SEXP prefix_, SEXP sort_) {
@@ -1537,6 +1551,14 @@ SEXP cpp_value_info(SEXP x, int digits) {
   }
 #endif
   return Rcpp::List::create(Named("kind") = "other");
+}
+
+// Value info of each expression, in one call.
+// [[Rcpp::export(rng = false)]]
+Rcpp::List cpp_value_infos(Rcpp::List xs, int digits) {
+  Rcpp::List out(xs.size());
+  for (R_xlen_t i = 0; i < xs.size(); ++i) out[i] = cpp_value_info(xs[i], digits);
+  return out;
 }
 
 // [[Rcpp::export(rng = false)]]

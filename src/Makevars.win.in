@@ -21,4 +21,4 @@ z3dll: $(SHLIB)
 
 # Rebuild every object when the shared headers or the Z3 configuration
 # (written by configure.win) change.
-$(OBJECTS): z3r.h decl_kinds.h Makevars.win
+$(OBJECTS): z3r.h decl_kinds.h z3r_build.h Makevars.win

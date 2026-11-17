@@ -86,6 +86,7 @@ reference:
   - z3_add
   - z3_check
   - z3_solve
+  - z3_check_result
   - z3_interrupt
   - z3_model
   - z3_eval
