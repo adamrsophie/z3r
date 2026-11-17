@@ -205,6 +205,7 @@ test_that("classed R values are refused, not read as bare numbers", {
 })
 
 test_that("surrogate code points are refused, not written as invalid UTF-8", {
+  skip_if_not(z3_version_at_least("4.8.15"))
   ctx <- z3_context()
   expect_error(z3_value(z3_char_val(ctx, 55296)), "surrogate")
 })
