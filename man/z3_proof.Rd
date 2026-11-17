@@ -41,8 +41,12 @@ implied by the assertions together with a subset of the assumptions,
 as \code{implies(and(assumptions), literal)} formulas. It is a check: it
 returns the status and updates the solver's last result.
 \item \code{z3_cube()} returns the next cube (a conjunction of literals as a list)
-for cube-and-conquer search over \code{vars}; an empty list means the search
-space is exhausted, and a list holding only \code{FALSE} means unsat.
+for cube-and-conquer search over \code{vars}. Call it repeatedly. A list
+holding only \code{FALSE} means no cubes remain; it does not mean the
+assertions are unsatisfiable. An empty list is a last cube covering
+the rest of the search: Z3 could not split it further (tactic-based
+solvers always return it), so check the solver itself. Neither result
+decides satisfiability; check each cube with \code{\link[=z3_check]{z3_check()}}.
 \item \code{z3_units()}, \code{z3_non_units()} and \code{z3_trail()} expose literals the
 solver has derived; \code{z3_trail()} also returns decision levels.
 }

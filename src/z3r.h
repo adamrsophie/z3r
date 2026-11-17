@@ -193,6 +193,7 @@ struct CallbackState : std::enable_shared_from_this<CallbackState> {
   std::string error;         // first error raised by an R callback
   bool interrupted = false;  // the error was a user interrupt
   std::string report;        // storage for strings returned to Z3
+  bool propagator = false;   // a user propagator (set by cpp_propagate_init)
   bool cloned = false;       // Z3 copied the solver; the copy has no callbacks
   // R's main thread, and whether Z3 called a callback on another thread
   // (where it must not touch R) during the current check.
@@ -245,6 +246,12 @@ struct SolverHolder {
   // label => constraint, so exported text must assert the labels too.
   AstVec tracked;
   std::vector<size_t> tracked_scopes;  // number of labels at each push
+  // A solver with a simplifier holds its assertions back until a check and
+  // then lists the simplified ones; z3r keeps what was added, for export.
+  bool simplified = false;
+  bool inputs_partial = false;  // SMT-LIB text was parsed into it
+  AstVec inputs;
+  std::vector<size_t> input_scopes;
 };
 
 struct OptimizeHolder {
@@ -416,7 +423,7 @@ Ref<Z3_params> kept_param_set(const CtxPtr& ctx, const KeptParams& kept);
 // The set to apply after a per-call timeout: the kept set with its own
 // timeout, or else with the context's timeout, which is then kept as well
 // (Z3 cannot remove a parameter).
-Ref<Z3_params> restored_params(const CtxPtr& ctx, KeptParams& kept);
+Ref<Z3_params> restored_params(const CtxPtr& ctx, const KeptParams& kept);
 Ref<Z3_params> params_with_timeout(const CtxPtr& ctx, const KeptParams& kept, unsigned ms);
 SEXP describe_params(const CtxPtr& ctx, Z3_param_descrs raw_descrs);
 SEXP stats_list(const CtxPtr& ctx, Z3_stats raw_stats);
@@ -424,6 +431,8 @@ SEXP stats_list(const CtxPtr& ctx, Z3_stats raw_stats);
 // reason; z3r turns that into an ordinary R interrupt.
 void forward_interrupt(Z3_lbool status, const std::string& reason);
 bool has_propagator(const CallbackPtr& cb);
+// DIMACS text of clauses over Boolean constants; refuses other formulas.
+std::string dimacs_text(const CtxPtr& ctx, const AstVec& formulas, bool include_names);
 void refuse_copy_with_callbacks(SolverHolder* h, const char* what);
 
 // Floating point (fpa.cpp)

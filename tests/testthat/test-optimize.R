@@ -208,3 +208,31 @@ test_that("an incumbent must satisfy tracked constraints", {
     expect_identical(r, "sat")
   }
 })
+
+test_that("changing the priority makes the last optimum stale", {
+  ctx <- z3_context()
+  x <- z3_int(ctx, "x"); y <- z3_int(ctx, "y")
+  o <- z3_optimize(ctx)
+  z3_add(o, x >= 0, y >= 0, x + y <= 10)
+  hx <- z3_maximize(o, x); hy <- z3_maximize(o, y)
+  z3_check(o)
+  expect_equal(z3_value(z3_optimum(hy)$value), 0)
+  z3_set_params(o, priority = "box")
+  expect_error(z3_optimum(hy))
+  z3_check(o)
+  expect_equal(c(z3_value(z3_optimum(hx)$value), z3_value(z3_optimum(hy)$value)), c(10, 10))
+})
+
+test_that("a translated optimizer has no open scopes", {
+  skip_if_not(z3_version_at_least("4.15.5"))
+  ctx <- z3_context()
+  x <- z3_int(ctx, "x")
+  o <- z3_optimize(ctx)
+  z3_add(o, x >= 0)
+  z3_push(o)
+  z3_add(o, x < 0)
+  o2 <- z3_translate(o, z3_context())
+  expect_identical(z3_num_scopes(o), 1L)
+  expect_identical(z3_num_scopes(o2), 0L)
+  expect_error(z3_pop(o2), "no open scope")
+})

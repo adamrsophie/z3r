@@ -344,7 +344,8 @@ z3_reset <- function(x) {
 #' @rdname z3_push
 #' @export
 z3_num_scopes <- function(x) {
-  if (!inherits(x, "z3_solver")) stop("x must be a z3_solver", call. = FALSE)
+  if (inherits(x, "z3_optimize")) return(cpp_optimize_num_scopes(x))
+  if (!inherits(x, "z3_solver")) stop("x must be a z3_solver or z3_optimize", call. = FALSE)
   cpp_solver_num_scopes(x)
 }
 
@@ -449,8 +450,12 @@ params_list <- function(...) {
 #'   as `implies(and(assumptions), literal)` formulas. It is a check: it
 #'   returns the status and updates the solver's last result.
 #' * `z3_cube()` returns the next cube (a conjunction of literals as a list)
-#'   for cube-and-conquer search over `vars`; an empty list means the search
-#'   space is exhausted, and a list holding only `FALSE` means unsat.
+#'   for cube-and-conquer search over `vars`. Call it repeatedly. A list
+#'   holding only `FALSE` means no cubes remain; it does not mean the
+#'   assertions are unsatisfiable. An empty list is a last cube covering
+#'   the rest of the search: Z3 could not split it further (tactic-based
+#'   solvers always return it), so check the solver itself. Neither result
+#'   decides satisfiability; check each cube with [z3_check()].
 #' * `z3_units()`, `z3_non_units()` and `z3_trail()` expose literals the
 #'   solver has derived; `z3_trail()` also returns decision levels.
 #'
@@ -481,14 +486,12 @@ z3_consequences <- function(x, assumptions, variables) {
 #' @rdname z3_proof
 #' @export
 z3_cube <- function(x, vars = list(), backtrack_level = 4294967295) {
-  if (!is.numeric(backtrack_level) || length(backtrack_level) != 1L ||
-      backtrack_level < 0 || backtrack_level > 4294967295) {
-    stop("backtrack_level must be a non-negative whole number", call. = FALSE)
+  # Z3 takes an unsigned 32-bit level; UINT_MAX means no backtracking limit.
+  if (!is.numeric(backtrack_level) || length(backtrack_level) != 1L || !is.finite(backtrack_level) ||
+      backtrack_level < 0 || backtrack_level > 4294967295 || backtrack_level != floor(backtrack_level)) {
+    stop("backtrack_level must be a whole number from 0 to 4294967295", call. = FALSE)
   }
-  # Z3 uses UINT_MAX to mean "no backtracking limit"; pass it as a double
-  # through an int-sized value.
-  lvl <- if (backtrack_level > .Machine$integer.max) -1L else as.integer(backtrack_level)
-  cpp_solver_cube(x, as_list(vars), lvl)
+  cpp_solver_cube(x, as_list(vars), as.double(backtrack_level))
 }
 
 #' @rdname z3_proof
@@ -591,7 +594,11 @@ z3_set_initial_value <- function(x, var, value) {
 #' describes the parameters of [z3_simplify()]. With `names_only = TRUE`
 #' it returns only the parameter names, as Z3 lists them.
 #' `z3_to_dimacs()` writes the assertions of a propositional solver or goal
-#' in DIMACS CNF.
+#' in DIMACS CNF. Every assertion must be a clause: a Boolean constant, its
+#' negation, or a disjunction of these; anything else is refused (apply the
+#' `"tseitin-cnf"` tactic to a goal first), since writing it as a fresh
+#' variable would change its meaning. Labels of tracked clauses are written
+#' as unit clauses, as a check assumes them.
 #'
 #' @param x A `z3_solver`, `z3_optimize`, `z3_fixedpoint`, `z3_tactic`,
 #'   `z3_simplifier`, `z3_context` or (for DIMACS) `z3_goal`.
@@ -649,7 +656,9 @@ z3_import_model_converter <- function(src, dst) {
 #'
 #' `z3_with_scope(x, code)` evaluates `code` inside a [z3_push()] /
 #' [z3_pop()] pair on a solver or optimizer: assertions added by `code` are
-#' removed afterwards, also when `code` fails.
+#' removed afterwards, also when `code` fails or leaves scopes of its own
+#' open. If `code` pops that scope itself or resets the solver, nothing is
+#' popped and a warning says so.
 #'
 #' `z3_all_models(solver, vars, limit)` lists the distinct assignments of
 #' `vars` in models of the solver's assertions, at most `limit` of them. It
@@ -683,8 +692,17 @@ z3_import_model_converter <- function(src, dst) {
 #' attr(sols, "status")
 #' @export
 z3_with_scope <- function(x, code) {
+  depth <- z3_num_scopes(x)
   z3_push(x)
-  on.exit(z3_pop(x), add = TRUE)
+  # Return to the depth on entry, also after scopes code pushed and did not
+  # pop; a failure here must not hide an error from code.
+  on.exit(tryCatch({
+    extra <- z3_num_scopes(x) - depth
+    if (extra < 1L) {
+      warning("code popped or reset the scope z3_with_scope() opened", call. = FALSE)
+    }
+    for (i in seq_len(max(extra, 0L))) z3_pop(x)
+  }, error = function(e) warning(conditionMessage(e), call. = FALSE)), add = TRUE)
   force(code)
 }
 

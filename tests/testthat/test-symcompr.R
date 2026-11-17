@@ -34,3 +34,20 @@ test_that("symcompR expressions translate to Z3 and back", {
   expect_identical(format(z3_to_symbolic(z3_real_val(ctx, "1/3"))), "1/3")
   expect_error(z3_to_symbolic(z3_function(ctx, "f", z3_int_sort(ctx), z3_int_sort(ctx))(zx)), "uninterpreted")
 })
+
+test_that("symcompR translations refuse what changes meaning", {
+  skip_if_not_installed("symcompR")
+  ctx <- z3_context()
+  x <- z3_real(ctx, "x")
+  expect_error(z3_to_symbolic(x / x), "may be zero")
+  expect_error(z3_to_symbolic(z3_int(ctx, "n") %/% z3_int(ctx, "m")), "may be zero")
+  expect_identical(format(z3_to_symbolic(x / 2)), format(symcompR::Symbol("x", real = TRUE) / 2))
+  rx <- symcompR::Symbol("rx", real = TRUE)
+  expect_error(z3_from_symbolic(ctx, rx^symcompR::Rational(1, 3)), "principal complex root")
+  expect_error(z3_from_symbolic(ctx, symcompR::Symbol("px", positive = TRUE) + 1), "positive")
+  # At a zero denominator Z3's value is unspecified; elsewhere they agree.
+  e <- z3_from_symbolic(ctx, 1 / rx)
+  s <- z3_solver(ctx)
+  z3_add(s, z3_real(ctx, "rx") != 0, e * z3_real(ctx, "rx") != 1)
+  expect_identical(z3_check(s), "unsat")
+})

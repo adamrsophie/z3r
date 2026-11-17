@@ -46,6 +46,14 @@ SEXP cpp_model_consts(SEXP m_) {
                             Rcpp::Named("values") = values);
 }
 
+// [[Rcpp::export(rng = false)]]
+int cpp_model_num_consts(SEXP m_) {
+  const Ref<Z3_model>& m = model(m_);
+  unsigned n = Z3_model_get_num_consts(m.c(), m);
+  check(m.ctx());
+  return static_cast<int>(n);
+}
+
 // Function interpretations: for each function, its entries and else value.
 // [[Rcpp::export(rng = false)]]
 SEXP cpp_model_funcs(SEXP m_) {

@@ -120,6 +120,8 @@ callback_invoke <- function(fn, ...) {
 #' @export
 z3_propagator <- function(solver, push, pop, fixed = NULL, eq = NULL, diseq = NULL,
                           final = NULL, created = NULL, decide = NULL, binding = NULL) {
+  # Z3 backtracks the propagator through push and pop: both are required.
+  if (!is.function(push) || !is.function(pop)) stop("push and pop must be functions", call. = FALSE)
   fns <- Filter(Negate(is.null), list(push = push, pop = pop, fixed = fixed, eq = eq, diseq = diseq,
                                       final = final, created = created, decide = decide,
                                       binding = binding))

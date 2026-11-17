@@ -99,3 +99,15 @@ test_that("complex values that are not exact doubles are refused", {
   expect_length(v, 1L)
   expect_equal(Re(v), 1 / 3)
 })
+
+test_that("model values convert exact complex numbers like z3_value", {
+  skip_if_not(z3_version_at_least("5.3.2"))
+  ctx <- z3_context()
+  z <- z3_const(ctx, "z", z3_complex_sort(ctx))
+  s <- z3_solver(ctx)
+  z3_add(s, z == z3_complex(z3_real_val(ctx, 1), z3_real_val(ctx, 2)))
+  expect_identical(z3_check(s), "sat")
+  m <- z3_model(s)
+  expect_identical(z3_model_values(m)$z, z3_value(z3_eval(m, z)))
+  expect_identical(z3_model_values(m)$z, 1+2i)
+})

@@ -256,6 +256,13 @@ SEXP cpp_optimize_bounds(SEXP o_, int idx, double serial, bool maximize) {
 }
 
 // [[Rcpp::export(rng = false)]]
+int cpp_optimize_num_scopes(SEXP o_) { return static_cast<int>(optimizer(o_)->scopes.size()); }
+
+// Labels of the tracked constraints in the open scopes.
+// [[Rcpp::export(rng = false)]]
+SEXP cpp_optimize_tracked(SEXP o_) { return wrap_expr_list(optimizer(o_)->tracked); }
+
+// [[Rcpp::export(rng = false)]]
 SEXP cpp_optimize_objectives(SEXP o_) {
   OptimizeHolder* h = optimizer(o_);
   return wrap_ast_vector(h->o.ctx(), Z3_optimize_get_objectives(h->o.c(), h->o));
@@ -330,6 +337,7 @@ void cpp_optimize_set_params(SEXP o_, SEXP params) {
   Z3_optimize_set_params(ctx->c, h->o, p);
   check(ctx);
   h->params = std::move(kept);
+  h->touch();  // priorities and other options change what the last optimum means
 }
 
 // [[Rcpp::export(rng = false)]]
@@ -405,7 +413,7 @@ SEXP cpp_optimize_translate(SEXP o_, SEXP target_) {
   for (const Ast& l : h->tracked) {
     nh->tracked.push_back(own_ast(target, Z3_translate(h->o.c(), l, target->c)));
   }
-  nh->tracked_scopes = h->tracked_scopes;
+  // The copy has no scopes: Z3 copies every assertion at the base level.
   guard.release();
   return make_xptr(nh, Kind::Optimize);
 #else

@@ -185,58 +185,78 @@ SEXP cpp_goal_convert_model(SEXP g_, SEXP m_) {
   return make_xptr(new Ref<Z3_model>(own(g.ctx(), r)), Kind::Model);
 }
 
-#if Z3R_AT_LEAST(4, 12, 2) && !Z3R_AT_LEAST(4, 13, 2)
-// Z3's own test (goal::is_cnf): a possibly negated application whose
-// arguments are not Boolean when it is a Boolean connective.
-static bool cnf_literal(Z3_context c, Z3_ast f) {
+// A DIMACS literal: a Boolean constant or its negation. Z3's printers turn
+// any other formula into a fresh variable, which changes its meaning (p ==
+// !p would become a satisfiable unit clause), so z3r refuses them.
+static bool dimacs_literal(Z3_context c, Z3_ast f, bool may_negate = true) {
   if (!Z3_is_app(c, f)) return false;
   Z3_app a = Z3_to_app(c, f);
-  if (Z3_get_decl_kind(c, Z3_get_app_decl(c, a)) == Z3_OP_NOT) {
-    f = Z3_get_app_arg(c, a, 0);
-    if (!Z3_is_app(c, f)) return false;
-    a = Z3_to_app(c, f);
+  Z3_func_decl d = Z3_get_app_decl(c, a);
+  if (may_negate && Z3_get_decl_kind(c, d) == Z3_OP_NOT) return dimacs_literal(c, Z3_get_app_arg(c, a, 0), false);
+  return Z3_get_app_num_args(c, a) == 0 && Z3_get_decl_kind(c, d) == Z3_OP_UNINTERPRETED &&
+         Z3_get_sort_kind(c, Z3_get_sort(c, f)) == Z3_BOOL_SORT;
+}
+
+// Appends the literals of clause f (a literal or a disjunction of them).
+static bool dimacs_clause(Z3_context c, Z3_ast f, std::vector<Z3_ast>& lits) {
+  if (dimacs_literal(c, f)) {
+    lits.push_back(f);
+    return true;
   }
-  Z3_decl_kind k = Z3_get_decl_kind(c, Z3_get_app_decl(c, a));
-  if (k < Z3_OP_TRUE || k >= Z3_OP_ANUM) return true;
-  for (unsigned i = 0, n = Z3_get_app_num_args(c, a); i < n; ++i) {
-    if (Z3_get_sort_kind(c, Z3_get_sort(c, Z3_get_app_arg(c, a, i))) == Z3_BOOL_SORT) return false;
+  if (!Z3_is_app(c, f)) return false;
+  Z3_app a = Z3_to_app(c, f);
+  if (Z3_get_decl_kind(c, Z3_get_app_decl(c, a)) != Z3_OP_OR) return false;
+  for (unsigned j = 0, n = Z3_get_app_num_args(c, a); j < n; ++j) {
+    Z3_ast l = Z3_get_app_arg(c, a, j);
+    if (!dimacs_literal(c, l)) return false;
+    lits.push_back(l);
   }
   return true;
 }
-#endif
+
+std::string z3r::dimacs_text(const CtxPtr& ctx, const AstVec& formulas, bool include_names) {
+  Z3_context c = ctx->c;
+  Ref<Z3_solver> s = own(ctx, Z3_mk_simple_solver(c));
+  AstVec keep;
+  for (const Ast& a : formulas) {
+    Z3_ast f = a;
+    std::vector<Z3_ast> lits;
+    bool ok = dimacs_clause(c, f, lits);
+    // A tracked clause, label => clause, is the clause (not label) or clause.
+    if (!ok && Z3_is_app(c, f) && Z3_get_decl_kind(c, Z3_get_app_decl(c, Z3_to_app(c, f))) == Z3_OP_IMPLIES) {
+      Z3_app im = Z3_to_app(c, f);
+      Z3_ast lhs = Z3_get_app_arg(c, im, 0);
+      lits.clear();
+      if (dimacs_literal(c, lhs, false) && dimacs_clause(c, Z3_get_app_arg(c, im, 1), lits)) {
+        Ast neg = own_ast(ctx, Z3_mk_not(c, lhs));
+        keep.push_back(neg);
+        lits.insert(lits.begin(), neg);
+        ok = true;
+      }
+    }
+    if (!ok) {
+      fail("DIMACS needs clauses of Boolean constants, and '" + str(Z3_ast_to_string(c, f)) +
+           "' is not one; apply the \"tseitin-cnf\" tactic to a goal (after \"bit-blast\" for "
+           "bit-vectors) first");
+    }
+    Ast clause = own_ast(ctx, lits.size() == 1 ? lits[0] : Z3_mk_or(c, static_cast<unsigned>(lits.size()), lits.data()));
+    keep.push_back(clause);
+    Z3_solver_assert(c, s, clause);
+    check(ctx);
+  }
+  std::string out = str(Z3_solver_to_dimacs_string(c, s, include_names));
+  check(ctx);
+  if (!out.empty() && out.back() == '\n') out.pop_back();
+  return out;
+}
 
 // [[Rcpp::export(rng = false)]]
 Rcpp::String cpp_goal_to_dimacs(SEXP g_, bool include_names) {
   const Ref<Z3_goal>& g = goal(g_);
-#if Z3R_AT_LEAST(4, 12, 2) && !Z3R_AT_LEAST(4, 13, 2)
-  // Z3 4.12.2 to 4.13.0 refuse every goal that has a clause (goal::is_cnf
-  // lacks an else). Check CNF here and print through a solver, which uses
-  // the same DIMACS printer.
   Z3_context c = g.c();
-  const CtxPtr& ctx = g.ctx();
-  Ref<Z3_solver> s = own(ctx, Z3_mk_simple_solver(c));
-  for (unsigned i = 0, n = Z3_goal_size(c, g); i < n; ++i) {
-    Z3_ast f = Z3_goal_formula(c, g, i);
-    bool clause = Z3_is_app(c, f) && Z3_get_decl_kind(c, Z3_get_app_decl(c, Z3_to_app(c, f))) == Z3_OP_OR;
-    bool ok = true;
-    if (clause) {
-      Z3_app a = Z3_to_app(c, f);
-      for (unsigned j = 0, na = Z3_get_app_num_args(c, a); ok && j < na; ++j) ok = cnf_literal(c, Z3_get_app_arg(c, a, j));
-    } else {
-      ok = cnf_literal(c, f);
-    }
-    if (!ok) fail("the goal is not in CNF; apply the \"tseitin-cnf\" tactic (after \"bit-blast\" if needed) first");
-    Z3_solver_assert(c, s, f);
-  }
-  std::string out = str(Z3_solver_to_dimacs_string(c, s, include_names));
-  check(ctx);
-  if (!out.empty() && out.back() == '\n') out.pop_back();  // as Z3_goal_to_dimacs_string
-  return out;
-#else
-  std::string out = str(Z3_goal_to_dimacs_string(g.c(), g, include_names));
-  check(g.ctx());
-  return out;
-#endif
+  AstVec fs;
+  for (unsigned i = 0, n = Z3_goal_size(c, g); i < n; ++i) fs.push_back(own_ast(g.ctx(), Z3_goal_formula(c, g, i)));
+  return dimacs_text(g.ctx(), fs, include_names);
 }
 
 // ---------------------------------------------------------------------------
@@ -335,6 +355,13 @@ SEXP cpp_solver_add_simplifier(SEXP s_, SEXP simp_) {
   SolverHolder* nh = new SolverHolder();
   std::unique_ptr<SolverHolder> guard(nh);
   nh->s = own(sp.ctx(), ns);
+  nh->simplified = true;
+  // The new solver starts with Z3's defaults: apply the base solver's set.
+  nh->params = h->params;
+  if (!nh->params.empty()) {
+    Z3_solver_set_params(sp.c(), nh->s, kept_param_set(sp.ctx(), nh->params));
+    check(sp.ctx());
+  }
   guard.release();
   return make_xptr(nh, Kind::Solver);
 #else

@@ -15,13 +15,7 @@ const char* lbool_string(Z3_lbool r) {
   return r == Z3_L_TRUE ? "sat" : r == Z3_L_FALSE ? "unsat" : "unknown";
 }
 
-bool has_propagator(const CallbackPtr& cb) {
-  SEXP names = Rf_getAttrib(cb->fns, R_NamesSymbol);
-  for (R_xlen_t i = 0; i < Rf_xlength(cb->fns); ++i) {
-    if (std::string(CHAR(STRING_ELT(names, i))) == "push") return true;
-  }
-  return false;
-}
+bool has_propagator(const CallbackPtr& cb) { return cb->propagator; }
 
 // Z3 copies solvers without their R callbacks; a copy of a solver with a
 // user propagator or clause callback would silently lose them.
@@ -135,13 +129,16 @@ KeptParams with_params(const CtxPtr& ctx, Z3_param_descrs descrs, SEXP values, c
   return out;
 }
 
-Ref<Z3_params> restored_params(const CtxPtr& ctx, KeptParams& kept) {
+// The kept set after a check with a temporary timeout: the solver's own
+// timeout, else the context's. The record of what the user set is unchanged.
+Ref<Z3_params> restored_params(const CtxPtr& ctx, const KeptParams& kept) {
+  KeptParams out = kept;
   bool has_timeout = false;
-  for (const KeptParam& kp : kept) has_timeout = has_timeout || kp.name == "timeout";
+  for (const KeptParam& kp : out) has_timeout = has_timeout || kp.name == "timeout";
   if (!has_timeout) {
-    kept.push_back(KeptParam{"timeout", Z3_PK_UINT, static_cast<double>(ctx->timeout), std::string()});
+    out.push_back(KeptParam{"timeout", Z3_PK_UINT, static_cast<double>(ctx->timeout), std::string()});
   }
-  return kept_param_set(ctx, kept);
+  return kept_param_set(ctx, out);
 }
 
 // The kept set with a timeout for one check.
@@ -289,6 +286,7 @@ void cpp_solver_assert(SEXP s_, Rcpp::List constraints) {
     for (const Ast& a : v) {
       Z3_solver_assert(ctx->c, h->s, a);
       check(ctx);
+      if (h->simplified) h->inputs.push_back(a);
     }
   }
   raise_callback_errors(h->callbacks);
@@ -317,6 +315,7 @@ SEXP cpp_solver_assert_and_track(SEXP s_, SEXP constraint, SEXP label_) {
   raise_callback_errors(h->callbacks);
   check(ctx);
   h->tracked.push_back(label);
+  if (h->simplified) h->inputs.push_back(own_ast(ctx, Z3_mk_implies(ctx->c, label, a)));
   return wrap_expr(label);
 }
 
@@ -429,6 +428,7 @@ void cpp_solver_push(SEXP s_) {
   raise_callback_errors(h->callbacks);
   check(h->s.ctx());
   h->tracked_scopes.push_back(h->tracked.size());
+  h->input_scopes.push_back(h->inputs.size());
 }
 
 // [[Rcpp::export(rng = false)]]
@@ -448,6 +448,8 @@ void cpp_solver_pop(SEXP s_, int n) {
   for (int i = 0; i < n && !h->tracked_scopes.empty(); ++i) {
     h->tracked.resize(h->tracked_scopes.back());
     h->tracked_scopes.pop_back();
+    h->inputs.resize(h->input_scopes.back());
+    h->input_scopes.pop_back();
   }
   raise_callback_errors(h->callbacks);
   check(h->s.ctx());
@@ -470,6 +472,9 @@ void cpp_solver_reset(SEXP s_) {
   h->checked = false;
   h->tracked.clear();
   h->tracked_scopes.clear();
+  h->inputs.clear();
+  h->input_scopes.clear();
+  h->inputs_partial = false;
   // Resetting discards Z3's solver, including user propagators and clause
   // callbacks; drop their state so they can be installed again.
   h->callbacks.clear();
@@ -480,6 +485,22 @@ void cpp_solver_reset(SEXP s_) {
 SEXP cpp_solver_assertions(SEXP s_) {
   SolverHolder* h = solver(s_);
   return wrap_ast_vector(h->s.ctx(), Z3_solver_get_assertions(h->s.c(), h->s));
+}
+
+// [[Rcpp::export(rng = false)]]
+bool cpp_solver_simplified(SEXP s_) { return solver(s_)->simplified; }
+
+// The assertions to export: what was added to a solver with a simplifier
+// (which holds them back, then lists simplified ones), else Z3's list.
+// [[Rcpp::export(rng = false)]]
+SEXP cpp_solver_export_assertions(SEXP s_) {
+  SolverHolder* h = solver(s_);
+  if (!h->simplified) return cpp_solver_assertions(s_);
+  if (h->inputs_partial) {
+    fail("this solver has a simplifier and SMT-LIB text was parsed into it; z3r cannot list its "
+         "assertions exactly, so it does not export them");
+  }
+  return wrap_expr_list(h->inputs);
 }
 
 // [[Rcpp::export(rng = false)]]
@@ -571,6 +592,7 @@ void cpp_solver_from_string(SEXP s_, SEXP text_) {
   SolverHolder* h = solver(s_);
   std::string text = as_string(text_, "text");
   h->touch();
+  if (h->simplified) h->inputs_partial = true;
   {
     BusyGuard<SolverHolder> busy(h);
     Z3_solver_from_string(h->s.c(), h->s, text.c_str());
@@ -623,9 +645,12 @@ SEXP cpp_solver_consequences(SEXP s_, Rcpp::List assumptions, Rcpp::List variabl
 }
 
 // [[Rcpp::export(rng = false)]]
-SEXP cpp_solver_cube(SEXP s_, Rcpp::List vars, int backtrack_level) {
+SEXP cpp_solver_cube(SEXP s_, Rcpp::List vars, double backtrack_level) {
   SolverHolder* h = solver(s_);
   const CtxPtr& ctx = h->s.ctx();
+  if (!(backtrack_level >= 0 && backtrack_level <= 4294967295.0) || backtrack_level != std::floor(backtrack_level)) {
+    fail("backtrack_level must be a whole number from 0 to 4294967295");
+  }
   AstVec vs = expr_list(ctx, vars, "variables");
   Ref<Z3_ast_vector> vv = make_ast_vector(ctx, vs);
   ensure_solver_ready(ctx->c, h->s);
@@ -722,8 +747,19 @@ std::string cpp_param_names(SEXP x) {
 // [[Rcpp::export(rng = false)]]
 Rcpp::String cpp_solver_to_dimacs(SEXP s_, bool include_names) {
   SolverHolder* h = solver(s_);
-  std::string out = str(Z3_solver_to_dimacs_string(h->s.c(), h->s, include_names));
-  check(h->s.ctx());
+  const CtxPtr& ctx = h->s.ctx();
+  AstVec fs;
+  if (h->simplified) {
+    if (h->inputs_partial) fail("this solver has a simplifier and SMT-LIB text was parsed into it; z3r cannot export it");
+    fs = h->inputs;
+  } else {
+    Ref<Z3_ast_vector> v = own(ctx, Z3_solver_get_assertions(ctx->c, h->s));
+    for (unsigned i = 0, n = Z3_ast_vector_size(ctx->c, v); i < n; ++i) fs.push_back(own_ast(ctx, Z3_ast_vector_get(ctx->c, v, i)));
+  }
+  // Tracked constraints hold only with their labels: assert them as units.
+  fs.insert(fs.end(), h->tracked.begin(), h->tracked.end());
+  std::string out = dimacs_text(ctx, fs, include_names);
+  out.push_back('\n');  // as Z3_solver_to_dimacs_string
   return out;
 }
 
@@ -736,11 +772,16 @@ SEXP cpp_solver_translate(SEXP s_, SEXP target_ctx) {
   check(h->s.ctx());
   SEXP out = PROTECT(wrap_solver(target, t));
   SolverHolder* copy = get_xptr<SolverHolder>(out, Kind::Solver);
-  copy->params = h->params;  // Z3 copies the parameters
+  // Z3 copies the parameter record but not every limit it enforces (rlimit);
+  // apply the kept set to the copy.
+  copy->params = h->params;
+  if (!copy->params.empty()) {
+    Z3_solver_set_params(target->c, t, kept_param_set(target, copy->params));
+    check(target);
+  }
   for (const Ast& l : h->tracked) {
     copy->tracked.push_back(own_ast(target, Z3_translate(h->s.c(), l, target->c)));
   }
-  copy->tracked_scopes = h->tracked_scopes;
   UNPROTECT(1);
   return out;
 }

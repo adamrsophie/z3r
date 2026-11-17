@@ -60,7 +60,9 @@ which version they need.
   unsatisfiable cores, proofs, consequences, cubes, units and trails,
   congruence classes, solving for variables, initial values, typed
   parameters, statistics (also as Z3's text, `z3_statistics_text()`) and
-  DIMACS export.
+  DIMACS export of clauses (other formulas are refused, not renamed).
+* SMT-LIB exports of solvers with tracked constraints or a simplifier,
+  and of optimizers, check to the same answer as the original.
 * Timeouts for a single check (`z3_check(timeout = )`), which keep the
   other parameters of a solver or optimizer and restore the context's
   timeout (also a global one in force when the context was made), and
@@ -76,7 +78,8 @@ which version they need.
   errors and interrupts are raised safely after the check, callbacks
   cannot reenter their own solver, and callback closures do not keep
   their solver or context alive. Callbacks never run R code on Z3's
-  worker threads; a `"sat"` found there is refused.
+  worker threads; a `"sat"` found there is refused. A propagator needs
+  push and pop functions.
 
 ## Theories and engines
 

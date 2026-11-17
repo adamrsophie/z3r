@@ -28,7 +28,9 @@ returns a list of named lists, one per assignment, with attribute
 \description{
 \code{z3_with_scope(x, code)} evaluates \code{code} inside a \code{\link[=z3_push]{z3_push()}} /
 \code{\link[=z3_pop]{z3_pop()}} pair on a solver or optimizer: assertions added by \code{code} are
-removed afterwards, also when \code{code} fails.
+removed afterwards, also when \code{code} fails or leaves scopes of its own
+open. If \code{code} pops that scope itself or resets the solver, nothing is
+popped and a warning says so.
 }
 \details{
 \code{z3_all_models(solver, vars, limit)} lists the distinct assignments of

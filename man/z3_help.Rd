@@ -31,7 +31,11 @@ optimizer, fixedpoint engine, tactic or simplifier; for a context, it
 describes the parameters of \code{\link[=z3_simplify]{z3_simplify()}}. With \code{names_only = TRUE}
 it returns only the parameter names, as Z3 lists them.
 \code{z3_to_dimacs()} writes the assertions of a propositional solver or goal
-in DIMACS CNF.
+in DIMACS CNF. Every assertion must be a clause: a Boolean constant, its
+negation, or a disjunction of these; anything else is refused (apply the
+\code{"tseitin-cnf"} tactic to a goal first), since writing it as a fresh
+variable would change its meaning. Labels of tracked clauses are written
+as unit clauses, as a check assumes them.
 }
 \details{
 \code{z3_import_model_converter(src, dst)} gives \code{dst} the model

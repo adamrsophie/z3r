@@ -183,3 +183,55 @@ test_that("function defaults may use argument variables of the right sort only",
   b0 <- z3_bound_var(ctx, 0, B)
   expect_error(z3_substitute_vars(z3_and(v_int > 0, b0), list(z3_bool_val(ctx, TRUE))), "two different sorts")
 })
+
+test_that("DIMACS refuses formulas that are not clauses", {
+  ctx <- z3_context()
+  p <- z3_bools(ctx, c("p", "q"))
+  s <- z3_solver(ctx)
+  z3_add(s, p$p == !p$p)
+  expect_error(z3_to_dimacs(s), "tseitin-cnf")
+  s2 <- z3_solver(ctx)
+  z3_add(s2, z3_int(ctx, "x") > 3)
+  expect_error(z3_to_dimacs(s2), "Boolean constants")
+  s3 <- z3_solver(ctx)
+  z3_assert_and_track(s3, !p$p, "t")
+  z3_add(s3, p$p | p$q)
+  d <- z3_to_dimacs(s3)
+  expect_match(d, "^p cnf 3 3")
+  expect_identical(z3_check(s3), "sat")
+})
+
+test_that("cube results and levels", {
+  ctx <- z3_context()
+  q <- z3_bool(ctx, "q")
+  s <- z3_solver(ctx)
+  z3_add(s, q | !q)
+  expect_error(z3_cube(s, backtrack_level = 1.9), "whole number")
+  expect_error(z3_cube(s, backtrack_level = NA), "whole number")
+  expect_error(z3_cube(s, backtrack_level = 2^32), "whole number")
+  seen <- list()
+  for (i in 1:5) {
+    cb <- z3_cube(s, list(q), backtrack_level = 2147483648)
+    seen[[i]] <- cb
+    if (length(cb) == 1L && identical(format(cb[[1]]), "false")) break
+  }
+  expect_true(length(seen) >= 1L)
+  expect_identical(z3_check(s), "sat")
+})
+
+test_that("copies and simplifier solvers keep resource limits", {
+  ctx <- z3_context()
+  x <- z3_int(ctx, "x")
+  f <- list(x * x == 49, x > 0)
+  s <- z3_solver(ctx, rlimit = 1)
+  z3_add(s, f)
+  expect_identical(z3_check(s), "unknown")
+  copy <- z3_translate(s, z3_context())
+  expect_identical(z3_check(copy), "unknown")
+  skip_if_not(z3_version_at_least("4.12.2"))
+  sp <- z3_solver_add_simplifier(z3_solver(ctx, rlimit = 1), z3_simplifier(ctx, "simplify"))
+  z3_add(sp, f)
+  expect_identical(z3_check(sp), "unknown")
+  z3_check(sp, timeout = 1000)
+  expect_false(grepl("timeout", z3r:::cpp_kept_params(sp)))
+})

@@ -226,8 +226,17 @@ static Ast bv_numeral(const CtxPtr& ctx, std::string digits, bool negative, Z3_s
   size_t nz = digits.find_first_not_of('0');
   digits = nz == std::string::npos ? "0" : digits.substr(nz);
   // Accept the unsigned range [0, 2^w) and the signed range [-2^(w-1), 0).
-  bool ok = negative ? cmp_digits(digits, pow2_digits(w - 1)) <= 0
-                     : cmp_digits(digits, pow2_digits(w)) < 0;
+  // 2^k has floor(k log10 2) + 1 digits; compute 2^k exactly (quadratic in
+  // k) only when the value has about that many digits.
+  unsigned k = negative ? w - 1 : w;
+  double nd = std::floor(k * 0.30102999566398119521) + 1;
+  bool ok;
+  if (digits.size() + 1 < nd) ok = true;
+  else if (digits.size() > nd + 1) ok = false;
+  else {
+    int c = cmp_digits(digits, pow2_digits(k));
+    ok = negative ? c <= 0 : c < 0;
+  }
   if (!ok) {
     fail("the value " + std::string(negative ? "-" : "") + digits +
          " does not fit in a bit-vector of width " + std::to_string(w));
@@ -340,7 +349,9 @@ static Ast mk_string_literal(const CtxPtr& ctx, SEXP chr) {
 }
 
 static std::string gmp_string(SEXP x) {
-  Rcpp::Function as_character("as.character");
+  // base's as.character, which dispatches to gmp's method, not whatever
+  // function of that name is visible from the global environment.
+  Rcpp::Function as_character("as.character", R_BaseNamespace);
   Rcpp::CharacterVector s = as_character(x);
   if (s.size() != 1 || Rcpp::CharacterVector::is_na(s[0])) {
     fail("gmp values used in Z3 expressions must be single non-missing numbers");
@@ -416,8 +427,14 @@ Ast lift(const CtxPtr& ctx, SEXP x, Z3_sort hint) {
         }
         return int_literal(ctx, static_cast<int64_t>(v), hint);
       }
-      Rcpp::Function getopt("getOption");
-      std::string policy = Rcpp::as<std::string>(getopt("z3r.doubles", "decimal"));
+      SEXP opt = Rf_GetOption1(Rf_install("z3r.doubles"));
+      std::string policy = "decimal";
+      if (opt != R_NilValue) {
+        if (TYPEOF(opt) != STRSXP || Rf_xlength(opt) != 1 || STRING_ELT(opt, 0) == NA_STRING) {
+          fail("option z3r.doubles must be \"decimal\" or \"error\"");
+        }
+        policy = CHAR(STRING_ELT(opt, 0));
+      }
       if (policy == "error") {
         fail("the non-integer double " + shortest_decimal(v) +
              " cannot be used because option z3r.doubles is \"error\"; use "
@@ -1362,6 +1379,9 @@ static SEXP code_points_value(const std::vector<unsigned>& cps, const char* kind
   std::string out;
   for (unsigned cp : cps) {
     if (cp == 0) return Rcpp::List::create(Named("kind") = "nul_string");
+    // A lone surrogate has no UTF-8 encoding; writing its bytes would make
+    // an invalid R string.
+    if (cp >= 0xD800 && cp <= 0xDFFF) return Rcpp::List::create(Named("kind") = "surrogate_string");
     if (cp < 0x80) out += static_cast<char>(cp);
     else if (cp < 0x800) { out += static_cast<char>(0xC0 | (cp >> 6)); out += static_cast<char>(0x80 | (cp & 0x3F)); }
     else if (cp < 0x10000) { out += static_cast<char>(0xE0 | (cp >> 12)); out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F)); out += static_cast<char>(0x80 | (cp & 0x3F)); }

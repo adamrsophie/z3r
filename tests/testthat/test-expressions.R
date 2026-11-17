@@ -203,3 +203,22 @@ test_that("classed R values are refused, not read as bare numbers", {
   expect_error(x == as.Date("2020-01-01"), "class 'Date'")
   expect_s3_class(x == I(3), "z3_expr")
 })
+
+test_that("surrogate code points are refused, not written as invalid UTF-8", {
+  ctx <- z3_context()
+  expect_error(z3_value(z3_char_val(ctx, 55296)), "surrogate")
+})
+
+test_that("conversions do not use functions masked in the global environment", {
+  ctx <- z3_context()
+  assign("getOption", function(...) "decimal", envir = globalenv())
+  on.exit(rm("getOption", envir = globalenv()))
+  withr_opt <- options(z3r.doubles = "error")
+  on.exit(options(withr_opt), add = TRUE)
+  expect_error(z3_real(ctx, "r") == 0.1, "z3r.doubles")
+  skip_if_not_installed("gmp")
+  assign("as.character", function(x, ...) "0", envir = globalenv())
+  on.exit(rm("as.character", envir = globalenv()), add = TRUE)
+  big <- gmp::as.bigz("123456789012345678901234567890")
+  expect_identical(format(z3_int(ctx, "i") == big), "(= i 123456789012345678901234567890)")
+})

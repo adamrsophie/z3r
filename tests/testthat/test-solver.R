@@ -259,3 +259,16 @@ test_that("each bound variable appears once", {
   expect_error(z3_lambda(list(x, x), x), "only once")
   expect_error(z3_decimal(z3_real_val(ctx, "1/3"), 1e7), "at most")
 })
+
+test_that("z3_with_scope returns to the entry depth", {
+  ctx <- z3_context()
+  x <- z3_int(ctx, "x")
+  s <- z3_solver(ctx)
+  expect_error(z3_with_scope(s, { z3_add(s, x == 1); z3_push(s); stop("intentional") }), "intentional")
+  expect_identical(z3_num_scopes(s), 0L)
+  expect_length(z3_assertions(s), 0L)
+  expect_warning(z3_with_scope(s, z3_reset(s)), "popped or reset")
+  o <- z3_optimize(ctx)
+  z3_with_scope(o, { z3_add(o, x > 1); z3_push(o) })
+  expect_identical(z3_num_scopes(o), 0L)
+})

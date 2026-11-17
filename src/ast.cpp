@@ -68,6 +68,14 @@ SEXP cpp_app_parts(SEXP x) {
 }
 
 // [[Rcpp::export(rng = false)]]
+int cpp_app_num_args(SEXP x) {
+  const Ast& a = get_expr(x);
+  Z3_context c = a.ctx()->c;
+  if (!Z3_is_app(c, a)) fail("the expression is not an application");
+  return static_cast<int>(Z3_get_app_num_args(c, Z3_to_app(c, a)));
+}
+
+// [[Rcpp::export(rng = false)]]
 SEXP cpp_decl_details(SEXP d_) {
   const Ast& d = get_decl(d_);
   const CtxPtr& ctx = d.ctx();

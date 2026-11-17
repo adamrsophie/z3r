@@ -64,7 +64,7 @@ test_that("errors in callbacks are raised after the check", {
   z3_add(s, p)
   expect_error(z3_check(s), "error in the R callback 'fixed': boom")
   expect_error(z3_propagator(s, push = function(cb) NULL, pop = function(cb, n) NULL), "already has")
-  expect_error(z3_propagator(z3_solver(ctx), push = 1, pop = function(cb, n) NULL), "must be a function")
+  expect_error(z3_propagator(z3_solver(ctx), push = 1, pop = function(cb, n) NULL), "must be functions")
   expect_error(z3_propagate_register(z3_solver(ctx), p), "install a user propagator")
   # Callback handles expire when the callback returns.
   kept <- NULL
@@ -260,4 +260,12 @@ test_that("a conflict citing fixed terms works without a fixed callback", {
   for (b in bs) z3_propagate_register(s, b)
   z3_add(s, z3_or(bs))
   expect_true(z3_check(s) %in% c("unsat", "unknown"))
+})
+
+test_that("a propagator needs push and pop functions", {
+  skip_if_not(z3_version_at_least("4.12.3"))
+  ctx <- z3_context()
+  s <- z3_solver(ctx)
+  expect_error(z3_propagator(s, push = NULL, pop = NULL, final = function(cb) NULL), "push and pop")
+  expect_error(z3_propagator(s, push = 1, pop = function(cb, n) NULL), "push and pop")
 })

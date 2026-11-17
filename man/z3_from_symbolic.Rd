@@ -32,8 +32,7 @@ Only translations that preserve the mathematical meaning exactly are
 made; anything else is an error naming the unsupported part.
 
 \strong{Supported.} Integers and rationals (exact); symbols; \code{+}, \code{-}, \code{*},
-\code{/}, powers with integer exponents (and rational exponents, which become
-Z3's real power); \code{Eq}, \code{Ne}, \code{Lt}, \code{Le}, \code{Gt}, \code{Ge}; \code{And}, \code{Or},
+\code{/}, powers with integer exponents; \code{Eq}, \code{Ne}, \code{Lt}, \code{Le}, \code{Gt}, \code{Ge}; \code{And}, \code{Or},
 \code{Not}, \code{Implies}, \code{Xor}, \code{Equivalent}, \code{ITE}; \code{Abs}, \code{floor},
 \code{ceiling}, \code{Mod} (with Python's sign convention, which is also
 symcompR's: the result takes the sign of the divisor), \code{Max}, \code{Min}, and
@@ -41,7 +40,17 @@ symcompR's: the result takes the sign of the divisor), \code{Max}, \code{Min}, a
 
 \strong{Not supported.} Floats (they are inexact), constants such as \code{pi},
 \code{E} and \code{oo}, complex numbers, transcendental functions, derivatives,
-integrals, sums and other unevaluated operators.
+integrals, sums and other unevaluated operators. Powers with rational or
+symbolic exponents are refused: symcompR takes the principal complex
+root (\code{(-8)^(1/3)} is \code{1 + 1.73i}), Z3 the real one (\code{-2}).
+
+\strong{Division by zero.} symcompR leaves \code{x/0} undefined and cancels \code{x/x}
+to 1; Z3's division is total, with an unspecified value at zero. A
+translation from symcompR is exact wherever the symcompR expression is
+defined; at a zero denominator Z3 may take any value. In the other
+direction, Z3's \code{/}, \code{div}, \code{mod} and power are translated only with a
+nonzero numeral divisor (and a positive whole exponent), since symcompR
+would otherwise cancel or rewrite terms Z3 keeps.
 
 \strong{Symbols and sorts.} A symbol becomes a Z3 constant of the same name.
 Its sort comes from \code{sorts} (a named list of \code{z3_sort}s) when given;
@@ -49,6 +58,10 @@ otherwise from its assumptions: \code{integer = TRUE} gives Int and
 \code{real = TRUE} gives Real. A symbol without assumptions is Bool where a
 Boolean is expected (as an argument of \code{And}, \code{Or}, ...), and an error
 elsewhere, because SymPy-style symbols without assumptions are complex.
+A symbol with sign or parity assumptions (\code{positive}, \code{nonzero}, \code{even},
+and so on) is refused: a Z3 constant has a sort but no assumptions, so
+they would be lost. Use a symbol with only \code{integer} or \code{real}, and add
+the condition as a constraint (for example \code{z3_int(ctx, "n") > 0}).
 
 In the other direction, Int constants become symbols with \code{integer = TRUE}, Real constants symbols with \code{real = TRUE}, and Bool constants
 plain symbols. Z3's \code{div} and \code{mod} are translated with \code{floor} and

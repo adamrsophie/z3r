@@ -165,6 +165,10 @@ cpp_app_parts <- function(x) {
     .Call(`_z3r_cpp_app_parts`, x)
 }
 
+cpp_app_num_args <- function(x) {
+    .Call(`_z3r_cpp_app_num_args`, x)
+}
+
 cpp_decl_details <- function(d_) {
     .Call(`_z3r_cpp_decl_details`, d_)
 }
@@ -693,6 +697,10 @@ cpp_model_consts <- function(m_) {
     .Call(`_z3r_cpp_model_consts`, m_)
 }
 
+cpp_model_num_consts <- function(m_) {
+    .Call(`_z3r_cpp_model_num_consts`, m_)
+}
+
 cpp_model_funcs <- function(m_) {
     .Call(`_z3r_cpp_model_funcs`, m_)
 }
@@ -779,6 +787,14 @@ cpp_optimize_unsat_core <- function(o_) {
 
 cpp_optimize_bounds <- function(o_, idx, serial, maximize) {
     .Call(`_z3r_cpp_optimize_bounds`, o_, idx, serial, maximize)
+}
+
+cpp_optimize_num_scopes <- function(o_) {
+    .Call(`_z3r_cpp_optimize_num_scopes`, o_)
+}
+
+cpp_optimize_tracked <- function(o_) {
+    .Call(`_z3r_cpp_optimize_tracked`, o_)
 }
 
 cpp_optimize_objectives <- function(o_) {
@@ -967,6 +983,14 @@ cpp_solver_reset <- function(s_) {
 
 cpp_solver_assertions <- function(s_) {
     .Call(`_z3r_cpp_solver_assertions`, s_)
+}
+
+cpp_solver_simplified <- function(s_) {
+    .Call(`_z3r_cpp_solver_simplified`, s_)
+}
+
+cpp_solver_export_assertions <- function(s_) {
+    .Call(`_z3r_cpp_solver_export_assertions`, s_)
 }
 
 cpp_solver_statistics <- function(s_) {

@@ -350,14 +350,16 @@ void cpp_propagate_init(SEXP s_, SEXP fns) {
   const CtxPtr& ctx = h->s.ctx();
   Z3_context c = ctx->c;
   for (const CallbackPtr& cb : h->callbacks) {
-    if (has(cb->fns, "push")) fail("this solver already has a user propagator");
+    if (cb->propagator) fail("this solver already has a user propagator");
   }
+  if (!has(fns, "push") || !has(fns, "pop")) fail("a user propagator needs push and pop functions");
   // Check every option before Z3 can keep a pointer to the state.
 #if !Z3R_AT_LEAST(4, 15, 3)
   if (has(fns, "binding")) needs_version("the binding callback", "4.15.3");
 #endif
   // The holder owns the state from now on, even if registration fails.
   CallbackPtr st = new_state(ctx, fns, s_, h);
+  st->propagator = true;
   h->callbacks.push_back(st);
   h->touch();  // the propagator constrains models: the last result is stale
   Z3_solver_propagate_init(c, h->s, st.get(), push_eh, pop_eh, fresh_eh);
@@ -383,7 +385,7 @@ void cpp_propagate_register(SEXP s_, SEXP e_) {
 #if Z3R_AT_LEAST(4, 12, 3)
   SolverHolder* h = solver_of(s_);
   bool has_propagator = false;
-  for (const CallbackPtr& cb : h->callbacks) has_propagator = has_propagator || has(cb->fns, "push");
+  for (const CallbackPtr& cb : h->callbacks) has_propagator = has_propagator || cb->propagator;
   if (!has_propagator) fail("install a user propagator with z3_propagator() before registering terms");
   Ast e = lift(h->s.ctx(), e_, nullptr);
   ensure_solver_ready(h->s.c(), h->s);

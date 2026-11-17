@@ -296,6 +296,10 @@ z3_value <- function(x, exact = TRUE, signed = FALSE) {
       "the string contains the character U+0000, which R strings cannot hold; use z3_string_escaped(), z3_string_bytes(), or z3_str_to_code() or z3_seq_nth() on its characters",
       call. = FALSE
     ),
+    surrogate_string = stop(
+      "the string contains a surrogate code point (U+D800 to U+DFFF), which has no UTF-8 encoding; use z3_string_escaped(), or z3_str_to_code() or z3_seq_nth() on its characters",
+      call. = FALSE
+    ),
     fp = if (info$exact_double || !exact) info$value else stop(sprintf(
       "the floating point value %s is not exactly representable as a double; use exact = FALSE to round it",
       info$text

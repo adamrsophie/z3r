@@ -59,7 +59,7 @@ z3_args <- function(x) cpp_app_parts(x)$args
 
 #' @rdname z3_inspect
 #' @export
-z3_num_args <- function(x) length(cpp_app_parts(x)$args)
+z3_num_args <- function(x) cpp_app_num_args(x)
 
 #' @rdname z3_inspect
 #' @export
@@ -169,6 +169,12 @@ z3_simplify_help <- function(ctx) cpp_simplify_help(ctx)
 #' into another context. This is the only way to combine objects from
 #' different contexts. Translating into the object's own context returns
 #' it unchanged. Optimizers need Z3 4.15.5 or later.
+#'
+#' A translated solver or optimizer keeps its assertions and the parameters
+#' set with [z3_set_params()], which z3r applies to the copy again (Z3 does
+#' not carry over every limit, such as `rlimit`). The copy of an optimizer
+#' has no open scopes: Z3 copies all its assertions at the base level, so
+#' [z3_pop()] on it cannot remove them.
 #'
 #' A plain list of expressions (all from one context) is translated in one
 #' step, so subterms shared between its elements are copied once; names

@@ -9,8 +9,7 @@
 #' made; anything else is an error naming the unsupported part.
 #'
 #' **Supported.** Integers and rationals (exact); symbols; `+`, `-`, `*`,
-#' `/`, powers with integer exponents (and rational exponents, which become
-#' Z3's real power); `Eq`, `Ne`, `Lt`, `Le`, `Gt`, `Ge`; `And`, `Or`,
+#' `/`, powers with integer exponents; `Eq`, `Ne`, `Lt`, `Le`, `Gt`, `Ge`; `And`, `Or`,
 #' `Not`, `Implies`, `Xor`, `Equivalent`, `ITE`; `Abs`, `floor`,
 #' `ceiling`, `Mod` (with Python's sign convention, which is also
 #' symcompR's: the result takes the sign of the divisor), `Max`, `Min`, and
@@ -18,7 +17,17 @@
 #'
 #' **Not supported.** Floats (they are inexact), constants such as `pi`,
 #' `E` and `oo`, complex numbers, transcendental functions, derivatives,
-#' integrals, sums and other unevaluated operators.
+#' integrals, sums and other unevaluated operators. Powers with rational or
+#' symbolic exponents are refused: symcompR takes the principal complex
+#' root (`(-8)^(1/3)` is `1 + 1.73i`), Z3 the real one (`-2`).
+#'
+#' **Division by zero.** symcompR leaves `x/0` undefined and cancels `x/x`
+#' to 1; Z3's division is total, with an unspecified value at zero. A
+#' translation from symcompR is exact wherever the symcompR expression is
+#' defined; at a zero denominator Z3 may take any value. In the other
+#' direction, Z3's `/`, `div`, `mod` and power are translated only with a
+#' nonzero numeral divisor (and a positive whole exponent), since symcompR
+#' would otherwise cancel or rewrite terms Z3 keeps.
 #'
 #' **Symbols and sorts.** A symbol becomes a Z3 constant of the same name.
 #' Its sort comes from `sorts` (a named list of `z3_sort`s) when given;
@@ -26,6 +35,10 @@
 #' `real = TRUE` gives Real. A symbol without assumptions is Bool where a
 #' Boolean is expected (as an argument of `And`, `Or`, ...), and an error
 #' elsewhere, because SymPy-style symbols without assumptions are complex.
+#' A symbol with sign or parity assumptions (`positive`, `nonzero`, `even`,
+#' and so on) is refused: a Z3 constant has a sort but no assumptions, so
+#' they would be lost. Use a symbol with only `integer` or `real`, and add
+#' the condition as a constraint (for example `z3_int(ctx, "n") > 0`).
 #'
 #' In the other direction, Int constants become symbols with `integer =
 #' TRUE`, Real constants symbols with `real = TRUE`, and Bool constants
@@ -103,6 +116,14 @@ from_sym <- function(ctx, e, sorts, expected) {
 
 sym_symbol <- function(ctx, e, sorts, expected) {
   name <- symcompR::sym_name(e)
+  for (a in c("positive", "negative", "nonnegative", "nonpositive", "nonzero", "zero", "even", "odd")) {
+    if (isTRUE(getExportedValue("symcompR", paste0("is_", a))(e))) {
+      stop(sprintf(paste(
+        "symbol '%s' has the assumption %s, which a Z3 constant cannot carry; use a symbol",
+        "with only integer = TRUE or real = TRUE and add the condition as a constraint"
+      ), name, a), call. = FALSE)
+    }
+  }
   if (!is.null(sorts[[name]])) return(z3_const(ctx, name, sorts[[name]]))
   if (isTRUE(symcompR::is_integer(e))) return(z3_int(ctx, name))
   if (isTRUE(symcompR::is_real(e))) return(z3_real(ctx, name))
@@ -122,8 +143,9 @@ sym_pow <- function(ctx, args, rec) {
     if (k >= 0) return(base^k)
     return(1 / base^(-k))
   }
-  if (symcompR::sym_type(ex) == "Rational") return(base^z3_real_val(ctx, as.character(ex$value)))
-  base^rec(ex, "arith")
+  stop(paste("powers with rational or symbolic exponents are not translated: symcompR takes",
+             "the principal complex root and Z3 the real one, which differ for negative bases"),
+       call. = FALSE)
 }
 
 sym_piecewise <- function(ctx, args, rec, expected) {
@@ -201,10 +223,10 @@ to_sym <- function(x) {
     sub = fold(`-`),
     mul = fold(`*`),
     uminus = -args[[1]],
-    div = args[[1]] / args[[2]],
-    idiv = sym_euclid_div(args[[1]], args[[2]], S),
-    mod = args[[1]] - S("Abs")(args[[2]]) * floor(args[[1]] / S("Abs")(args[[2]])),
-    power = args[[1]]^args[[2]],
+    div = { nonzero_divisor(x); args[[1]] / args[[2]] },
+    idiv = { nonzero_divisor(x); sym_euclid_div(args[[1]], args[[2]], S) },
+    mod = { nonzero_divisor(x); args[[1]] - S("Abs")(args[[2]]) * floor(args[[1]] / S("Abs")(args[[2]])) },
+    power = { natural_exponent(x); args[[1]]^args[[2]] },
     to_real = args[[1]],
     to_int = floor(args[[1]]),
     abs = S("Abs")(args[[1]]),
@@ -229,6 +251,25 @@ to_sym <- function(x) {
 }
 
 sort_is_bool <- function(x) z3_sort_kind(x) == "bool"
+
+# Z3 divides by zero to an unspecified value; symcompR would cancel x/x to
+# 1 or leave x/0 undefined, so only nonzero numeral divisors translate.
+nonzero_divisor <- function(x) {
+  d <- z3_args(x)[[2]]
+  if (z3_kind(d) != "numeral" || cpp_value_info(d, 0L)$exact %in% c("0", "0/1")) {
+    stop(sprintf(paste("%s divides by a term that may be zero, where Z3 and symcompR differ;",
+                       "only nonzero numeral divisors are translated"), format(x)), call. = FALSE)
+  }
+}
+
+natural_exponent <- function(x) {
+  k <- z3_args(x)[[2]]
+  v <- if (z3_kind(k) == "numeral") cpp_value_info(k, 0L)$exact else ""
+  if (!grepl("^[1-9][0-9]*$", v)) {  # Z3 leaves 0^0 unspecified
+    stop(sprintf(paste("%s has an exponent that is not a positive whole numeral, where Z3's real",
+                       "power and symcompR's complex one differ"), format(x)), call. = FALSE)
+  }
+}
 
 # Euclidean division: sign(b) * floor(a / |b|).
 sym_euclid_div <- function(a, b, S) {

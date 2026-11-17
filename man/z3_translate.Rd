@@ -24,6 +24,12 @@ different contexts. Translating into the object's own context returns
 it unchanged. Optimizers need Z3 4.15.5 or later.
 }
 \details{
+A translated solver or optimizer keeps its assertions and the parameters
+set with \code{\link[=z3_set_params]{z3_set_params()}}, which z3r applies to the copy again (Z3 does
+not carry over every limit, such as \code{rlimit}). The copy of an optimizer
+has no open scopes: Z3 copies all its assertions at the base level, so
+\code{\link[=z3_pop]{z3_pop()}} on it cannot remove them.
+
 A plain list of expressions (all from one context) is translated in one
 step, so subterms shared between its elements are copied once; names
 are kept.

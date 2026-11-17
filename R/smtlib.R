@@ -61,21 +61,32 @@ z3_to_smtlib <- function(x, logic = "", state = FALSE) {
     # Z3 lists a tracked constraint as label => constraint; assert the
     # labels, as a check does, so the text has the same answer.
     tracked <- cpp_solver_tracked(x)
-    if (isTRUE(state)) {
-      return(paste0(cpp_solver_to_string(x),
-                    paste0("(assert ", vapply(tracked, cpp_expr_to_string, character(1)), ")\n",
-                           collapse = "")))
+    # A solver with a simplifier has no meaningful state text before a check.
+    if (isTRUE(state) && !cpp_solver_simplified(x)) {
+      return(paste0(cpp_solver_to_string(x), assert_lines(tracked)))
     }
-    a <- c(cpp_solver_assertions(x), tracked)
+    a <- c(cpp_solver_export_assertions(x), tracked)
     if (!length(a)) a <- list(cpp_lift(z3_context_of(x), TRUE, NULL))
     return(cpp_benchmark(a, logic))
   }
-  if (inherits(x, "z3_optimize")) return(cpp_optimize_to_string(x))
+  if (inherits(x, "z3_optimize")) {
+    # Z3 ends the text with (check-sat); assert the labels before it.
+    txt <- cpp_optimize_to_string(x)
+    labels <- assert_lines(cpp_optimize_tracked(x))
+    if (!nzchar(labels)) return(txt)
+    at <- regexpr("\\(check-sat\\)\\s*$", txt)
+    if (at < 0) return(paste0(txt, labels))
+    return(paste0(substr(txt, 1L, at - 1L), labels, substring(txt, at)))
+  }
   if (inherits(x, "z3_fixedpoint")) return(cpp_fixedpoint_to_string(x, list()))
   if (is_z3_expr(x)) x <- list(x)
   if (is.list(x) && length(x) > 0L) return(cpp_benchmark(x, logic))
   stop("x must be a z3_solver, a z3_optimize or a non-empty list of expressions",
        call. = FALSE)
+}
+
+assert_lines <- function(labels) {
+  paste0("(assert ", vapply(labels, cpp_expr_to_string, character(1)), ")\n", collapse = "")
 }
 
 #' @rdname z3_to_smtlib

@@ -481,6 +481,16 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cpp_app_num_args
+int cpp_app_num_args(SEXP x);
+RcppExport SEXP _z3r_cpp_app_num_args(SEXP xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type x(xSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_app_num_args(x));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cpp_decl_details
 SEXP cpp_decl_details(SEXP d_);
 RcppExport SEXP _z3r_cpp_decl_details(SEXP d_SEXP) {
@@ -1906,6 +1916,16 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cpp_model_num_consts
+int cpp_model_num_consts(SEXP m_);
+RcppExport SEXP _z3r_cpp_model_num_consts(SEXP m_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type m_(m_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_model_num_consts(m_));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cpp_model_funcs
 SEXP cpp_model_funcs(SEXP m_);
 RcppExport SEXP _z3r_cpp_model_funcs(SEXP m_SEXP) {
@@ -2146,6 +2166,26 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type serial(serialSEXP);
     Rcpp::traits::input_parameter< bool >::type maximize(maximizeSEXP);
     rcpp_result_gen = Rcpp::wrap(cpp_optimize_bounds(o_, idx, serial, maximize));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_optimize_num_scopes
+int cpp_optimize_num_scopes(SEXP o_);
+RcppExport SEXP _z3r_cpp_optimize_num_scopes(SEXP o_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type o_(o_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_optimize_num_scopes(o_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_optimize_tracked
+SEXP cpp_optimize_tracked(SEXP o_);
+RcppExport SEXP _z3r_cpp_optimize_tracked(SEXP o_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type o_(o_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_optimize_tracked(o_));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -2639,6 +2679,26 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cpp_solver_simplified
+bool cpp_solver_simplified(SEXP s_);
+RcppExport SEXP _z3r_cpp_solver_simplified(SEXP s_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type s_(s_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_solver_simplified(s_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_solver_export_assertions
+SEXP cpp_solver_export_assertions(SEXP s_);
+RcppExport SEXP _z3r_cpp_solver_export_assertions(SEXP s_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< SEXP >::type s_(s_SEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_solver_export_assertions(s_));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cpp_solver_statistics
 SEXP cpp_solver_statistics(SEXP s_);
 RcppExport SEXP _z3r_cpp_solver_statistics(SEXP s_SEXP) {
@@ -2751,13 +2811,13 @@ BEGIN_RCPP
 END_RCPP
 }
 // cpp_solver_cube
-SEXP cpp_solver_cube(SEXP s_, Rcpp::List vars, int backtrack_level);
+SEXP cpp_solver_cube(SEXP s_, Rcpp::List vars, double backtrack_level);
 RcppExport SEXP _z3r_cpp_solver_cube(SEXP s_SEXP, SEXP varsSEXP, SEXP backtrack_levelSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::traits::input_parameter< SEXP >::type s_(s_SEXP);
     Rcpp::traits::input_parameter< Rcpp::List >::type vars(varsSEXP);
-    Rcpp::traits::input_parameter< int >::type backtrack_level(backtrack_levelSEXP);
+    Rcpp::traits::input_parameter< double >::type backtrack_level(backtrack_levelSEXP);
     rcpp_result_gen = Rcpp::wrap(cpp_solver_cube(s_, vars, backtrack_level));
     return rcpp_result_gen;
 END_RCPP
@@ -3327,6 +3387,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_z3r_cpp_finite_domain_size", (DL_FUNC) &_z3r_cpp_finite_domain_size, 1},
     {"_z3r_cpp_ast_kind", (DL_FUNC) &_z3r_cpp_ast_kind, 1},
     {"_z3r_cpp_app_parts", (DL_FUNC) &_z3r_cpp_app_parts, 1},
+    {"_z3r_cpp_app_num_args", (DL_FUNC) &_z3r_cpp_app_num_args, 1},
     {"_z3r_cpp_decl_details", (DL_FUNC) &_z3r_cpp_decl_details, 1},
     {"_z3r_cpp_var_index", (DL_FUNC) &_z3r_cpp_var_index, 1},
     {"_z3r_cpp_quantifier_parts", (DL_FUNC) &_z3r_cpp_quantifier_parts, 1},
@@ -3459,6 +3520,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_z3r_cpp_model_eval", (DL_FUNC) &_z3r_cpp_model_eval, 3},
     {"_z3r_cpp_model_to_string", (DL_FUNC) &_z3r_cpp_model_to_string, 1},
     {"_z3r_cpp_model_consts", (DL_FUNC) &_z3r_cpp_model_consts, 1},
+    {"_z3r_cpp_model_num_consts", (DL_FUNC) &_z3r_cpp_model_num_consts, 1},
     {"_z3r_cpp_model_funcs", (DL_FUNC) &_z3r_cpp_model_funcs, 1},
     {"_z3r_cpp_mk_model", (DL_FUNC) &_z3r_cpp_mk_model, 1},
     {"_z3r_cpp_model_set_const", (DL_FUNC) &_z3r_cpp_model_set_const, 3},
@@ -3481,6 +3543,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_z3r_cpp_optimize_model", (DL_FUNC) &_z3r_cpp_optimize_model, 1},
     {"_z3r_cpp_optimize_unsat_core", (DL_FUNC) &_z3r_cpp_optimize_unsat_core, 1},
     {"_z3r_cpp_optimize_bounds", (DL_FUNC) &_z3r_cpp_optimize_bounds, 4},
+    {"_z3r_cpp_optimize_num_scopes", (DL_FUNC) &_z3r_cpp_optimize_num_scopes, 1},
+    {"_z3r_cpp_optimize_tracked", (DL_FUNC) &_z3r_cpp_optimize_tracked, 1},
     {"_z3r_cpp_optimize_objectives", (DL_FUNC) &_z3r_cpp_optimize_objectives, 1},
     {"_z3r_cpp_optimize_push", (DL_FUNC) &_z3r_cpp_optimize_push, 1},
     {"_z3r_cpp_optimize_pop", (DL_FUNC) &_z3r_cpp_optimize_pop, 1},
@@ -3528,6 +3592,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_z3r_cpp_solver_num_scopes", (DL_FUNC) &_z3r_cpp_solver_num_scopes, 1},
     {"_z3r_cpp_solver_reset", (DL_FUNC) &_z3r_cpp_solver_reset, 1},
     {"_z3r_cpp_solver_assertions", (DL_FUNC) &_z3r_cpp_solver_assertions, 1},
+    {"_z3r_cpp_solver_simplified", (DL_FUNC) &_z3r_cpp_solver_simplified, 1},
+    {"_z3r_cpp_solver_export_assertions", (DL_FUNC) &_z3r_cpp_solver_export_assertions, 1},
     {"_z3r_cpp_solver_statistics", (DL_FUNC) &_z3r_cpp_solver_statistics, 1},
     {"_z3r_cpp_statistics_text", (DL_FUNC) &_z3r_cpp_statistics_text, 1},
     {"_z3r_cpp_solver_interrupt", (DL_FUNC) &_z3r_cpp_solver_interrupt, 1},
