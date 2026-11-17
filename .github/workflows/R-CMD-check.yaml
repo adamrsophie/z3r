@@ -153,7 +153,9 @@ jobs:
           # The installed record and the library actually loaded.
           Rscript -e 'i <- z3r::z3_build_info(); str(i); stopifnot(i$provider == "download", grepl("^[0-9a-f]{64}$", i$sha256), grepl("z3r[/\\\\]libs", i$library))'
         env:
-          R_LIBS_USER: check/z3r.Rcheck
+          # R_LIBS is searched before the user library instead of replacing
+          # it, so the dependencies installed for the check are still found
+          R_LIBS: check/z3r.Rcheck
 
   # The distribution's Z3 (libz3-dev). Ubuntu 24.04 ships 4.8.12, below the
   # minimum, so this runs in Debian testing, which ships a supported Z3.
