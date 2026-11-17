@@ -223,7 +223,10 @@ if test -z "${Z3_SOURCE}" && want_download; then
       # copy installed next to z3r's shared library.
       zlib="${zdir}/bin/libz3.so"
       test -f "${zdir}/bin/libz3.dylib" && zlib="${zdir}/bin/libz3.dylib"
-      if try_z3 "${Z3_CPPFLAGS}" "`sq "${zlib}"` -Xlinker -rpath -Xlinker `sq "${zdir}/bin"`"; then
+      # rpath_for writes an RPATH on Linux, which outranks the
+      # LD_LIBRARY_PATH R sets, so a too old system libz3 cannot be loaded
+      # in place of the download.
+      if try_z3 "${Z3_CPPFLAGS}" "`sq "${zlib}"` `rpath_for "${zdir}/bin"`"; then
         # The library is named by its full path, so that another libz3 on
         # the linker's search path cannot replace it. Its install name
         # (macOS, @rpath/libz3.dylib) or SONAME (Linux, libz3.so) is what
