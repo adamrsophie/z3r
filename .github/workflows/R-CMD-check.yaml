@@ -112,6 +112,45 @@ jobs:
         run: |
           if (requireNamespace("z3r", quietly = TRUE)) print(z3r::z3_version())
 
+  # No Z3 installed: configure downloads its pinned release (Z3R_DOWNLOAD,
+  # the path R-universe builds take) and installs libz3 next to z3r.
+  downloaded-z3:
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.os }} (Z3 downloaded by configure)
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-latest]
+    env:
+      Z3R_DOWNLOAD: "true"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: r-lib/actions/setup-pandoc@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2
+
+      - uses: r-lib/actions/setup-r@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2
+        with:
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2
+        env:
+          GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          extra-packages: any::rcmdcheck
+          needs: check
+
+      - uses: r-lib/actions/check-r-package@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2
+        with:
+          build_args: 'c("--no-manual", "--compact-vignettes=gs+qpdf")'
+          error-on: '"warning"'
+
+      - name: Confirm the downloaded Z3 was used and installed beside z3r
+        shell: bash
+        run: |
+          grep "found via download" check/z3r.Rcheck/00install.out
+          ls check/z3r.Rcheck/z3r/libs check/z3r.Rcheck/z3r/LICENSE.z3.txt
+
   # The distribution's Z3 (libz3-dev). Ubuntu 24.04 ships 4.8.12, below the
   # minimum, so this runs in Debian testing, which ships a supported Z3.
   system-z3:

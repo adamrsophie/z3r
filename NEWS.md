@@ -2,7 +2,10 @@
 
 First release. z3r targets Z3 5.4.1 and builds against every Z3 release
 from 4.8.13; CI runs the tests on one release from each series on every
-push and on all 43 releases monthly. Features that need a newer Z3 than the one z3r was built with say
+push and on all 43 releases monthly. With `Z3R_DOWNLOAD=true` (and on
+R-universe), an installation that finds no usable Z3 downloads the pinned
+official 5.4.1 release, verifies its SHA-256 checksum and installs libz3
+inside the package; nothing is downloaded otherwise. Features that need a newer Z3 than the one z3r was built with say
 which version they need.
 
 ## Native foundation

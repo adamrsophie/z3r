@@ -6,7 +6,10 @@ This is a new submission.
 
 z3r links to the Z3 theorem prover (libz3, version 4.8.13 or later), found
 through `Z3_DIR`, `Z3_INCLUDE_DIR`/`Z3_LIB_DIR` or pkg-config. Debian and
-Fedora ship it as libz3-dev and z3-devel.
+Fedora ship it as libz3-dev and z3-devel. Nothing is downloaded during
+installation unless the user sets `Z3R_DOWNLOAD=true` (or the build runs
+on R-universe, which sets `MY_UNIVERSE`); then configure fetches one pinned
+official Z3 release over https and verifies its SHA-256 checksum.
 
 ## Test environments
 

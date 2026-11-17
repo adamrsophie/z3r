@@ -1,10 +1,23 @@
 PKG_CPPFLAGS = @Z3_CPPFLAGS@
 PKG_LIBS = @Z3_LIBS@
+Z3_BUNDLE = @Z3_BUNDLE@
 
-all: $(SHLIB)
+all: $(SHLIB) z3bundle
+
+# A Z3 downloaded by configure (Z3R_DOWNLOAD) is installed next to z3r's
+# shared library, which finds it through a relative run-time path, together
+# with Z3's license. Z3_BUNDLE is already quoted for the shell by configure.
+z3bundle: $(SHLIB)
+	@if test -n "$(R_PACKAGE_DIR)" && test -n "$(strip $(Z3_BUNDLE))"; then \
+	  mkdir -p "$(R_PACKAGE_DIR)/libs$(R_ARCH)" && \
+	  for f in $(Z3_BUNDLE)/bin/libz3.dylib $(Z3_BUNDLE)/bin/libz3.so*; do \
+	    if test -f "$$f"; then cp -P "$$f" "$(R_PACKAGE_DIR)/libs$(R_ARCH)/"; fi; \
+	  done; \
+	  cp $(Z3_BUNDLE)/LICENSE.txt "$(R_PACKAGE_DIR)/LICENSE.z3.txt"; \
+	fi
+
+.PHONY: all z3bundle
 
 # Rebuild every object when the shared headers or the Z3 configuration
 # (written by configure) change.
 $(OBJECTS): z3r.h decl_kinds.h Makevars
-
-.PHONY: all

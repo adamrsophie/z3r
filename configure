@@ -10,7 +10,12 @@
 #      or lib64/).
 #
 # Every candidate is verified by compiling, linking and running a small
-# program that checks the Z3 version. Nothing is downloaded.
+# program that checks the Z3 version.#
+# Nothing is downloaded by default. When no Z3 is found and Z3R_DOWNLOAD is
+# "true" (or the build runs on R-universe, which sets MY_UNIVERSE, and
+# Z3R_DOWNLOAD is not "false"), configure downloads one pinned official Z3
+# release over https, verifies its SHA-256 checksum, and installs libz3 and
+# Z3's license next to z3r's shared library.
 
 Z3_MIN_MAJOR=4
 Z3_MIN_MINOR=8
@@ -160,6 +165,80 @@ else
   fi
 fi
 
+# Opt-in download of a pinned official release (see the header).
+Z3_BUNDLE=""
+sha256_of () {
+  if command -v sha256sum > /dev/null 2>&1; then sha256sum "$1" | cut -d ' ' -f 1
+  elif command -v shasum > /dev/null 2>&1; then shasum -a 256 "$1" | cut -d ' ' -f 1
+  elif command -v openssl > /dev/null 2>&1; then openssl dgst -sha256 "$1" | sed 's/.*= *//'
+  fi
+}
+want_download () {
+  case "${Z3R_DOWNLOAD}" in
+    true|TRUE|yes|1) return 0 ;;
+    false|FALSE|no|0) return 1 ;;
+  esac
+  test -n "${MY_UNIVERSE}"
+}
+# Downloads $1 (URL) to $2 with R, then checks the SHA-256 $3 and unzips.
+fetch_z3 () {
+  Z3_URL="$1" Z3_ZIP="$2" "${R_HOME}/bin${R_ARCH_BIN}/Rscript" --vanilla -e '
+    options(timeout = max(900, getOption("timeout")))
+    utils::download.file(Sys.getenv("Z3_URL"), Sys.getenv("Z3_ZIP"),
+                         mode = "wb", quiet = TRUE)' >> config.log 2>&1
+  got=""
+  if test -f "$2"; then got=`sha256_of "$2"`; fi
+  if test "${got}" != "$3"; then
+    echo "configure: the Z3 download failed or its SHA-256 checksum does not match (got '${got}'); not using it" >&2
+    return 1
+  fi
+  Z3_ZIP="$2" "${R_HOME}/bin${R_ARCH_BIN}/Rscript" --vanilla -e '
+    f <- Sys.getenv("Z3_ZIP"); utils::unzip(f, exdir = dirname(f))' >> config.log 2>&1
+  rm -f "$2"
+}
+if test -z "${Z3_SOURCE}" && want_download; then
+  Z3_PIN=5.4.1
+  case "`uname -s`-`uname -m`" in
+    Linux-x86_64) Z3_ASSET=z3-${Z3_PIN}-x64-glibc-2.39
+      Z3_SHA=b548bac48ef2452b4e09ea2945cf4b011d5f43fcf39e4799df268ee7e0769d85 ;;
+    Linux-aarch64|Linux-arm64) Z3_ASSET=z3-${Z3_PIN}-arm64-glibc-2.38
+      Z3_SHA=9e8f781f15a423ede5bd491b665966dbb607d9f9c4f9f9b502116f271d1b050f ;;
+    Darwin-arm64) Z3_ASSET=z3-${Z3_PIN}-arm64-osx-13.3
+      Z3_SHA=a4a878121e81dfc297d027dd0b51dc4f08feb4296d6ecace42bfbc87a29d6d58 ;;
+    Darwin-x86_64) Z3_ASSET=z3-${Z3_PIN}-x64-osx-13.3
+      Z3_SHA=79e93b0564b82bf2c1b355df130bab543b1ff88d597c985632770fea05f1b249 ;;
+    *) Z3_ASSET="" ;;
+  esac
+  if test -z "${Z3_ASSET}"; then
+    echo "configure: no official Z3 release for `uname -s` `uname -m`; not downloading" >&2
+  else
+    Z3_URL="https://github.com/Z3Prover/z3/releases/download/z3-${Z3_PIN}/${Z3_ASSET}.zip"
+    echo "configure: downloading Z3 ${Z3_PIN} from ${Z3_URL}"
+    rm -rf src/z3bundle
+    mkdir -p src/z3bundle
+    if fetch_z3 "${Z3_URL}" "`pwd`/src/z3bundle/z3.zip" "${Z3_SHA}"; then
+      zdir="`pwd`/src/z3bundle/${Z3_ASSET}"
+      Z3_CPPFLAGS="-I`sq "${zdir}/include"`"
+      # The test program finds libz3 in the download; the package finds the
+      # copy installed next to z3r's shared library.
+      zlib="${zdir}/bin/libz3.so"
+      test -f "${zdir}/bin/libz3.dylib" && zlib="${zdir}/bin/libz3.dylib"
+      if try_z3 "${Z3_CPPFLAGS}" "`sq "${zlib}"` -Xlinker -rpath -Xlinker `sq "${zdir}/bin"`"; then
+        # The library is named by its full path, so that another libz3 on
+        # the linker's search path cannot replace it. Its install name
+        # (macOS, @rpath/libz3.dylib) or SONAME (Linux, libz3.so) is what
+        # z3r records, so the copy next to z3r is the one loaded.
+        case "`uname -s`" in
+          Darwin) Z3_LIBS="`sq "${zdir}/bin/libz3.dylib"` -Xlinker -rpath -Xlinker @loader_path" ;;
+          *) Z3_LIBS="`sq "${zdir}/bin/libz3.so"` -Xlinker -rpath -Xlinker '\$ORIGIN' -Xlinker --disable-new-dtags" ;;
+        esac
+        Z3_BUNDLE="${zdir}"
+        Z3_SOURCE="download of ${Z3_ASSET}"
+      fi
+    fi
+  fi
+fi
+
 rm -rf conftest conftest.cpp conftest.err conftest.dSYM
 
 if test -z "${Z3_SOURCE}"; then
@@ -181,6 +260,9 @@ release archive from https://github.com/Z3Prover/z3/releases :
 Or pass the flags directly:
   PKG_CPPFLAGS="-I/path/include" PKG_LIBS="-L/path/lib -lz3" R CMD INSTALL z3r
 
+Or let configure download a pinned official Z3 release:
+  Z3R_DOWNLOAD=true R CMD INSTALL z3r
+
 Compiler output is in config.log.
 ------------------------------------------------------------------------
 EOF
@@ -195,6 +277,7 @@ echo "configure: Z3_LIBS=${Z3_LIBS}"
 # rebuilds every object (they depend on Makevars) and an unchanged
 # configuration keeps incremental builds.
 sed -e "s|@Z3_CPPFLAGS@|`sed_escape "${Z3_CPPFLAGS}"`|" -e "s|@Z3_LIBS@|`sed_escape "${Z3_LIBS}"`|" \
+  -e "s|@Z3_BUNDLE@|`sed_escape "${Z3_BUNDLE:+$(sq "${Z3_BUNDLE}")}"`|" \
   src/Makevars.in > src/Makevars.new
 if cmp -s src/Makevars.new src/Makevars; then
   rm -f src/Makevars.new

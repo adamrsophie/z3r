@@ -11,8 +11,12 @@
 # MinGW toolchain of Rtools links against the DLL directly. The DLL, the
 # Microsoft runtime DLLs shipped beside it and Z3's license are copied next
 # to z3r.dll at install time, where Windows finds them when R loads the
-# package. Headers and DLL must be the same Z3 version. Nothing is
-# downloaded.
+# package. Headers and DLL must be the same Z3 version.#
+# Nothing is downloaded by default. When no Z3 is found and Z3R_DOWNLOAD is
+# "true" (or the build runs on R-universe, which sets MY_UNIVERSE, and
+# Z3R_DOWNLOAD is not "false"), configure downloads one pinned official Z3
+# release over https, verifies its SHA-256 checksum, and installs libz3 and
+# Z3's license next to z3r's shared library.
 
 : "${R_HOME:=`R RHOME`}"
 RBIN="${R_HOME}/bin${R_ARCH_BIN}/R"
@@ -97,6 +101,57 @@ Z3_DIR=`to_slash "${Z3_DIR}"`
 Z3_INCLUDE_DIR=`to_slash "${Z3_INCLUDE_DIR}"`
 Z3_LIB_DIR=`to_slash "${Z3_LIB_DIR}"`
 
+sha256_of () {
+  if command -v sha256sum > /dev/null 2>&1; then sha256sum "$1" | cut -d ' ' -f 1
+  elif command -v shasum > /dev/null 2>&1; then shasum -a 256 "$1" | cut -d ' ' -f 1
+  elif command -v openssl > /dev/null 2>&1; then openssl dgst -sha256 "$1" | sed 's/.*= *//'
+  fi
+}
+want_download () {
+  case "${Z3R_DOWNLOAD}" in
+    true|TRUE|yes|1) return 0 ;;
+    false|FALSE|no|0) return 1 ;;
+  esac
+  test -n "${MY_UNIVERSE}"
+}
+# Downloads $1 (URL) to $2 with R, then checks the SHA-256 $3 and unzips.
+fetch_z3 () {
+  Z3_URL="$1" Z3_ZIP="$2" "${R_HOME}/bin${R_ARCH_BIN}/Rscript" --vanilla -e '
+    options(timeout = max(900, getOption("timeout")))
+    utils::download.file(Sys.getenv("Z3_URL"), Sys.getenv("Z3_ZIP"),
+                         mode = "wb", quiet = TRUE)' >> config.log 2>&1
+  got=""
+  if test -f "$2"; then got=`sha256_of "$2"`; fi
+  if test "${got}" != "$3"; then
+    echo "configure.win: the Z3 download failed or its SHA-256 checksum does not match (got '${got}'); not using it" >&2
+    return 1
+  fi
+  Z3_ZIP="$2" "${R_HOME}/bin${R_ARCH_BIN}/Rscript" --vanilla -e '
+    f <- Sys.getenv("Z3_ZIP"); utils::unzip(f, exdir = dirname(f))' >> config.log 2>&1
+  rm -f "$2"
+}
+
+# Opt-in download of a pinned official release (see the header), used only
+# when no Z3 is given and pkg-config finds none.
+if test -z "${PKG_LIBS}" && test -z "${Z3_DIR}" && test -z "${Z3_INCLUDE_DIR}" &&
+   test -z "${Z3_LIB_DIR}" && ! pkg-config --exists z3 2>/dev/null &&
+   want_download; then
+  Z3_PIN=5.4.1
+  case "`"${RBIN}" --vanilla -s -e 'cat(R.version$arch)'`" in
+    aarch64) Z3_ASSET=z3-${Z3_PIN}-arm64-win
+      Z3_SHA=1159ecd4cb008838471d816f09bdf69654a1908b47a7279fca2fc8dadbb81e0f ;;
+    *) Z3_ASSET=z3-${Z3_PIN}-x64-win
+      Z3_SHA=f16e991e1c883b0cee30c78eb445343e1a3f49c142aa7dead7d6c35f9cc44934 ;;
+  esac
+  Z3_URL="https://github.com/Z3Prover/z3/releases/download/z3-${Z3_PIN}/${Z3_ASSET}.zip"
+  echo "configure.win: downloading Z3 ${Z3_PIN} from ${Z3_URL}"
+  rm -rf src/z3bundle
+  mkdir -p src/z3bundle
+  if fetch_z3 "${Z3_URL}" "`pwd`/src/z3bundle/z3.zip" "${Z3_SHA}"; then
+    Z3_DIR="`pwd`/src/z3bundle/${Z3_ASSET}"
+  fi
+fi
+
 if test -n "${Z3_DIR}"; then
   : "${Z3_INCLUDE_DIR:=${Z3_DIR}/include}"
   : "${Z3_LIB_DIR:=${Z3_DIR}/bin}"
@@ -144,6 +199,8 @@ configure.win: could not find a usable Z3 C library (4.8.13 or later).
      install.packages("z3r", type = "source")
    or from a shell:
      Z3_DIR=C:/path/to/z3-4.16.0-x64-win R CMD INSTALL z3r
+Or let configure.win download a pinned official Z3 release:
+     Z3R_DOWNLOAD=true R CMD INSTALL z3r
 
 Z3_INCLUDE_DIR and Z3_LIB_DIR (the folder holding libz3.dll), or
 PKG_CPPFLAGS and PKG_LIBS, may be given instead. Compiler output is in
