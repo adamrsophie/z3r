@@ -7,7 +7,7 @@
 \usage{
 z3_with_scope(x, code)
 
-z3_all_models(solver, vars, limit = 100)
+z3_all_models(solver, vars, limit = 100, on_model = NULL)
 }
 \arguments{
 \item{x}{A \code{z3_solver} or \code{z3_optimize}.}
@@ -19,11 +19,15 @@ z3_all_models(solver, vars, limit = 100)
 \item{vars}{A constant or a list of constants.}
 
 \item{limit}{Maximum number of assignments.}
+
+\item{on_model}{Optional function called with each assignment (a named
+list); see Details.}
 }
 \value{
 \code{z3_with_scope()} returns the value of \code{code}. \code{z3_all_models()}
 returns a list of named lists, one per assignment, with attribute
-\code{"status"}.
+\code{"status"}; with \code{on_model}, an empty list with attributes \code{"status"}
+and \code{"count"} (the number of assignments passed on).
 }
 \description{
 \code{z3_with_scope(x, code)} evaluates \code{code} inside a \code{\link[=z3_push]{z3_push()}} /
@@ -40,8 +44,13 @@ between the two stay.
 blocks each assignment found and checks again, inside a scope, so the
 solver is unchanged afterwards. Values are converted as by
 \code{\link[=z3_model_values]{z3_model_values()}}. The \code{"status"} attribute says why enumeration
-stopped: \code{"unsat"} (all assignments were found), \code{"limit"} or
-\code{"unknown"}.
+stopped: \code{"unsat"} (all assignments were found), \code{"limit"},
+\code{"unknown"} or \code{"stopped"}.
+
+With \code{on_model}, assignments are streamed instead of collected: each is
+passed to \code{on_model(values)} as soon as it is found, nothing is kept,
+and returning \code{FALSE} from \code{on_model} stops the enumeration (status
+\code{"stopped"}). The solver's scope is removed also when \code{on_model} fails.
 }
 \examples{
 ctx <- z3_context()

@@ -1423,6 +1423,22 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cpp_linear
+Rcpp::List cpp_linear(Rcpp::List x, Rcpp::IntegerVector row, Rcpp::IntegerVector col, Rcpp::List val, int nrow, Rcpp::CharacterVector op, Rcpp::List rhs);
+RcppExport SEXP _z3r_cpp_linear(SEXP xSEXP, SEXP rowSEXP, SEXP colSEXP, SEXP valSEXP, SEXP nrowSEXP, SEXP opSEXP, SEXP rhsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type x(xSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type row(rowSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type col(colSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type val(valSEXP);
+    Rcpp::traits::input_parameter< int >::type nrow(nrowSEXP);
+    Rcpp::traits::input_parameter< Rcpp::CharacterVector >::type op(opSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type rhs(rhsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_linear(x, row, col, val, nrow, op, rhs));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cpp_implied_equalities
 SEXP cpp_implied_equalities(SEXP s_, Rcpp::List terms);
 RcppExport SEXP _z3r_cpp_implied_equalities(SEXP s_SEXP, SEXP termsSEXP) {
@@ -3530,6 +3546,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_z3r_cpp_value_info", (DL_FUNC) &_z3r_cpp_value_info, 2},
     {"_z3r_cpp_value_infos", (DL_FUNC) &_z3r_cpp_value_infos, 2},
     {"_z3r_cpp_decimal_string", (DL_FUNC) &_z3r_cpp_decimal_string, 2},
+    {"_z3r_cpp_linear", (DL_FUNC) &_z3r_cpp_linear, 7},
     {"_z3r_cpp_implied_equalities", (DL_FUNC) &_z3r_cpp_implied_equalities, 2},
     {"_z3r_cpp_update_term", (DL_FUNC) &_z3r_cpp_update_term, 2},
     {"_z3r_cpp_solver_from_file", (DL_FUNC) &_z3r_cpp_solver_from_file, 2},

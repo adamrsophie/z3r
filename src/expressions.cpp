@@ -1568,3 +1568,87 @@ std::string cpp_decimal_string(SEXP x, int digits) {
   check(a.ctx());
   return out;
 }
+
+// Rows of a linear system, sum_j a[i, j] * x[j] op[i] b[i], built in one
+// call. The coefficients come as triplets (row, col, value) with 1-based
+// rows and columns; each value and right-hand side is converted exactly, as
+// an R operand would be, in the sort of its variable (of the row).
+// [[Rcpp::export(rng = false)]]
+Rcpp::List cpp_linear(Rcpp::List x, Rcpp::IntegerVector row, Rcpp::IntegerVector col, Rcpp::List val,
+                      int nrow, Rcpp::CharacterVector op, Rcpp::List rhs) {
+  if (x.size() == 0) fail("x must hold at least one variable");
+  AstVec vars;
+  CtxPtr ctx = get_expr(x[0]).ctx();
+  bool any_real = false;
+  for (R_xlen_t j = 0; j < x.size(); ++j) {
+    const Ast& v = get_expr(x[j]);
+    same_ctx(ctx, v.ctx());
+    Z3_sort_kind k = Z3_get_sort_kind(ctx->c, Z3_get_sort(ctx->c, v));
+    if (k != Z3_INT_SORT && k != Z3_REAL_SORT) fail("x must hold Int or Real terms");
+    any_real = any_real || k == Z3_REAL_SORT;
+    vars.push_back(v);
+  }
+  Z3_context c = ctx->c;
+  Z3_sort int_s = Z3_mk_int_sort(c), real_s = Z3_mk_real_sort(c);
+  std::vector<std::vector<R_xlen_t>> by_row(nrow);
+  for (R_xlen_t k = 0; k < row.size(); ++k) {
+    if (row[k] < 1 || row[k] > nrow || col[k] < 1 || col[k] > x.size()) fail("a coefficient lies outside the matrix");
+    by_row[row[k] - 1].push_back(k);
+  }
+  Rcpp::List out(nrow);
+  for (int i = 0; i < nrow; ++i) {
+    AstVec terms;
+    bool real = false;
+    for (R_xlen_t k : by_row[i]) {
+      const Ast& v = vars[col[k] - 1];
+      Z3_sort s = Z3_get_sort(c, v);
+      Ast a = lift(ctx, val[k], s);
+      if (Z3_is_numeral_ast(c, a)) {
+        int sign = 0;
+        if (Z3_get_numeral_int(c, a, &sign) && sign == 0) continue;  // drop zero terms
+      }
+      // A fractional coefficient of an Int variable makes the term Real.
+      Ast var = v;
+      bool rterm = Z3_get_sort_kind(c, Z3_get_sort(c, a)) == Z3_REAL_SORT || Z3_get_sort_kind(c, s) == Z3_REAL_SORT;
+      if (rterm) {
+        if (Z3_get_sort_kind(c, s) == Z3_INT_SORT) var = own_ast(ctx, Z3_mk_int2real(c, v));
+        if (Z3_get_sort_kind(c, Z3_get_sort(c, a)) == Z3_INT_SORT) a = own_ast(ctx, Z3_mk_int2real(c, a));
+      }
+      Z3_ast args[2] = {a, var};
+      terms.push_back(own_ast(ctx, Z3_mk_mul(c, 2, args)));
+      real = real || rterm;
+    }
+    check(ctx);
+    if (terms.empty()) real = any_real;
+    if (real) {
+      for (Ast& t : terms) {
+        if (Z3_get_sort_kind(c, Z3_get_sort(c, t)) == Z3_INT_SORT) t = own_ast(ctx, Z3_mk_int2real(c, t));
+      }
+    }
+    Ast lhs = terms.empty() ? own_ast(ctx, Z3_mk_numeral(c, "0", real ? real_s : int_s))
+              : terms.size() == 1 ? terms[0]
+                                  : own_ast(ctx, Z3_mk_add(c, static_cast<unsigned>(terms.size()), raw(terms).data()));
+    Ast b = lift(ctx, rhs[rhs.size() == 1 ? 0 : i], real ? real_s : int_s);
+    if (Z3_get_sort_kind(c, Z3_get_sort(c, b)) == Z3_REAL_SORT && !real) {
+      lhs = own_ast(ctx, Z3_mk_int2real(c, lhs));
+    } else if (Z3_get_sort_kind(c, Z3_get_sort(c, b)) == Z3_INT_SORT && real) {
+      b = own_ast(ctx, Z3_mk_int2real(c, b));
+    }
+    Z3_sort_kind bk = Z3_get_sort_kind(c, Z3_get_sort(c, b));
+    if (bk != Z3_INT_SORT && bk != Z3_REAL_SORT) fail("b must hold numbers");
+    std::string o = Rcpp::as<std::string>(op[op.size() == 1 ? 0 : i]);
+    Z3_ast r;
+    if (o == "<=") r = Z3_mk_le(c, lhs, b);
+    else if (o == "<") r = Z3_mk_lt(c, lhs, b);
+    else if (o == ">=") r = Z3_mk_ge(c, lhs, b);
+    else if (o == ">") r = Z3_mk_gt(c, lhs, b);
+    else if (o == "==") r = Z3_mk_eq(c, lhs, b);
+    else if (o == "!=") {
+      Z3_ast pair[2] = {lhs, b};
+      r = Z3_mk_distinct(c, 2, pair);
+    } else fail("op must be one of \"<=\", \"<\", \">=\", \">\", \"==\" and \"!=\"");
+    out[i] = wrap_expr(own_ast(ctx, r));
+    check(ctx);
+  }
+  return out;
+}

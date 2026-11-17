@@ -517,6 +517,10 @@ cpp_decimal_string <- function(x, digits) {
     .Call(`_z3r_cpp_decimal_string`, x, digits)
 }
 
+cpp_linear <- function(x, row, col, val, nrow, op, rhs) {
+    .Call(`_z3r_cpp_linear`, x, row, col, val, nrow, op, rhs)
+}
+
 cpp_implied_equalities <- function(s_, terms) {
     .Call(`_z3r_cpp_implied_equalities`, s_, terms)
 }

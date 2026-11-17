@@ -69,7 +69,10 @@
 z3_from_symbolic <- function(ctx, expr, sorts = list()) {
   need_symcompr()
   if (!inherits(expr, "sym")) expr <- symcompR::as_sym(expr)
-  from_sym(ctx, expr, sorts, expected = NULL, seen = new.env(parent = emptyenv()))
+  # One conversion: symbol identities, and translations of shared subterms
+  # (keyed by symcompR's structural key and the expected type).
+  seen <- list(names = new.env(parent = emptyenv()), memo = new.env(parent = emptyenv()))
+  from_sym(ctx, expr, sorts, expected = NULL, seen = seen)
 }
 
 need_symcompr <- function() {
@@ -84,6 +87,14 @@ sym_unsupported <- function(e) {
 }
 
 from_sym <- function(ctx, e, sorts, expected, seen) {
+  key <- if (is.null(e$key)) NULL else paste0(if (is.null(expected)) "" else expected, "|", e$key)
+  if (!is.null(key) && !is.null(hit <- seen$memo[[key]])) return(hit)
+  out <- from_sym_node(ctx, e, sorts, expected, seen)
+  if (!is.null(key)) assign(key, out, envir = seen$memo)
+  out
+}
+
+from_sym_node <- function(ctx, e, sorts, expected, seen) {
   type <- symcompR::sym_type(e)
   args <- symcompR::sym_args(e)
   rec <- function(a, exp = NULL) from_sym(ctx, a, sorts, exp, seen)
@@ -133,11 +144,11 @@ sym_symbol <- function(ctx, e, sorts, expected, seen) {
   # Distinct symcompR symbols (same name, other assumptions) must not become
   # one Z3 constant.
   key <- if (is.null(e$key)) name else e$key
-  if (!is.null(seen[[name]]) && !identical(seen[[name]], key)) {
+  if (!is.null(seen$names[[name]]) && !identical(seen$names[[name]], key)) {
     stop(sprintf(paste("the expression has two different symbols named '%s' (with different",
                        "assumptions), which would become one Z3 constant"), name), call. = FALSE)
   }
-  assign(name, key, envir = seen)
+  assign(name, key, envir = seen$names)
   given <- e$extra$given
   target <- if (!is.null(sorts[[name]])) z3_sort_kind(sorts[[name]]) else
     if (isTRUE(symcompR::is_integer(e))) "int" else if (isTRUE(symcompR::is_real(e))) "real" else
@@ -207,10 +218,19 @@ sym_function <- function(ctx, e, args, rec) {
 #' @export
 z3_to_symbolic <- function(x) {
   need_symcompr()
-  to_sym(x)
+  to_sym(x, new.env(parent = emptyenv()))
 }
 
-to_sym <- function(x) {
+# Translates each shared subterm once (Z3 terms are DAGs).
+to_sym <- function(x, memo) {
+  id <- format(cpp_ast_id(x)$id, scientific = FALSE)
+  if (!is.null(hit <- memo[[id]])) return(hit)
+  out <- to_sym_node(x, memo)
+  assign(id, out, envir = memo)
+  out
+}
+
+to_sym_node <- function(x, memo) {
   S <- function(f) getExportedValue("symcompR", f)
   kind <- z3_kind(x)
   sort <- z3_sort_kind(x)
@@ -225,7 +245,7 @@ to_sym <- function(x) {
   }
   if (kind != "app") stop(sprintf("cannot translate %s to symcompR", format(x)), call. = FALSE)
   info <- z3_decl_info(z3_decl(x))
-  args <- lapply(z3_args(x), to_sym)
+  args <- lapply(z3_args(x), to_sym, memo)
   if (!info$interpreted) {
     if (length(args)) stop("uninterpreted functions have no symcompR counterpart", call. = FALSE)
     # Z3 prints a numbered symbol as k!<n>, the same as a constant named

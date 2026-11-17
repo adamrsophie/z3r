@@ -78,6 +78,7 @@ reference:
   - z3_operators
   - z3_and
   - z3_sum
+  - z3_linear
   - z3_divides
   - z3_atmost
 - title: Solving

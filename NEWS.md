@@ -35,7 +35,9 @@ built with report the release they need.
   arithmetic, comparisons (also lexicographic order on strings), Boolean
   logic, `sqrt()`, and `a[i]` on arrays.
 * Batch construction of constants (`z3_ints()`, `z3_reals()`,
-  `z3_bools()`) and n-ary sums and products (`z3_sum()`, `z3_prod()`).
+  `z3_bools()`), n-ary sums and products (`z3_sum()`, `z3_prod()`), and
+  linear systems from dense or sparse coefficient matrices with exact
+  coefficients (`z3_linear()`).
 * Inspection of terms and declarations, substitution, simplification with
   parameters, quantifiers and lambdas with patterns and weights, and a
   dictionary keyed by terms (`z3_ast_map()`).
@@ -57,7 +59,8 @@ built with report the release they need.
 * Models: each `z3_model()` is an independent copy; values by name
   (`m$x`, `m[["x"]]`), batch evaluation of expressions (`z3_eval()` with a
   list) and conversion of all or selected values (`z3_model_values()`);
-  enumeration of distinct models (`z3_all_models()`); hand-built models.
+  enumeration of distinct models (`z3_all_models()`, which can stream
+  them to a callback); hand-built models.
 * Per-check timeouts (`z3_check(timeout = )`) that leave the solver's other
   parameters in place, interruption with Ctrl-C, and `z3_interrupt()` from
   inside callbacks.

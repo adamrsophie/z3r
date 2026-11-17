@@ -150,6 +150,10 @@ jobs:
         run: |
           grep "found via download" check/z3r.Rcheck/00install.out
           ls check/z3r.Rcheck/z3r/libs check/z3r.Rcheck/z3r/LICENSE.z3.txt
+          # The installed record and the library actually loaded.
+          Rscript -e 'i <- z3r::z3_build_info(); str(i); stopifnot(i$provider == "download", grepl("^[0-9a-f]{64}$", i$sha256), grepl("z3r[/\\\\]libs", i$library))'
+        env:
+          R_LIBS_USER: check/z3r.Rcheck
 
   # The distribution's Z3 (libz3-dev). Ubuntu 24.04 ships 4.8.12, below the
   # minimum, so this runs in Debian testing, which ships a supported Z3.
