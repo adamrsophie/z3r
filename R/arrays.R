@@ -52,6 +52,14 @@ z3_array <- function(ctx, name, domain, range) {
 z3_select <- function(a, i, ...) cpp_array_access(a, c(list(i), list(...)), NULL, FALSE)
 
 #' @rdname z3_array
+#' @param x An array expression; `x[i]` is `z3_select(x, i)`.
+#' @export
+`[.z3_expr` <- function(x, i, ...) {
+  if (z3_sort_kind(x) != "array") stop("only array expressions can be indexed with [", call. = FALSE)
+  z3_select(x, i, ...)
+}
+
+#' @rdname z3_array
 #' @export
 z3_store <- function(a, i, v) cpp_array_access(a, as_list(i), v, TRUE)
 

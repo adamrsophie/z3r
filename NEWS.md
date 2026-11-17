@@ -35,7 +35,8 @@ which version they need.
 * Exact numerals from strings, R numbers and `gmp` numbers, with a
   documented conversion policy for doubles. `z3_value()` converts results to
   R without loss of precision.
-* R operators with z3r's own sort checking.
+* R operators with z3r's own sort checking; `<` and friends order strings, `sqrt()` works on
+  Int, Real and floating point terms, and `a[i]` reads an array.
 * Inspection (`z3_kind()`, `z3_decl()`, `z3_args()`, `z3_decl_info()`,
   `z3_quantifier_info()`), substitution, simplification with parameters,
   identifiers and print modes.
@@ -49,10 +50,13 @@ which version they need.
 
 ## Solving
 
+* One-call shortcuts: `z3_solve()` returns a model or `NULL`, and
+  `z3_prove()` returns `TRUE` or `FALSE` with a counterexample.
 * Solvers with assertions, tracked assertions, assumptions,
   push/pop/reset, `z3_with_scope()`, model enumeration
   (`z3_all_models()`), models with staleness protection (each
-  `z3_model()` is a separate copy), hand-built models,
+  `z3_model()` is a separate copy), `m$x` and `m[["x"]]` for the value
+  of a constant, hand-built models,
   unsatisfiable cores, proofs, consequences, cubes, units and trails,
   congruence classes, solving for variables, initial values, typed
   parameters, statistics (also as Z3's text, `z3_statistics_text()`) and

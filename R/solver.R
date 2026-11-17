@@ -716,3 +716,46 @@ z3_all_models <- function(solver, vars, limit = 100) {
   out <- lapply(found, function(vals) stats::setNames(lapply(vals, value_or_expr), nm))
   structure(out, status = status)
 }
+
+#' Solve or prove in one call
+#'
+#' Shortcuts that create a solver, add the constraints and check them.
+#' `z3_solve()` returns a model of the constraints, or `NULL` when they
+#' are unsatisfiable. `z3_prove()` checks that a Boolean claim holds for
+#' every value of its constants: it returns `TRUE` when it does, and
+#' otherwise `FALSE` with a counterexample model in the attribute
+#' `"counterexample"`. Both raise an error when Z3 returns `"unknown"`.
+#'
+#' @param ... Boolean `z3_expr` constraints, or lists of them.
+#' @param claim A Boolean `z3_expr`.
+#' @param timeout Optional time limit in milliseconds.
+#' @return `z3_solve()`: a `z3_model` or `NULL`. `z3_prove()`: `TRUE`, or
+#'   `FALSE` with a counterexample.
+#' @examples
+#' ctx <- z3_context()
+#' x <- z3_int(ctx, "x")
+#' z3_solve(x * x == 49, x < 0)
+#' z3_prove(x * x >= 0)
+#' z3_prove(x * x > 0)
+#' @export
+z3_solve <- function(..., timeout = NULL) {
+  cs <- flatten_args(...)
+  if (!length(cs)) stop("z3_solve() needs at least one constraint", call. = FALSE)
+  s <- z3_solver(z3_context_of(cs[[1]]))
+  z3_add(s, cs)
+  switch(one_check(s, timeout), sat = z3_model(s), unsat = NULL)
+}
+
+#' @rdname z3_solve
+#' @export
+z3_prove <- function(claim, timeout = NULL) {
+  s <- z3_solver(z3_context_of(claim))
+  z3_add(s, !claim)
+  switch(one_check(s, timeout), unsat = TRUE, sat = structure(FALSE, counterexample = z3_model(s)))
+}
+
+one_check <- function(s, timeout) {
+  r <- z3_check(s, timeout = timeout)
+  if (r == "unknown") stop(sprintf("Z3 returned \"unknown\": %s", z3_reason_unknown(s)), call. = FALSE)
+  r
+}

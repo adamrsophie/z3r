@@ -40,6 +40,11 @@
 #' the left, bit64's own operator method runs instead and fails, so write
 #' `z3_int_val(ctx, i64)` there.
 #'
+#' **Strings and roots.** `<`, `<=`, `>` and `>=` on two strings compare
+#' them lexicographically ([z3_str_lt()]). `sqrt()` of an Int or Real is
+#' `x^(1/2)`, Real-valued, and of a floating point number
+#' `z3_fp_sqrt()` with rounding to nearest, ties to even.
+#'
 #' **R's own logic.** `&&` and `||` cannot be overloaded; use [z3_and()]
 #' and [z3_or()]. A Z3 expression is never converted to `TRUE` or `FALSE`,
 #' so `if (x > 0)` is an error rather than a silent mistake. Note that
@@ -86,6 +91,11 @@ Summary.z3_expr <- function(..., na.rm = FALSE) {
 #' @export
 Math.z3_expr <- function(x, ...) {
   if (.Generic == "abs") return(z3_abs(x))
+  if (.Generic == "sqrt") {
+    kind <- z3_sort_kind(x)
+    if (kind == "floating_point") return(z3_fp_sqrt(z3_rounding(z3_context_of(x), "RNE"), x))
+    if (kind %in% c("int", "real")) return(x^(1/2))
+  }
   stop(sprintf("%s() has no exact counterpart in Z3", .Generic), call. = FALSE)
 }
 

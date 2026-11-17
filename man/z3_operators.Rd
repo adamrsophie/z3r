@@ -57,6 +57,11 @@ Classed values such as dates are refused; convert them first. A
 the left, bit64's own operator method runs instead and fails, so write
 \code{z3_int_val(ctx, i64)} there.
 
+\strong{Strings and roots.} \code{<}, \code{<=}, \code{>} and \code{>=} on two strings compare
+them lexicographically (\code{\link[=z3_str_lt]{z3_str_lt()}}). \code{sqrt()} of an Int or Real is
+\code{x^(1/2)}, Real-valued, and of a floating point number
+\code{z3_fp_sqrt()} with rounding to nearest, ties to even.
+
 \strong{R's own logic.} \code{&&} and \code{||} cannot be overloaded; use \code{\link[=z3_and]{z3_and()}}
 and \code{\link[=z3_or]{z3_or()}}. A Z3 expression is never converted to \code{TRUE} or \code{FALSE},
 so \verb{if (x > 0)} is an error rather than a silent mistake. Note that

@@ -160,6 +160,9 @@ SEXP cpp_lambda(Rcpp::List vars, SEXP body_) {
         Z3_get_decl_kind(c, Z3_get_app_decl(c, Z3_to_app(c, v))) != Z3_OP_UNINTERPRETED) {
       fail("bound variables must be constants such as those made by z3_int()");
     }
+    for (Z3_app b : bound) {
+      if (Z3_is_eq_ast(c, Z3_app_to_ast(c, b), v)) fail("each bound variable must appear only once");
+    }
     bound.push_back(Z3_to_app(c, v));
   }
   refuse_free_vars(c, std::vector<Z3_ast>{body}, "z3_lambda()");

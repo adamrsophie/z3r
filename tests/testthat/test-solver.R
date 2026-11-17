@@ -238,3 +238,24 @@ test_that("a NULL argument is an error, not a dropped constraint", {
   expect_error(z3_and(v$x > 0, NULL), "NULL")
   expect_length(z3_assertions(s), 0L)
 })
+
+test_that("z3_solve and z3_prove", {
+  ctx <- z3_context()
+  x <- z3_int(ctx, "x")
+  m <- z3_solve(x * x == 49, x < 0)
+  expect_equal(z3_value(m$x), -7)
+  expect_null(z3_solve(x > 0, x < 0))
+  expect_true(z3_prove(x * x >= 0))
+  p <- z3_prove(x * x > 0)
+  expect_false(p)
+  expect_equal(z3_value(attr(p, "counterexample")[["x"]]), 0)
+  expect_null(m$nothing)
+})
+
+test_that("each bound variable appears once", {
+  ctx <- z3_context()
+  x <- z3_int(ctx, "x")
+  expect_error(z3_forall(list(x, x), x > 0), "only once")
+  expect_error(z3_lambda(list(x, x), x), "only once")
+  expect_error(z3_decimal(z3_real_val(ctx, "1/3"), 1e7), "at most")
+})

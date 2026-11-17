@@ -119,6 +119,9 @@ SEXP cpp_quantifier(bool forall, Rcpp::List vars, SEXP body_, Rcpp::List pattern
     }
     const Ast& a = get_expr(v);
     same_ctx(ctx, a.ctx());
+    for (Z3_app b : bound) {
+      if (Z3_is_eq_ast(c, Z3_app_to_ast(c, b), a)) fail("each bound variable must appear only once");
+    }
     keep.push_back(a);
     bound.push_back(Z3_to_app(c, a));
   }

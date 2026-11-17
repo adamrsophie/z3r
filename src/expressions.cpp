@@ -658,6 +658,13 @@ static Ast binary(const CtxPtr& ctx, const std::string& op, SEXP x, SEXP y) {
     return own_ast(ctx, op == "&" ? Z3_mk_and(c, 2, r) : Z3_mk_or(c, 2, r));
   }
   if (is_fp(a) || is_fp(b)) return fp_binary(ctx, op, a, b);
+  // Strings compare lexicographically, as R compares character strings.
+  if (is_string(a) && is_string(b) && (op == "<" || op == "<=" || op == ">" || op == ">=")) {
+    bool strict = op == "<" || op == ">";
+    bool flip = op == ">" || op == ">=";
+    Z3_ast l = flip ? b : a, r = flip ? a : b;
+    return own_ast(ctx, strict ? Z3_mk_str_lt(c, l, r) : Z3_mk_str_le(c, l, r));
+  }
   if (is_bv(a) || is_bv(b)) {
     need_same_bv(a, b, op);
     if (op == "+") return own_ast(ctx, Z3_mk_bvadd(c, a, b));

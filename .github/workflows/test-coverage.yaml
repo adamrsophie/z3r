@@ -1,0 +1,63 @@
+# Measures test coverage against the latest Z3 release and uploads it to
+# Codecov. The Z3 archive is an official release asset verified by SHA-256.
+name: test-coverage
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions: read-all
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-coverage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      Z3_ASSET: z3-5.4.1-x64-glibc-2.39.zip
+      Z3_SHA: b548bac48ef2452b4e09ea2945cf4b011d5f43fcf39e4799df268ee7e0769d85
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Download pinned Z3 release
+        run: |
+          (
+            cd "$RUNNER_TEMP"
+            curl -sSL -o z3.zip "https://github.com/Z3Prover/z3/releases/download/z3-5.4.1/$Z3_ASSET"
+            echo "$Z3_SHA  z3.zip" | sha256sum -c -
+            unzip -q z3.zip
+          )
+          Z3_DIR="$RUNNER_TEMP/${Z3_ASSET%.zip}"
+          echo "Z3_DIR=$Z3_DIR" >> "$GITHUB_ENV"
+          echo "Z3_INCLUDE_DIR=$Z3_DIR/include" >> "$GITHUB_ENV"
+          echo "Z3_LIB_DIR=$Z3_DIR/bin" >> "$GITHUB_ENV"
+
+      - uses: r-lib/actions/setup-r@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2.14.0
+        with:
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2.14.0
+        with:
+          extra-packages: any::covr, any::xml2
+          needs: coverage
+
+      - name: Test coverage
+        run: |
+          cov <- covr::package_coverage(quiet = FALSE, clean = FALSE)
+          print(cov)
+          covr::to_cobertura(cov, filename = "cobertura.xml")
+        shell: Rscript {0}
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          files: ./cobertura.xml
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

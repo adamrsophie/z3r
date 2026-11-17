@@ -4,6 +4,11 @@
 
 <!-- badges: start -->
 [![R-CMD-check](https://github.com/adamrsophie/z3r/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/adamrsophie/z3r/actions/workflows/R-CMD-check.yaml)
+[![All Z3 releases](https://github.com/adamrsophie/z3r/actions/workflows/all-z3-releases.yaml/badge.svg)](https://github.com/adamrsophie/z3r/actions/workflows/all-z3-releases.yaml)
+[![Codecov test coverage](https://codecov.io/gh/adamrsophie/z3r/graph/badge.svg)](https://app.codecov.io/gh/adamrsophie/z3r)
+[![pkgdown](https://github.com/adamrsophie/z3r/actions/workflows/pkgdown.yaml/badge.svg)](https://adamrsophie.github.io/z3r/)
+[![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 <!-- badges: end -->
 
 z3r gives R direct access to [Z3](https://github.com/Z3Prover/z3), the

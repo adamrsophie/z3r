@@ -12,7 +12,7 @@ z3_binary_string(x)
 \arguments{
 \item{x}{A numeric \code{z3_expr} value.}
 
-\item{digits}{Number of digits after the decimal point.}
+\item{digits}{Number of digits after the decimal point, at most 1e6.}
 }
 \value{
 A character string.

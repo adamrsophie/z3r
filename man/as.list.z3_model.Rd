@@ -3,6 +3,8 @@
 \name{as.list.z3_model}
 \alias{as.list.z3_model}
 \alias{z3_model_values}
+\alias{[[.z3_model}
+\alias{$.z3_model}
 \alias{z3_model_functions}
 \title{Contents of a model}
 \usage{
@@ -10,12 +12,18 @@
 
 z3_model_values(model)
 
+\method{[[}{z3_model}(x, name, ...)
+
+\method{$}{z3_model}(x, name)
+
 z3_model_functions(model)
 }
 \arguments{
 \item{x, model}{A \code{z3_model}.}
 
 \item{...}{Unused.}
+
+\item{name}{Name of a constant in the model.}
 }
 \value{
 A named list.
@@ -47,4 +55,5 @@ z3_check(s)
 m <- z3_model(s)
 as.list(m)
 z3_model_values(m)
+m$x
 }

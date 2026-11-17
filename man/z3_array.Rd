@@ -3,6 +3,7 @@
 \name{z3_array}
 \alias{z3_array}
 \alias{z3_select}
+\alias{[.z3_expr}
 \alias{z3_store}
 \alias{z3_const_array}
 \alias{z3_array_map}
@@ -16,6 +17,8 @@
 z3_array(ctx, name, domain, range)
 
 z3_select(a, i, ...)
+
+\method{[}{z3_expr}(x, i, ...)
 
 z3_store(a, i, v)
 
@@ -49,6 +52,8 @@ multi-index array, a list of indices.}
 \item{...}{Further indices for multi-index arrays, or arrays for
 \code{z3_array_map()}.}
 
+\item{x}{An array expression or array sort.}
+
 \item{v}{A value (expression or R scalar).}
 
 \item{value}{The value of every element of a constant array.}
@@ -60,8 +65,6 @@ multi-index array, a list of indices.}
 \item{vars}{A constant or list of constants to bind.}
 
 \item{body}{An expression.}
-
-\item{x}{An array expression or array sort.}
 }
 \value{
 A \code{z3_expr}.

@@ -87,7 +87,7 @@ test_that("invalid sort combinations are rejected", {
   expect_error(b / 2, "signed and unsigned")
   expect_error(s + 1, "needs Int or Real")
   expect_error(x == "a", "string literals")
-  expect_error(s < "a", "needs Int or Real")
+  expect_s3_class(s < "a", "z3_expr")
   expect_error(b == z3_bv(ctx, "c", 16), "equal width")
 })
 
@@ -176,7 +176,8 @@ test_that("sum, prod and abs", {
   expect_identical(format(abs(v$a)),
                    if (z3_version_at_least("4.13.2")) "(abs a)" else "(ite (< a 0) (- a) a)")
   expect_identical(z3_value(z3_simplify(abs(z3_int_val(ctx, -5)))), 5)
-  expect_error(sqrt(v$a), "no exact counterpart")
+  expect_identical(z3_sort_kind(sqrt(v$a)), "real")
+  expect_error(exp(v$a), "no exact counterpart")
   expect_error(max(v$a, v$b), "not defined")
 })
 
@@ -201,4 +202,19 @@ test_that("Ops dispatch prefers z3_expr over gmp methods", {
 test_that("z3_decimal() truncates and marks inexact digits", {
   ctx <- z3_context()
   expect_identical(z3_decimal(z3_real_val(ctx, "2/3"), 2), "0.66?")
+})
+
+test_that("strings compare lexicographically; sqrt; array indexing", {
+  ctx <- z3_context()
+  s <- z3_string(ctx, "s")
+  expect_true(z3_value(z3_simplify(z3_string_val(ctx, "abc") < "abd")))
+  expect_true(z3_value(z3_simplify(z3_string_val(ctx, "b") >= "a")))
+  expect_s3_class(s > "m", "z3_expr")
+  r <- z3_real(ctx, "r")
+  expect_equal(z3_value(z3_simplify(sqrt(z3_real_val(ctx, 9)))), 3)
+  f <- z3_fp_sort(ctx, "double")
+  expect_equal(z3_value(z3_simplify(sqrt(z3_fp_val(ctx, 16, f)))), 4)
+  a <- z3_array(ctx, "a", z3_int_sort(ctx), z3_int_sort(ctx))
+  expect_true(z3_value(z3_simplify(a[1] == z3_select(a, 1))))
+  expect_error(r[1], "only array")
 })

@@ -59,6 +59,7 @@ z3_eval <- function(model, x, completion = FALSE) {
 #' m <- z3_model(s)
 #' as.list(m)
 #' z3_model_values(m)
+#' m$x
 #' @export
 as.list.z3_model <- function(x, ...) {
   k <- cpp_model_consts(x)
@@ -68,6 +69,27 @@ as.list.z3_model <- function(x, ...) {
 #' @rdname as.list.z3_model
 #' @export
 z3_model_values <- function(model) lapply(as.list(model), value_or_expr)
+
+#' @rdname as.list.z3_model
+#' @param name Name of a constant in the model.
+#' @export
+`[[.z3_model` <- function(x, name, ...) {
+  if (!is.character(name) || length(name) != 1L || is.na(name)) {
+    stop("name must be a single string", call. = FALSE)
+  }
+  k <- cpp_model_consts(x)
+  hit <- which(k$names == name)
+  if (length(hit) > 1L) {
+    stop(sprintf("the model has %d constants named '%s'; use z3_eval() with the constant",
+                 length(hit), name), call. = FALSE)
+  }
+  if (!length(hit)) return(NULL)
+  k$values[[hit]]
+}
+
+#' @rdname as.list.z3_model
+#' @export
+`$.z3_model` <- function(x, name) x[[name]]
 
 # An R value where one represents the Z3 value exactly, else the expression.
 value_or_expr <- function(v) {

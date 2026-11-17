@@ -351,17 +351,20 @@ number_value <- function(info, exact) {
 #' digits is `"0.66?"`.
 #'
 #' @param x A numeric `z3_expr` value.
-#' @param digits Number of digits after the decimal point.
+#' @param digits Number of digits after the decimal point, at most 1e6.
 #' @return A character string.
 #' @examples
 #' ctx <- z3_context()
 #' z3_decimal(z3_real_val(ctx, "1/3"), 5)
 #' @export
 z3_decimal <- function(x, digits = 10) {
-  info <- cpp_value_info(x, as_count(digits, "digits"))
+  digits <- as_count(digits, "digits")
+  # Z3 builds the whole string in memory; a typo such as 1e9 would exhaust it.
+  if (digits > 1e6) stop("digits must be at most 1e6", call. = FALSE)
+  info <- cpp_value_info(x, digits)
   if (info$kind == "algebraic") return(info$decimal)
   if (!info$kind %in% c("int", "real", "bv")) stop("x must be a numeric value", call. = FALSE)
-  cpp_decimal_string(x, as_count(digits, "digits"))
+  cpp_decimal_string(x, digits)
 }
 
 #' @export
