@@ -31,23 +31,15 @@ z3_is_recursive_datatype(sort)
 
 ## Arguments
 
-- ctx:
-
-  A
-  [`z3_context()`](https://adamrsophie.github.io/z3r/reference/z3_context.md).
-
-- name:
-
-  Name of the datatype.
-
 - ...:
 
   Constructors, each a named list of field sorts. For `z3_tuple_sort()`,
   the named field sorts.
 
-- parameters:
+- ctx:
 
-  Optional list of type variables.
+  A
+  [`z3_context()`](https://adamrsophie.github.io/z3r/reference/z3_context.md).
 
 - specs:
 
@@ -57,6 +49,10 @@ z3_is_recursive_datatype(sort)
 - sort:
 
   A datatype sort (or a `z3_datatype`), or sorts for the instance.
+
+- name:
+
+  Name of the datatype.
 
 - values:
 
@@ -77,6 +73,10 @@ z3_is_recursive_datatype(sort)
 - value:
 
   New value of the field.
+
+- parameters:
+
+  Optional list of type variables.
 
 ## Value
 
@@ -113,11 +113,13 @@ dedicated constructors.
 A datatype name can be declared once per context: Z3 would replace the
 earlier datatype and free sorts and functions that R objects still use,
 so z3r refuses a second declaration, also when a script runs again. Keep
-the earlier object, or use another name or a new context. z3r cannot see
-datatypes declared by SMT-LIB text
+the earlier object, or use another name or a new context. The same holds
+for datatypes declared by SMT-LIB text
 ([`z3_from_smtlib()`](https://adamrsophie.github.io/z3r/reference/z3_to_smtlib.md),
-[`z3_eval_smtlib()`](https://adamrsophie.github.io/z3r/reference/z3_to_smtlib.md))
-or copied in by
+[`z3_add_smtlib()`](https://adamrsophie.github.io/z3r/reference/z3_to_smtlib.md),
+[`z3_eval_smtlib()`](https://adamrsophie.github.io/z3r/reference/z3_to_smtlib.md)
+and the other parsers): text that declares a name the context already
+has is refused. z3r cannot see datatypes copied in by
 [`z3_translate()`](https://adamrsophie.github.io/z3r/reference/z3_translate.md);
 do not declare such a name again in that context. `z3_tuple_sort()`
 names its constructor `mk_<name>`. A datatype with a single constructor

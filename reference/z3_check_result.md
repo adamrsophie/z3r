@@ -51,10 +51,11 @@ with the elements above. `z3_build_info()` returns a list.
 - `params`: the parameters set on the solver, as Z3's text.
 
 - `fingerprint`: a structural hash of the assertions, tracked labels and
-  assumptions. Two checks of the same formulas have the same fingerprint
-  in one Z3 version; it is not a cryptographic hash. It is `NA` when z3r
-  cannot list the assertions (a solver with a simplifier that SMT-LIB
-  was parsed into).
+  assumptions, and for an optimizer its objectives and soft constraints.
+  Two checks of the same formulas have the same fingerprint in one Z3
+  version; it is not a cryptographic hash. It is `NA` when z3r cannot
+  list the assertions (a solver with a simplifier that SMT-LIB was
+  parsed into).
 
 - `build`: `z3_build_info()`.
 

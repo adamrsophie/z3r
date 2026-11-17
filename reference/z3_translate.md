@@ -2,8 +2,9 @@
 
 Copies an expression, sort, function, solver, optimizer, model or goal
 into another context. This is the only way to combine objects from
-different contexts. Translating into the object's own context returns it
-unchanged. Optimizers need Z3 4.15.5 or later.
+different contexts. Translating an expression, sort or function into its
+own context returns it unchanged; a solver, optimizer, model or goal is
+always copied. Optimizers need Z3 4.15.5 or later.
 
 ## Usage
 
@@ -34,10 +35,16 @@ A translated solver or optimizer keeps its assertions and the parameters
 set with
 [`z3_set_params()`](https://adamrsophie.github.io/z3r/reference/z3_set_params.md),
 which z3r applies to the copy again (Z3 does not carry over every limit,
-such as `rlimit`). The copy of an optimizer has no open scopes: Z3
-copies all its assertions at the base level, so
+such as `rlimit`), and its tracked constraints. The copy has no open
+scopes: Z3 copies all assertions at the base level, so
 [`z3_pop()`](https://adamrsophie.github.io/z3r/reference/z3_push.md) on
-it cannot remove them.
+it cannot remove them. Objective handles from
+[`z3_maximize()`](https://adamrsophie.github.io/z3r/reference/z3_minimize.md)
+and
+[`z3_minimize()`](https://adamrsophie.github.io/z3r/reference/z3_minimize.md)
+belong to the original optimizer; read the copy's optima from its model
+or with
+[`z3_objectives()`](https://adamrsophie.github.io/z3r/reference/z3_objectives.md).
 
 A plain list of expressions (all from one context) is translated in one
 step, so subterms shared between its elements are copied once; names are

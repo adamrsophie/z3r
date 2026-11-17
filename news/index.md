@@ -127,3 +127,8 @@ than the one z3r was built with report the release they need.
   objects can be garbage collected in any order.
 - Z3 errors become R errors. Objects restored from a saved session, and
   objects from different contexts, are refused with a clear message.
+- Operations that would silently change the meaning of a problem are
+  refused instead: redeclaring a datatype name (also through SMT-LIB
+  text), exporting a solver whose user propagator holds constraints only
+  in R, exporting soft constraint weights or names that Z3’s text cannot
+  represent exactly, and installing a propagator after a search.

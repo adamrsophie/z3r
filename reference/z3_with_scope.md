@@ -57,7 +57,12 @@ with `on_model`, an empty list with attributes `"status"` and `"count"`
 `z3_all_models(solver, vars, limit)` lists the distinct assignments of
 `vars` in models of the solver's assertions, at most `limit` of them. It
 blocks each assignment found and checks again, inside a scope, so the
-solver is unchanged afterwards. Values are converted as by
+solver's assertions and scopes are unchanged afterwards; the result of
+an earlier
+[`z3_check()`](https://adamrsophie.github.io/z3r/reference/z3_check.md)
+is not kept, so check again before
+[`z3_model()`](https://adamrsophie.github.io/z3r/reference/z3_model.md).
+Values are converted as by
 [`z3_model_values()`](https://adamrsophie.github.io/z3r/reference/as.list.z3_model.md).
 The `"status"` attribute says why enumeration stopped: `"unsat"` (all
 assignments were found), `"limit"`, `"unknown"` or `"stopped"`.

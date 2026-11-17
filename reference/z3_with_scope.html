@@ -127,7 +127,8 @@ and <code>"count"</code> (the number of assignments passed on).</p>
     <p><code>z3_all_models(solver, vars, limit)</code> lists the distinct assignments of
 <code>vars</code> in models of the solver's assertions, at most <code>limit</code> of them. It
 blocks each assignment found and checks again, inside a scope, so the
-solver is unchanged afterwards. Values are converted as by
+solver's assertions and scopes are unchanged afterwards; the result of an
+earlier <code><a href="z3_check.html">z3_check()</a></code> is not kept, so check again before <code><a href="z3_model.html">z3_model()</a></code>. Values are converted as by
 <code><a href="as.list.z3_model.html">z3_model_values()</a></code>. The <code>"status"</code> attribute says why enumeration
 stopped: <code>"unsat"</code> (all assignments were found), <code>"limit"</code>,
 <code>"unknown"</code> or <code>"stopped"</code>.</p>

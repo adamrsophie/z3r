@@ -109,7 +109,8 @@ and <code>proof</code> (for <code>"unsat"</code> in a context made with
 <li><p><code>statistics</code>: Z3's statistics after the check.</p></li>
 <li><p><code>params</code>: the parameters set on the solver, as Z3's text.</p></li>
 <li><p><code>fingerprint</code>: a structural hash of the assertions, tracked labels
-and assumptions. Two checks of the same formulas have the same
+and assumptions, and for an optimizer its objectives and soft
+constraints. Two checks of the same formulas have the same
 fingerprint in one Z3 version; it is not a cryptographic hash. It is
 <code>NA</code> when z3r cannot list the assertions (a solver with a simplifier
 that SMT-LIB was parsed into).</p></li>
