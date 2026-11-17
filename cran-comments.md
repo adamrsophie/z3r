@@ -19,5 +19,4 @@ Fedora ship it as libz3-dev and z3-devel.
 
 0 errors | 0 warnings | 1 note
 
-* New submission. (The suggested package symcompR is on CRAN; the
-  `Remotes` field is removed before submission.)
+* New submission.
