@@ -58,49 +58,50 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.0" id="z3r-010">z3r 0.1.0<a class="anchor" aria-label="anchor" href="#z3r-010"></a></h2>
-<p>First release. z3r targets Z3 5.4.1 and builds against every Z3 release from 4.8.13; CI runs the tests on one release from each series on every push and on all 43 releases monthly. With <code>Z3R_DOWNLOAD=true</code> (and on R-universe), an installation that finds no usable Z3 downloads the pinned official 5.4.1 release, verifies its SHA-256 checksum and installs libz3 inside the package; nothing is downloaded otherwise. Features that need a newer Z3 than the one z3r was built with say which version they need.</p>
+<p>First release of z3r, a native R interface to the Z3 theorem prover.</p>
+<p>z3r gives R direct access to Z3’s C API: expressions over all of Z3’s theories, incremental solving, optimization, tactics, fixedpoint engines, user propagators and SMT-LIB2. It targets Z3 5.4.1 and builds against every Z3 release from 4.8.13. Functions that need a newer Z3 than the one z3r was built with report the release they need.</p>
 <div class="section level3">
-<h3 id="native-foundation-0-1-0">Native foundation<a class="anchor" aria-label="anchor" href="#native-foundation-0-1-0"></a></h3>
-<ul><li>Contexts created with <code>Z3_mk_context_rc</code>; every Z3 object is reference counted and keeps its context alive, so objects can be garbage collected in any order. Context configuration (<code>z3_context(proof = TRUE, ...)</code>) is validated.</li>
-<li>Z3 errors become R errors without leaking references. Objects restored from saved sessions fail with a clear message instead of crashing. Objects from different contexts are rejected; <code><a href="../reference/z3_translate.html">z3_translate()</a></code> copies between contexts.</li>
+<h3 id="installation-0-1-0">Installation<a class="anchor" aria-label="anchor" href="#installation-0-1-0"></a></h3>
+<ul><li>
+<code>configure</code> finds Z3 through <code>PKG_CPPFLAGS</code> and <code>PKG_LIBS</code>, <code>Z3_INCLUDE_DIR</code> and <code>Z3_LIB_DIR</code>, <code>pkg-config</code> or common installation prefixes, and checks that the headers and the library are the same release. On Windows, <code>configure.win</code> accepts an official release archive through <code>Z3_DIR</code> and installs its DLLs and license next to z3r.</li>
+<li>With <code>Z3R_DOWNLOAD=true</code>, and on R-universe, an installation that finds no usable Z3 downloads the pinned official Z3 5.4.1 release, verifies its SHA-256 checksum and installs the library inside the package. Nothing is downloaded otherwise.</li>
 <li>
-<code>configure</code> locates Z3 through <code>PKG_CPPFLAGS</code>/<code>PKG_LIBS</code>, <code>Z3_INCLUDE_DIR</code>/<code>Z3_LIB_DIR</code>, <code>pkg-config</code> or common prefixes, links it by full path (on Linux with a run-time path that <code>LD_LIBRARY_PATH</code> cannot override), and refuses mismatched headers and libraries. <code>configure.win</code> supports official Windows release archives through <code>Z3_DIR</code> and installs their DLLs and license beside z3r. z3r refuses to load with a Z3 library other than the release it was compiled against.</li>
-<li>Ctrl-C interrupts a running check.</li>
-<li>
-<code><a href="../reference/z3_trace.html">z3_trace()</a></code> switches Z3’s debug traces; <code><a href="../reference/z3_context.html">z3_context()</a></code> can enable concurrent reference count decrements.</li>
+<code><a href="../reference/z3_version.html">z3_version()</a></code> and <code><a href="../reference/z3_check_result.html">z3_build_info()</a></code> report the Z3 release, how it was found, the loaded library and the compiler.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="expressions-0-1-0">Expressions<a class="anchor" aria-label="anchor" href="#expressions-0-1-0"></a></h3>
-<ul><li>Int, Real, Bool, bit-vector, floating point, rounding mode, String, sequence, regular expression, character, array, set, datatype, finite domain and uninterpreted sorts, plus the complex, finite field and finite set sorts of Z3 5, with complex arithmetic and R complex literals.</li>
-<li>Exact numerals from strings, R numbers and <code>gmp</code> numbers, with a documented conversion policy for doubles. <code><a href="../reference/z3_value.html">z3_value()</a></code> converts results to R without loss of precision.</li>
-<li>R operators with z3r’s own sort checking; <code>&lt;</code> and friends order strings, <code><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt()</a></code> works on Int, Real and floating point terms, and <code>a[i]</code> reads an array.</li>
-<li>Inspection (<code><a href="../reference/z3_inspect.html">z3_kind()</a></code>, <code><a href="../reference/z3_inspect.html">z3_decl()</a></code>, <code><a href="../reference/z3_inspect.html">z3_args()</a></code>, <code><a href="../reference/z3_inspect.html">z3_decl_info()</a></code>, <code><a href="../reference/z3_inspect.html">z3_quantifier_info()</a></code>), substitution, simplification with parameters, identifiers and print modes.</li>
-<li>Strings with SMT-LIB escapes or from raw bytes, and their escaped and byte forms (<code><a href="../reference/z3_string_escaped.html">z3_string_escaped()</a></code>, <code><a href="../reference/z3_string_escaped.html">z3_string_bytes()</a></code>); rationals from a numerator and denominator; integer constant names; <code><a href="../reference/z3_sort.html">z3_sort_name()</a></code>.</li>
-<li>Quantifiers and lambdas over de Bruijn indexed variables (<code><a href="../reference/z3_forall.html">z3_quantifier_db()</a></code>) and printable patterns (<code><a href="../reference/z3_forall.html">z3_pattern()</a></code>).</li>
-<li>
-<code><a href="../reference/z3_ast_map.html">z3_ast_map()</a></code>, a dictionary keyed by Z3 terms, and <code><a href="../reference/z3_format_terms.html">z3_format_terms()</a></code>.</li>
+<ul><li>Sorts: Boolean, integer, real, bit-vector, floating point, rounding mode, string, sequence, regular expression, character, array, set, algebraic datatype, finite domain and uninterpreted sorts, and the complex, finite field and finite set sorts of Z3 5.</li>
+<li>Exact numerals from strings, R numbers and <code>gmp</code> numbers, with a documented policy for doubles (<code>options(z3r.doubles)</code>). <code><a href="../reference/z3_value.html">z3_value()</a></code> converts results to R without loss of precision.</li>
+<li>R operators and math functions on Z3 terms, with sort checking: arithmetic, comparisons (also lexicographic order on strings), Boolean logic, <code><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">sqrt()</a></code>, and <code>a[i]</code> on arrays.</li>
+<li>Batch construction of constants (<code><a href="../reference/z3_const.html">z3_ints()</a></code>, <code><a href="../reference/z3_const.html">z3_reals()</a></code>, <code><a href="../reference/z3_const.html">z3_bools()</a></code>) and n-ary sums and products (<code><a href="../reference/z3_sum.html">z3_sum()</a></code>, <code><a href="../reference/z3_sum.html">z3_prod()</a></code>).</li>
+<li>Inspection of terms and declarations, substitution, simplification with parameters, quantifiers and lambdas with patterns and weights, and a dictionary keyed by terms (<code><a href="../reference/z3_ast_map.html">z3_ast_map()</a></code>).</li>
+<li>Translation of objects between contexts (<code><a href="../reference/z3_translate.html">z3_translate()</a></code>) and to and from the symcompR computer algebra package, refusing any conversion that would change the meaning of an expression.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="solving-0-1-0">Solving<a class="anchor" aria-label="anchor" href="#solving-0-1-0"></a></h3>
-<ul><li>One-call shortcuts: <code><a href="../reference/z3_solve.html">z3_solve()</a></code> returns a model or <code>NULL</code>, and <code><a href="../reference/z3_solve.html">z3_prove()</a></code> returns <code>TRUE</code> or <code>FALSE</code> with a counterexample.</li>
-<li>Solvers with assertions, tracked assertions, assumptions, push/pop/reset, <code><a href="../reference/z3_with_scope.html">z3_with_scope()</a></code>, model enumeration (<code><a href="../reference/z3_with_scope.html">z3_all_models()</a></code>), models with staleness protection (each <code><a href="../reference/z3_model.html">z3_model()</a></code> is a separate copy), <code>m$x</code> and <code>m[["x"]]</code> for the value of a constant, hand-built models, unsatisfiable cores, proofs, consequences, cubes, units and trails, congruence classes, solving for variables, initial values, typed parameters, statistics (also as Z3’s text, <code><a href="../reference/z3_statistics.html">z3_statistics_text()</a></code>) and DIMACS export of clauses (other formulas are refused, not renamed).</li>
-<li>SMT-LIB exports of solvers with tracked constraints or a simplifier, and of optimizers, check to the same answer as the original.</li>
-<li>Timeouts for a single check (<code>z3_check(timeout = )</code>), which keep the other parameters of a solver or optimizer and restore the context’s timeout (also a global one in force when the context was made), and <code><a href="../reference/z3_interrupt.html">z3_interrupt()</a></code>, which stops a solver’s or optimizer’s check from inside its own callbacks.</li>
-<li>Optimization with hard and soft constraints, objectives (including the cost of soft constraint groups) and priorities, unbounded and non-attained optima, model callbacks, and, when a check returns <code>"unknown"</code>, the bounds and the value of the best model found so far (which must satisfy tracked constraints too). <code><a href="../reference/z3_objectives.html">z3_objectives()</a></code> lists every objective, also those parsed from SMT-LIB.</li>
-<li>User propagators, clause callbacks and the proof checker callback. R errors and interrupts are raised safely after the check, callbacks cannot reenter their own solver, and callback closures do not keep their solver or context alive. Callbacks never run R code on Z3’s worker threads; a <code>"sat"</code> found there is refused. A propagator needs push and pop functions.</li>
+<ul><li>Solvers with assertions, tracked assertions, assumptions, scopes (<code><a href="../reference/z3_push.html">z3_push()</a></code>, <code><a href="../reference/z3_push.html">z3_pop()</a></code>, <code><a href="../reference/z3_with_scope.html">z3_with_scope()</a></code>), unsatisfiable cores, proofs, consequences, cubes, units and trails, congruence classes, solving for variables, initial values, typed parameters and statistics.</li>
+<li>One-call shortcuts: <code><a href="../reference/z3_solve.html">z3_solve()</a></code> returns a model or <code>NULL</code>, and <code><a href="../reference/z3_solve.html">z3_prove()</a></code> returns <code>TRUE</code> or <code>FALSE</code> with a counterexample.</li>
+<li>
+<code><a href="../reference/z3_check_result.html">z3_check_result()</a></code> returns the status, model, core, proof, timing, statistics, parameters, a fingerprint of the input and the build in one object, for batches and reports.</li>
+<li>Models: each <code><a href="../reference/z3_model.html">z3_model()</a></code> is an independent copy; values by name (<code>m$x</code>, <code>m[["x"]]</code>), batch evaluation of expressions (<code><a href="../reference/z3_eval.html">z3_eval()</a></code> with a list) and conversion of all or selected values (<code><a href="../reference/as.list.z3_model.html">z3_model_values()</a></code>); enumeration of distinct models (<code><a href="../reference/z3_with_scope.html">z3_all_models()</a></code>); hand-built models.</li>
+<li>Per-check timeouts (<code>z3_check(timeout = )</code>) that leave the solver’s other parameters in place, interruption with Ctrl-C, and <code><a href="../reference/z3_interrupt.html">z3_interrupt()</a></code> from inside callbacks.</li>
+<li>Optimization with hard and soft constraints, multiple objectives with priorities, unbounded and non-attained optima, bounds and the best model found when a check returns <code>"unknown"</code>, and model callbacks.</li>
+<li>User propagators, clause callbacks and proof checker callbacks written in R. Errors and interrupts in callbacks are raised in R after the check, and R code never runs on Z3’s worker threads; a result found by a solver copy that could not run the callbacks is refused.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="theories-and-engines-0-1-0">Theories and engines<a class="anchor" aria-label="anchor" href="#theories-and-engines-0-1-0"></a></h3>
-<ul><li>Arithmetic, bit-vectors with overflow predicates, IEEE floating point, arrays (multi-index, map, default, lambdas), sets, strings, sequences, regular expressions and characters.</li>
-<li>Algebraic datatypes: recursive, mutually recursive, enumerations, tuples (<code><a href="../reference/z3_datatype.html">z3_tuple_fields()</a></code>), lists and polymorphic datatypes. Declaring a datatype name twice in one context is refused, since Z3 would free the sorts of the first declaration.</li>
-<li>Floating point formats by name or width (<code>z3_fp_sort(ctx, "half")</code>), SMT-LIB rounding mode names, numeric parts of numerals, and rounding of a symbolic <code>significand * 2^exponent</code> (<code><a href="../reference/z3_fp.html">z3_fp_from_real_exp()</a></code>).</li>
-<li>Function interpretations with defaults set after creation (<code><a href="../reference/z3_model_set.html">z3_model_set_default()</a></code>); Datalog relation sorts (<code><a href="../reference/z3_relation_columns.html">z3_relation_columns()</a></code>).</li>
-<li>Uninterpreted and recursive functions (recursive definitions need Z3 4.8.16), quantifiers with patterns and weights, special relations, pseudo-Boolean constraints.</li>
+<ul><li>Linear and nonlinear arithmetic, bit-vectors with overflow predicates, IEEE floating point, arrays (multi-index, map, default values, lambdas), sets, strings, sequences, regular expressions and characters.</li>
+<li>Algebraic datatypes: recursive, mutually recursive, enumerations, tuples, lists and polymorphic datatypes.</li>
+<li>Uninterpreted and recursive functions, special relations and pseudo-Boolean constraints.</li>
 <li>Tactics, probes, goals and simplifiers.</li>
-<li>The fixedpoint engine for constrained Horn clauses (Spacer) and Datalog, Spacer lemma callbacks (<code><a href="../reference/z3_on_lemma.html">z3_on_lemma()</a></code>), external Datalog relations (<code><a href="../reference/z3_on_lemma.html">z3_fixedpoint_external()</a></code>), and Spacer’s model-based projection (<code><a href="../reference/z3_model_project.html">z3_model_project()</a></code>), model extrapolation and <code><a href="../reference/z3_model_project.html">z3_qe_lite()</a></code>.</li>
+<li>The fixedpoint engine for constrained Horn clauses (Spacer) and Datalog, with lemma callbacks, external relations, model-based projection and quantifier elimination.</li>
 <li>Real closed fields, algebraic number arithmetic and polynomial subresultants.</li>
-<li>SMT-LIB2 export (tracked constraints keep their labels asserted, so the text has the solver’s answer), parsing and the SMT-LIB2 command interpreter.</li>
-<li>Translation to and from the symcompR computer algebra package.</li>
+<li>SMT-LIB2 parsing, export (with tracked constraints and the inputs of solvers with simplifiers, so the text has the solver’s answer) and the SMT-LIB2 command interpreter; DIMACS export of clausal problems.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="safety-0-1-0">Safety<a class="anchor" aria-label="anchor" href="#safety-0-1-0"></a></h3>
+<ul><li>Every Z3 object is reference counted and keeps its context alive, so objects can be garbage collected in any order.</li>
+<li>Z3 errors become R errors. Objects restored from a saved session, and objects from different contexts, are refused with a clear message.</li>
 </ul></div>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

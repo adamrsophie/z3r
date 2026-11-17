@@ -5,7 +5,11 @@ as.list() returns the model's constant assignments as a named list
 of z3_expr values. Nothing is converted, so no precision is lost.
 z3_model_values() converts each value with z3_value(). Values that
 have no exact R representation (algebraic numbers, arrays, values of
-uninterpreted sorts) are kept as z3_expr objects.
+uninterpreted sorts) are kept as z3_expr objects. With vars (a
+list of expressions), it returns the values of those expressions
+instead, evaluated with completion so that every one is a value; the
+names are those of vars, or their text. Evaluation and conversion
+each take one native call.
 z3_model_functions() returns the interpretations of uninterpreted
 functions: for each function, a list of entries (argument values and
 result) and an else value for all other arguments (NULL in a
@@ -17,7 +21,11 @@ as.list() returns the model's constant assignments as a named list
 of z3_expr values. Nothing is converted, so no precision is lost.
 z3_model_values() converts each value with z3_value(). Values that
 have no exact R representation (algebraic numbers, arrays, values of
-uninterpreted sorts) are kept as z3_expr objects.
+uninterpreted sorts) are kept as z3_expr objects. With vars (a
+list of expressions), it returns the values of those expressions
+instead, evaluated with completion so that every one is a value; the
+names are those of vars, or their text. Evaluation and conversion
+each take one native call.
 z3_model_functions() returns the interpretations of uninterpreted
 functions: for each function, a list of entries (argument values and
 result) and an else value for all other arguments (NULL in a
@@ -87,7 +95,11 @@ partial model, which has none).
 of <code>z3_expr</code> values. Nothing is converted, so no precision is lost.</p></li>
 <li><p><code>z3_model_values()</code> converts each value with <code><a href="z3_value.html">z3_value()</a></code>. Values that
 have no exact R representation (algebraic numbers, arrays, values of
-uninterpreted sorts) are kept as <code>z3_expr</code> objects.</p></li>
+uninterpreted sorts) are kept as <code>z3_expr</code> objects. With <code>vars</code> (a
+list of expressions), it returns the values of those expressions
+instead, evaluated with completion so that every one is a value; the
+names are those of <code>vars</code>, or their text. Evaluation and conversion
+each take one native call.</p></li>
 <li><p><code>z3_model_functions()</code> returns the interpretations of uninterpreted
 functions: for each function, a list of <code>entries</code> (argument values and
 result) and an <code>else</code> value for all other arguments (<code>NULL</code> in a
@@ -99,7 +111,7 @@ partial model, which has none).</p></li>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="co"># S3 method for class 'z3_model'</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">as.list</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">z3_model_values</span><span class="op">(</span><span class="va">model</span><span class="op">)</span></span>
+<span><span class="fu">z3_model_values</span><span class="op">(</span><span class="va">model</span>, vars <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S3 method for class 'z3_model'</span></span>
 <span><span class="va">x</span><span class="op">[[</span><span class="va">name</span>, <span class="va">...</span><span class="op">]</span><span class="op">]</span></span>
@@ -120,6 +132,10 @@ partial model, which has none).</p></li>
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
 <dd><p>Unused.</p></dd>
+
+
+<dt id="arg-vars">vars<a class="anchor" aria-label="anchor" href="#arg-vars"></a></dt>
+<dd><p>Optional list of expressions (or one expression) to evaluate.</p></dd>
 
 
 <dt id="arg-name">name<a class="anchor" aria-label="anchor" href="#arg-name"></a></dt>
@@ -161,6 +177,15 @@ see <code><a href="z3_eval.html">z3_eval()</a></code> with <code>completion = TR
 <span class="r-out co"><span class="r-pr">#&gt;</span> $x</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Big Integer ('bigz') :</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1180591620717411303424</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-in"><span><span class="fu">z3_model_values</span><span class="op">(</span><span class="va">m</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">x</span> <span class="op">+</span> <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $x</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Big Integer ('bigz') :</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1180591620717411303424</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $`(+ x 1)`</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> Big Integer ('bigz') :</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1180591620717411303425</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-in"><span><span class="va">m</span><span class="op">$</span><span class="va">x</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> &lt;z3_expr Int&gt; 1180591620717411303424</span>

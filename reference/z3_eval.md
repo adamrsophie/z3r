@@ -12,11 +12,12 @@ z3_eval(model, x, completion = FALSE)
 
 - model:
 
-  A `z3_model`.
+  A `z3_model`. A list of expressions is evaluated in one native call,
+  which is faster than evaluating them one by one.
 
 - x:
 
-  A `z3_expr`, or an R scalar.
+  A `z3_expr`, an R scalar, or a list of these.
 
 - completion:
 
@@ -24,7 +25,7 @@ z3_eval(model, x, completion = FALSE)
 
 ## Value
 
-A `z3_expr`. Use
+A `z3_expr` (a list of them, with the names of `x`, for a list). Use
 [`z3_value()`](https://adamrsophie.github.io/z3r/reference/z3_value.md)
 to convert it to an R value.
 
@@ -53,4 +54,11 @@ z3_eval(m, x + y)
 #> <z3_expr Int> (+ 3 y)
 z3_eval(m, x + y, completion = TRUE)
 #> <z3_expr Int> 3
+z3_eval(m, list(a = x, b = x * 2))
+#> $a
+#> <z3_expr Int> 3
+#> 
+#> $b
+#> <z3_expr Int> 6
+#> 
 ```

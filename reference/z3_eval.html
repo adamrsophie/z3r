@@ -71,11 +71,13 @@
 
 
 <dl><dt id="arg-model">model<a class="anchor" aria-label="anchor" href="#arg-model"></a></dt>
-<dd><p>A <code>z3_model</code>.</p></dd>
+<dd><p>A <code>z3_model</code>.
+A list of expressions is evaluated in one native call, which is faster
+than evaluating them one by one.</p></dd>
 
 
 <dt id="arg-x">x<a class="anchor" aria-label="anchor" href="#arg-x"></a></dt>
-<dd><p>A <code>z3_expr</code>, or an R scalar.</p></dd>
+<dd><p>A <code>z3_expr</code>, an R scalar, or a list of these.</p></dd>
 
 
 <dt id="arg-completion">completion<a class="anchor" aria-label="anchor" href="#arg-completion"></a></dt>
@@ -84,7 +86,8 @@
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A <code>z3_expr</code>. Use <code><a href="z3_value.html">z3_value()</a></code> to convert it to an R value.</p>
+    <p>A <code>z3_expr</code> (a list of them, with the names of <code>x</code>, for a list).
+Use <code><a href="z3_value.html">z3_value()</a></code> to convert it to an R value.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -111,6 +114,13 @@ the model, so the result is always a value.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> &lt;z3_expr Int&gt; (+ 3 y)</span>
 <span class="r-in"><span><span class="fu">z3_eval</span><span class="op">(</span><span class="va">m</span>, <span class="va">x</span> <span class="op">+</span> <span class="va">y</span>, completion <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> &lt;z3_expr Int&gt; 3</span>
+<span class="r-in"><span><span class="fu">z3_eval</span><span class="op">(</span><span class="va">m</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>a <span class="op">=</span> <span class="va">x</span>, b <span class="op">=</span> <span class="va">x</span> <span class="op">*</span> <span class="fl">2</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $a</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;z3_expr Int&gt; 3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $b</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;z3_expr Int&gt; 6</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

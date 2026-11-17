@@ -7,7 +7,11 @@
 - `z3_model_values()` converts each value with
   [`z3_value()`](https://adamrsophie.github.io/z3r/reference/z3_value.md).
   Values that have no exact R representation (algebraic numbers, arrays,
-  values of uninterpreted sorts) are kept as `z3_expr` objects.
+  values of uninterpreted sorts) are kept as `z3_expr` objects. With
+  `vars` (a list of expressions), it returns the values of those
+  expressions instead, evaluated with completion so that every one is a
+  value; the names are those of `vars`, or their text. Evaluation and
+  conversion each take one native call.
 
 - `z3_model_functions()` returns the interpretations of uninterpreted
   functions: for each function, a list of `entries` (argument values and
@@ -20,7 +24,7 @@
 # S3 method for class 'z3_model'
 as.list(x, ...)
 
-z3_model_values(model)
+z3_model_values(model, vars = NULL)
 
 # S3 method for class 'z3_model'
 x[[name, ...]]
@@ -40,6 +44,10 @@ z3_model_functions(model)
 - ...:
 
   Unused.
+
+- vars:
+
+  Optional list of expressions (or one expression) to evaluate.
 
 - name:
 
@@ -82,6 +90,15 @@ z3_model_values(m)
 #> $x
 #> Big Integer ('bigz') :
 #> [1] 1180591620717411303424
+#> 
+z3_model_values(m, list(x, x + 1))
+#> $x
+#> Big Integer ('bigz') :
+#> [1] 1180591620717411303424
+#> 
+#> $`(+ x 1)`
+#> Big Integer ('bigz') :
+#> [1] 1180591620717411303425
 #> 
 m$x
 #> <z3_expr Int> 1180591620717411303424

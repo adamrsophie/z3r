@@ -121,6 +121,9 @@
 - [`z3_solve()`](https://adamrsophie.github.io/z3r/reference/z3_solve.md)
   [`z3_prove()`](https://adamrsophie.github.io/z3r/reference/z3_solve.md)
   : Solve or prove in one call
+- [`z3_check_result()`](https://adamrsophie.github.io/z3r/reference/z3_check_result.md)
+  [`z3_build_info()`](https://adamrsophie.github.io/z3r/reference/z3_check_result.md)
+  : Check and record the result
 - [`z3_interrupt()`](https://adamrsophie.github.io/z3r/reference/z3_interrupt.md)
   : Interrupt a running check
 - [`z3_model()`](https://adamrsophie.github.io/z3r/reference/z3_model.md)
